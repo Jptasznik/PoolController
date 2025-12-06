@@ -131,5 +131,5 @@ float celsiusToFahrenheit(float celsius) {
 }
 
 bool isValidTemperature(float temp) {
-  return (temp > INVALID_TEMP_LOW && temp < INVALID_TEMP_HIGH);
+  return (temp >= INVALID_TEMP_LOW && temp <= INVALID_TEMP_HIGH);
 }

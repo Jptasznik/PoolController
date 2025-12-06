@@ -3,6 +3,7 @@
 #include "SettingsManager.h"
 #include "LCDDisplay.h"
 #include "SinricIntegration.h"
+#include "PumpControl.h"
 #include <time.h>
 
 // Forward declarations for Blynk sync functions (implemented in PoolController3.ino)
@@ -198,14 +199,13 @@ void startCooldown() {
     state.inCooldown = true;
     state.cooldownStartTime = millis();
     state.pumpStateBeforeCooldown = state.pumpState;
-    
+
     // Ensure pump runs at minimum LOW speed
     if (state.pumpState == PUMP_OFF) {
       state.pumpState = PUMP_LOW;
-      digitalWrite(PUMP_ENABLE_PIN, HIGH);
-      digitalWrite(PUMP_SPEED_PIN, LOW);
+      applyPumpState();  // Use centralized pump control
     }
-    
+
     updateLCDDisplay();
   }
 }

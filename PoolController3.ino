@@ -35,6 +35,7 @@
 #include <WiFiProv.h>
 #include <BlynkSimpleEsp32.h>
 #include <time.h>
+#include <esp_task_wdt.h>
 
 // ============================================
 // GLOBAL OBJECTS
@@ -248,7 +249,13 @@ void setup() {
   Serial.println("\n\n========================================");
   Serial.println("ESP32 Pool Controller");
   Serial.println("========================================\n");
-  
+
+  // Initialize watchdog timer (30 second timeout)
+  Serial.println("Initializing watchdog timer...");
+  esp_task_wdt_init(30, true);  // 30 second timeout, panic on timeout
+  esp_task_wdt_add(NULL);        // Add current thread to watchdog
+  Serial.println("Watchdog timer enabled (30s timeout)");
+
   // Initialize system state
   initSystemState();
   
@@ -331,8 +338,11 @@ void setup() {
 // ============================================
 
 void loop() {
+  // Reset watchdog timer at start of every loop iteration
+  esp_task_wdt_reset();
+
   unsigned long now = millis();
-  
+
   // Run Blynk
   if (state.wifiConnected) {
     Blynk.run();

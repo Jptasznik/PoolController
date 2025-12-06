@@ -93,34 +93,40 @@ bool shouldHeaterBeOn() {
   if (!state.heaterEnabled) {
     return false;
   }
-  
+
   // 2. Emergency shutdown not active
   if (state.emergencyShutdown) {
     return false;
   }
-  
+
   // 3. Within operating hours
   if (!isWithinOperatingHours()) {
     return false;
   }
-  
+
   // 4. Valid temperature reading
   if (!state.inletTempValid) {
     Serial.println("Heater OFF: Invalid temperature sensor");
     return false;
   }
-  
+
   // 5. Temperature check
   if (state.inletTemp < INVALID_TEMP_LOW || state.inletTemp > INVALID_TEMP_HIGH) {
     Serial.println("Heater OFF: Temperature out of safe range");
     return false;
   }
-  
-  // 6. Inlet temperature < Target temperature
+
+  // 6. Runtime limit check
+  if (isRuntimeLimitExceeded()) {
+    Serial.println("Heater OFF: Daily runtime limit exceeded");
+    return false;
+  }
+
+  // 7. Inlet temperature < Target temperature
   if (state.inletTemp >= state.targetTemp) {
     return false;  // Target reached or exceeded
   }
-  
+
   // All conditions met - heater should be ON
   return true;
 }

@@ -65,67 +65,51 @@ void scanButtons() {
   
   // Read all button states
   uint8_t gpio = mcp.readGPIO();
-  
-  // Track if any button is currently pressed
-  int pressedCount = 0;
-  int pressedButton = -1;
-  
+
   // Check each button
   for (int i = 0; i <= 4; i++) {
     bool currentState = !(gpio & (1 << i));  // Invert because pull-up (LOW = pressed)
-    
+
     // Debouncing
     if (currentState != buttons[i].lastState) {
       buttons[i].lastDebounceTime = now;
     }
-    
+
     if ((now - buttons[i].lastDebounceTime) > BUTTON_DEBOUNCE_TIME) {
       // Button state is stable
       if (currentState && !buttons[i].pressed) {
-        // Button just pressed
+        // Button just pressed - record press start time
         buttons[i].pressed = true;
         buttons[i].pressStartTime = now;
-        pressedButton = i;
       } else if (!currentState && buttons[i].pressed) {
-        // Button just released
+        // Button just released - handle short press
+        unsigned long pressDuration = now - buttons[i].pressStartTime;
         buttons[i].pressed = false;
-      }
-    }
-    
-    buttons[i].lastState = currentState;
-    
-    if (buttons[i].pressed) {
-      pressedCount++;
-    }
-  }
-  
-  // Only process single button presses
-  if (pressedCount == 1 && pressedButton >= 0) {
-    // Check for short press (handle on release)
-    if (!buttons[pressedButton].pressed) {
-      unsigned long pressDuration = now - buttons[pressedButton].pressStartTime;
-      
-      // Short press actions (not hold)
-      if (pressDuration < 1000) {
-        switch (pressedButton) {
-          case BUTTON_HEATER:
-            handleHeaterButton();
-            break;
-          case BUTTON_PUMP:
-            handlePumpButton();
-            break;
-          case BUTTON_TEMP_UP:
-            handleTempUpButton();
-            break;
-          case BUTTON_TEMP_DOWN:
-            handleTempDownButton();
-            break;
-          case BUTTON_RESET:
-            // Don't handle short press for reset
-            break;
+
+        // Handle short press (not a hold action)
+        if (pressDuration < 1000) {
+          switch (i) {
+            case BUTTON_HEATER:
+              handleHeaterButton();
+              break;
+            case BUTTON_PUMP:
+              handlePumpButton();
+              break;
+            case BUTTON_TEMP_UP:
+              handleTempUpButton();
+              break;
+            case BUTTON_TEMP_DOWN:
+              handleTempDownButton();
+              break;
+            case BUTTON_RESET:
+              // Don't handle short press for reset (only hold action)
+              break;
+          }
         }
       }
     }
+
+    buttons[i].lastState = currentState;
   }
   
   // Check for hold actions
