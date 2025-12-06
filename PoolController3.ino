@@ -252,8 +252,13 @@ void setup() {
 
   // Initialize watchdog timer (30 second timeout)
   Serial.println("Initializing watchdog timer...");
-  esp_task_wdt_init(30, true);  // 30 second timeout, panic on timeout
-  esp_task_wdt_add(NULL);        // Add current thread to watchdog
+  esp_task_wdt_config_t wdt_config = {
+    .timeout_ms = 30000,      // 30 seconds in milliseconds
+    .idle_task_mask = 0,       // Don't watch idle tasks
+    .trigger_panic = true      // Panic on timeout
+  };
+  esp_task_wdt_init(&wdt_config);  // Initialize with config struct
+  esp_task_wdt_add(NULL);          // Add current thread to watchdog
   Serial.println("Watchdog timer enabled (30s timeout)");
 
   // Initialize system state
