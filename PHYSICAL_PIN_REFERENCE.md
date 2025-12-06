@@ -12,8 +12,8 @@
 | **10** | **26** | Pump Enable | Relay Module IN1 |
 | **13** | **12** | Heater Control | Relay/SSR |
 | **15** | **13** | Pump Speed | Relay Module IN2 |
-| **22** | **22** | I2C SCL | LCD + MCP23008 |
-| **25** | **21** | I2C SDA | LCD + MCP23008 |
+| **36** | **22** | I2C SCL | LCD + MCP23008 |
+| **33** | **21** | I2C SDA | LCD + MCP23008 |
 
 ### Power Pins
 
@@ -21,7 +21,7 @@
 |--------------|----------|-------|
 | **1** | 3.3V Output | Max 600mA, powers ESP32 and peripherals |
 | **19** | 5V Input (Vin) | From USB or external supply |
-| **14, 20, 26** | GND | Ground connections |
+| **14, 38, 32** | GND | Ground connections |
 | **2** | EN (Enable/Reset) | Pull LOW to reset |
 
 ## Complete Physical to GPIO Mapping
@@ -54,25 +54,25 @@
 
 | Physical | GPIO/Name | Function | This Project |
 |----------|-----------|----------|--------------|
-| 20 | GND | Ground | Ground |
-| 21 | GPIO 23 | I/O, VSPI MOSI | Available |
-| **22** | **GPIO 22** | **I/O** | **✓ I2C SCL** |
-| 23 | GPIO 1 (TX0) | UART0 TX, Serial | Serial Debug |
-| 24 | GPIO 3 (RX0) | UART0 RX, Serial | Serial Debug |
-| **25** | **GPIO 21** | **I/O** | **✓ I2C SDA** |
-| 26 | GND | Ground | Ground |
-| 27 | GPIO 19 | I/O, VSPI MISO | Available |
-| 28 | GPIO 18 | I/O, VSPI SCK | Available |
+| 38 | GND | Ground | Ground |
+| 37 | GPIO 23 | I/O, VSPI MOSI | Available |
+| **36** | **GPIO 22** | **I/O** | **✓ I2C SCL** |
+| 35 | GPIO 1 (TX0) | UART0 TX, Serial | Serial Debug |
+| 34 | GPIO 3 (RX0) | UART0 RX, Serial | Serial Debug |
+| **33** | **GPIO 21** | **I/O** | **✓ I2C SDA** |
+| 32 | GND | Ground | Ground |
+| 31 | GPIO 19 | I/O, VSPI MISO | Available |
+| 30 | GPIO 18 | I/O, VSPI SCK | Available |
 | 29 | GPIO 5 | I/O, VSPI SS | Available |
-| 30 | GPIO 17 | I/O, UART2 TX | Available |
-| 31 | GPIO 16 | I/O, UART2 RX | Available |
-| 32 | GPIO 4 | I/O, ADC2_0, Touch | Available |
-| 33 | GPIO 0 | I/O, BOOT Button | Boot Control |
-| 34 | GPIO 2 | I/O, Onboard LED | LED/Boot |
-| 35 | GPIO 15 | I/O, ADC2_3, Touch | Available |
-| 36 | GPIO 8 | Flash - DO NOT USE | Reserved |
-| 37 | GPIO 7 | Flash - DO NOT USE | Reserved |
-| 38 | GPIO 6 | Flash - DO NOT USE | Reserved |
+| 28 | GPIO 17 | I/O, UART2 TX | Available |
+| 27 | GPIO 16 | I/O, UART2 RX | Available |
+| 26 | GPIO 4 | I/O, ADC2_0, Touch | Available |
+| 25 | GPIO 0 | I/O, BOOT Button | Boot Control |
+| 24 | GPIO 2 | I/O, Onboard LED | LED/Boot |
+| 23 | GPIO 15 | I/O, ADC2_3, Touch | Available |
+| 22 | GPIO 8 | Flash - DO NOT USE | Reserved |
+| 21 | GPIO 7 | Flash - DO NOT USE | Reserved |
+| 20 | GPIO 6 | Flash - DO NOT USE | Reserved |
 
 ## Pin Categories
 
@@ -84,14 +84,14 @@ Pin 8  (GPIO 33) → Ambient Temperature Sensor
 ```
 **Wiring each sensor:**
 - Red (VCC) → Pin 1 (3.3V)
-- Black (GND) → Pin 14, 20, or 26 (GND)
+- Black (GND) → Pin 14, 38, or 32 (GND)
 - Yellow (Data) → Pin 6, 7, or 8 respectively
 - 4.7kΩ resistor between Yellow and Red
 
 ### I2C Bus (Shared)
 ```
-Pin 25 (GPIO 21) → SDA (Data)
-Pin 22 (GPIO 22) → SCL (Clock)
+Pin 33 (GPIO 21) → SDA (Data)
+Pin 36 (GPIO 22) → SCL (Clock)
 ```
 **Connected devices:**
 - LCD Display (0x27 or 0x3F)
@@ -108,7 +108,7 @@ Pin 13 (GPIO 12) → Heater Relay/SSR IN
 ```
 Pin 1  (3.3V)    → All DS18B20 sensors, I2C devices
 Pin 19 (5V)      → Relay modules
-Pin 14, 20, 26   → Common GND for all devices
+Pin 14, 38, 32   → Common GND for all devices
 ```
 
 ## Available Expansion Pins
@@ -150,7 +150,7 @@ Pin 16-18, 36-38 - Flash memory, NEVER USE
 
 ### Temperature Sensors (DS18B20 Standard)
 - **Red** → VCC (Pin 1 = 3.3V)
-- **Black** → GND (Pin 14, 20, or 26)
+- **Black** → GND (Pin 14, 38, or 32)
 - **Yellow** → Data (Pin 6, 7, or 8)
 
 ### Relay Modules (Typical)
@@ -160,9 +160,9 @@ Pin 16-18, 36-38 - Flash memory, NEVER USE
 
 ### I2C Devices (Common)
 - **Red** → VCC (Pin 1 or 19 depending on module)
-- **Black** → GND (Pin 14, 20, or 26)
-- **Blue/Green** → SDA (Pin 25)
-- **Yellow** → SCL (Pin 22)
+- **Black** → GND (Pin 14, 38, or 32)
+- **Blue** → SDA (Pin 33)
+- **Yellow** → SCL (Pin 36)
 
 ## Physical Pin to GPIO Quick Lookup
 
@@ -174,26 +174,26 @@ Pin 16-18, 36-38 - Flash memory, NEVER USE
 - **Pin 10** = GPIO 26 (Pump Enable)
 - **Pin 13** = GPIO 12 (Heater)
 - **Pin 15** = GPIO 13 (Pump Speed)
-- **Pin 22** = GPIO 22 (I2C SCL)
-- **Pin 25** = GPIO 21 (I2C SDA)
+- **Pin 36** = GPIO 22 (I2C SCL)
+- **Pin 33** = GPIO 21 (I2C SDA)
 
 **Power & Ground:**
 - **Pin 1** = 3.3V Out
 - **Pin 19** = 5V In
-- **Pin 14, 20, 26** = GND
+- **Pin 14, 38, 32** = GND
 
 ## Troubleshooting with Physical Pins
 
 ### "Sensor not detected"
-1. Check Pin 1 (3.3V) has voltage
-2. Check Pin 14, 20, 26 (GND) continuity
+1. Check Pin 1 (5V) has voltage
+2. Check Pin 14, 38, 32 (GND) continuity
 3. Verify data wire on correct pin (6, 7, or 8)
 4. Check 4.7kΩ resistor between data and Pin 1
 
 ### "I2C device not found"
-1. Verify Pin 25 (SDA) and Pin 22 (SCL) connected
+1. Verify Pin 33 (SDA) and Pin 36 (SCL) connected
 2. Check device powered from Pin 1 or Pin 19
-3. Check common ground (Pin 14, 20, or 26)
+3. Check common ground (Pin 14, 20, or 32)
 4. Scan I2C bus to find actual address
 
 ### "Relay not working"
@@ -213,9 +213,9 @@ Pin 16-18, 36-38 - Flash memory, NEVER USE
 
 ## Board Orientation
 
-When looking at the ESP32 board with the USB connector at the top:
+When looking at the ESP32 board with the USB connector at the bottom:
 - **LEFT side** = Pins 1-19 (top to bottom)
-- **RIGHT side** = Pins 20-38 (top to bottom)
+- **RIGHT side** = Pins 38-20 (top to bottom)
 
 Pin 1 (3.3V) is usually marked on the board.
 
