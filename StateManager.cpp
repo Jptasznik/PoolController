@@ -2,9 +2,13 @@
 #include "Config.h"
 #include "SettingsManager.h"
 #include "LCDDisplay.h"
-#include "BlynkIntegration.h"
 #include "SinricIntegration.h"
 #include <time.h>
+
+// Forward declarations for Blynk sync functions (implemented in PoolController3.ino)
+void syncHeaterToBlynk();
+void syncPumpToBlynk();
+void syncTargetTempToBlynk();
 
 // Global state instance
 SystemState state;

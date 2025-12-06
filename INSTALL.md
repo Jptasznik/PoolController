@@ -24,8 +24,6 @@ PoolController/
 ├── PumpControl.cpp
 ├── HeaterControl.h
 ├── HeaterControl.cpp
-├── BlynkIntegration.h
-├── BlynkIntegration.cpp
 ├── SinricIntegration.h
 └── SinricIntegration.cpp
 ```
