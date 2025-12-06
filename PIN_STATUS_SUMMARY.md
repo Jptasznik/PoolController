@@ -105,10 +105,10 @@ Pin 22 / GPIO 8    Pin 16 / GPIO 9
 ### Digital Outputs (5 pins used)
 ```
 Pin 13  GPIO 12  ✓  Heater relay control
-Pin 15  GPIO 13  ✓  Pump speed relay  
+Pin 15  GPIO 13  ✓  Pump speed relay
 Pin 10  GPIO 26  ✓  Pump enable relay
-Pin 25  GPIO 21  ✓  I2C SDA (LCD + MCP23008)
-Pin 22  GPIO 22  ✓  I2C SCL (LCD + MCP23008)
+Pin 33  GPIO 21  ✓  I2C SDA (LCD + MCP23008)
+Pin 36  GPIO 22  ✓  I2C SCL (LCD + MCP23008)
 ```
 
 ### Temperature Sensors (3 pins used)
@@ -122,19 +122,19 @@ Pin 8   GPIO 33  ✓  DS18B20 - Ambient/outdoor temperature
 
 #### Best Choices (No restrictions)
 ```
-Pin 31 / GPIO 16  ○  Free, UART2 RX
-Pin 30 / GPIO 17  ○  Free, UART2 TX
-Pin 28 / GPIO 18  ○  Free, VSPI SCK
-Pin 27 / GPIO 19  ○  Free, VSPI MISO
-Pin 21 / GPIO 23  ○  Free, VSPI MOSI
+Pin 27 / GPIO 16  ○  Free, UART2 RX
+Pin 28 / GPIO 17  ○  Free, UART2 TX
+Pin 30 / GPIO 18  ○  Free, VSPI SCK
+Pin 31 / GPIO 19  ○  Free, VSPI MISO
+Pin 37 / GPIO 23  ○  Free, VSPI MOSI
 ```
 
 #### Good Choices (Minor notes)
 ```
-Pin 32 / GPIO 4   ○  Free, ADC2_0 (WiFi disables ADC2)
+Pin 26 / GPIO 4   ○  Free, ADC2_0 (WiFi disables ADC2)
 Pin 29 / GPIO 5   ○  Free, VSPI SS
 Pin 12 / GPIO 14  ○  Free, ADC2_6, Touch
-Pin 35 / GPIO 15  ○  Free, ADC2_3, Touch
+Pin 23 / GPIO 15  ○  Free, ADC2_3, Touch
 Pin  9 / GPIO 25  ○  Free, ADC2_8, DAC1
 Pin 11 / GPIO 27  ○  Free, ADC2_7, Touch
 ```
@@ -169,9 +169,9 @@ Used (Digital only, ADC not usable):
   Pin 10 / GPIO 26  ✓  ADC2_9 (Pump enable)
 
 Available (Digital only):
-  Pin 32 / GPIO 4   ○  ADC2_0
+  Pin 26 / GPIO 4   ○  ADC2_0
   Pin 12 / GPIO 14  ○  ADC2_6
-  Pin 35 / GPIO 15  ○  ADC2_3
+  Pin 23 / GPIO 15  ○  ADC2_3
   Pin  9 / GPIO 25  ○  ADC2_8
   Pin 11 / GPIO 27  ○  ADC2_7
 ```
@@ -182,9 +182,9 @@ Available (Digital only):
 
 ### For Next Digital Output (Relay/LED):
 ```
-1st choice: Pin 31/GPIO 16 or Pin 30/GPIO 17 (UART2, clean)
-2nd choice: Pin 28/GPIO 18, Pin 27/GPIO 19, or Pin 21/GPIO 23 (VSPI, clean)
-3rd choice: Pin 32/GPIO 4 or Pin 29/GPIO 5 (safe, widely used)
+1st choice: Pin 27/GPIO 16 or Pin 28/GPIO 17 (UART2, clean)
+2nd choice: Pin 30/GPIO 18, Pin 31/GPIO 19, or Pin 37/GPIO 23 (VSPI, clean)
+3rd choice: Pin 26/GPIO 4 or Pin 29/GPIO 5 (safe, widely used)
 ```
 
 ### For Next Analog Input (with WiFi):
@@ -197,8 +197,8 @@ Note: GPIO 32, 33, 35 already used for temp sensors
 
 ### For Next Temperature Sensor:
 ```
-1st choice: Pin 32/GPIO 4 (clean, no restrictions)
-2nd choice: Pin 31/GPIO 16 or Pin 30/GPIO 17 (clean UART2 pins)
+1st choice: Pin 26/GPIO 4 (clean, no restrictions)
+2nd choice: Pin 27/GPIO 16 or Pin 28/GPIO 17 (clean UART2 pins)
 3rd choice: Pin  9/GPIO 25 (DAC1, clean)
 ```
 
@@ -232,15 +232,15 @@ TDS Sensor (analog):       Pin 4 / GPIO 39 (ADC1_3, input-only)
 
 ### Additional Controls
 ```
-Filter Pump Relay:         Pin 31 / GPIO 16 (clean)
-Pool Light Relay:          Pin 30 / GPIO 17 (clean)
-Chlorinator Control:       Pin 28 / GPIO 18 (clean)
-Valve Control:             Pin 27 / GPIO 19 (clean)
+Filter Pump Relay:         Pin 27 / GPIO 16 (clean)
+Pool Light Relay:          Pin 28 / GPIO 17 (clean)
+Chlorinator Control:       Pin 30 / GPIO 18 (clean)
+Valve Control:             Pin 31 / GPIO 19 (clean)
 ```
 
 ### Safety/Monitoring
 ```
-Water Level Switch:        Pin 32 / GPIO 4 (digital input)
+Water Level Switch:        Pin 26 / GPIO 4 (digital input)
 Flow Meter (pulse):        Pin 29 / GPIO 5 (interrupt capable)
 Pressure Sensor (analog):  Pin 3  / GPIO 36 (ADC1_0, input-only)
 Leak Detector:             Pin 12 / GPIO 14 (digital input)
@@ -248,11 +248,11 @@ Leak Detector:             Pin 12 / GPIO 14 (digital input)
 
 ### User Interface
 ```
-Status LED (WiFi):         Pin 32 / GPIO 4
-Status LED (Heater):       Pin 29 / GPIO 5  
+Status LED (WiFi):         Pin 26 / GPIO 4
+Status LED (Heater):       Pin 29 / GPIO 5
 Status LED (Error):        Pin 12 / GPIO 14
-Buzzer/Alarm:              Pin 35 / GPIO 15
-External Display (SPI):    Pin 28,27,21,29 / GPIO 18,19,23,5 (VSPI)
+Buzzer/Alarm:              Pin 23 / GPIO 15
+External Display (SPI):    Pin 30,31,37,29 / GPIO 18,19,23,5 (VSPI)
 ```
 
 ## Quick Decision Chart
@@ -260,35 +260,35 @@ External Display (SPI):    Pin 28,27,21,29 / GPIO 18,19,23,5 (VSPI)
 ```
 Need to add a...          Use this pin...               Notes
 ──────────────────────────────────────────────────────────────────
-Digital Output            Pin 31/GPIO 16, Pin 30/GPIO 17    Cleanest
-(relay, LED, etc.)        Pin 28/GPIO 18, Pin 27/GPIO 19    Also clean
-                          Pin 21/GPIO 23                     Also clean
-                          Pin 32/GPIO 4, Pin 29/GPIO 5       Safe
+Digital Output            Pin 27/GPIO 16, Pin 28/GPIO 17    Cleanest
+(relay, LED, etc.)        Pin 30/GPIO 18, Pin 31/GPIO 19    Also clean
+                          Pin 37/GPIO 23                     Also clean
+                          Pin 26/GPIO 4, Pin 29/GPIO 5       Safe
 
-Digital Input             Pin 31/GPIO 16, Pin 30/GPIO 17    With pull-up
+Digital Input             Pin 27/GPIO 16, Pin 28/GPIO 17    With pull-up
 (button, switch)          Pin 3/GPIO 36, Pin 4/GPIO 39      Need ext. pull-up
                           Pin 5/GPIO 34                      Need ext. pull-up
 
 Analog Input              Pin 3/GPIO 36, Pin 4/GPIO 39      Works with WiFi
 (with WiFi active)        Pin 5/GPIO 34                      Input-only
 
-Temperature Sensor        Pin 32/GPIO 4, Pin 31/GPIO 16     Any GPIO works
-(DS18B20, etc.)          Pin 30/GPIO 17, Pin 9/GPIO 25     Future options
+Temperature Sensor        Pin 26/GPIO 4, Pin 27/GPIO 16     Any GPIO works
+(DS18B20, etc.)          Pin 28/GPIO 17, Pin 9/GPIO 25     Future options
 
-I2C Device               Pin 25/GPIO 21, Pin 22/GPIO 22     Already configured
+I2C Device               Pin 33/GPIO 21, Pin 36/GPIO 22     Already configured
 (sensor, display)        (shared bus)                       127 addresses available
 
-SPI Device               Pin 28,27,21,29 / GPIO 18,19,23,5  VSPI bus
+SPI Device               Pin 30,31,37,29 / GPIO 18,19,23,5  VSPI bus
                          (SCK,MISO,MOSI,SS)                 Share or dedicate
 ```
 
 ## Final Recommendations
 
 ### 🟢 Top 5 Pins for General Expansion
-1. **Pin 31 / GPIO 16** - UART2 RX, no restrictions
-2. **Pin 30 / GPIO 17** - UART2 TX, no restrictions  
-3. **Pin 28 / GPIO 18** - VSPI SCK, no restrictions
-4. **Pin 32 / GPIO 4** - Clean, widely compatible
+1. **Pin 27 / GPIO 16** - UART2 RX, no restrictions
+2. **Pin 28 / GPIO 17** - UART2 TX, no restrictions
+3. **Pin 30 / GPIO 18** - VSPI SCK, no restrictions
+4. **Pin 26 / GPIO 4** - Clean, widely compatible
 5. **Pin 29 / GPIO 5** - VSPI SS, clean
 
 ### 🔵 For Analog Sensors (WiFi active)
@@ -298,10 +298,10 @@ SPI Device               Pin 28,27,21,29 / GPIO 18,19,23,5  VSPI bus
 Note: GPIO 32, 33, 35 already used for temperature sensors
 
 ### ⚠️ Avoid Unless Necessary
-- Pin 33 / GPIO 0, Pin 34 / GPIO 2 (boot issues)
+- Pin 25 / GPIO 0, Pin 24 / GPIO 2 (boot issues)
 - Pin 13 / GPIO 12 (boot voltage, ✓ used for heater)
-- Pin 23 / GPIO 1, Pin 24 / GPIO 3 (lose serial debug)
-- Pin 16-18, 36-38 / GPIO 6-11 (flash, never use)
+- Pin 35 / GPIO 1, Pin 34 / GPIO 3 (lose serial debug)
+- Pin 16-18, 20-22 / GPIO 6-11 (flash, never use)
 
 ---
 
