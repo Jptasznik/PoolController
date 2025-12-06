@@ -254,25 +254,25 @@ GPIO 12 (Pin 13)    Result
 ┌─────────────────────────────────────────────────────────┐
 │                      ESP32-WROOM                        │
 │                                                         │
-│  3.3V ────┬──── DS18B20 #1 VCC (w/ 4.7kΩ to DATA)    │
-│           ├──── DS18B20 #2 VCC (w/ 4.7kΩ to DATA)    │
-│           ├──── MCP23008 VDD                           │
-│           └──── (optional) LCD VCC                     │
+│  3.3V ────┬──── DS18B20 #1 VCC (w/ 4.7kΩ to DATA)       │
+│           ├──── DS18B20 #2 VCC (w/ 4.7kΩ to DATA)       │
+│           ├──── MCP23008 VDD                            │
+│           └──── (optional) LCD VCC                      │
 │                                                         │
-│  GND ─────┬──── All device grounds                     │
-│           ├──── All button commons                     │
-│           └──── Relay module GND                       │
+│  GND ─────┬──── All device grounds                      │
+│           ├──── All button commons                      │
+│           └──── Relay module GND                        │
 │                                                         │
-│  GPIO 21 (Pin 33) ─┴─ I2C SDA (LCD + MCP23008)       │
-│  GPIO 22 (Pin 36) ─┴─ I2C SCL (LCD + MCP23008)       │
+│  GPIO 21 (Pin 33) ─┴─ I2C SDA (LCD + MCP23008)          │
+│  GPIO 22 (Pin 36) ─┴─ I2C SCL (LCD + MCP23008)          │
 │                                                         │
-│  GPIO 35 (Pin 6)  ──── DS18B20 #1 DATA (inlet temp)   │
-│  GPIO 32 (Pin 7)  ──── DS18B20 #2 DATA (heater temp)  │
-│  GPIO 33 (Pin 8)  ──── DS18B20 #3 DATA (ambient temp) │
+│  GPIO 35 (Pin 6)  ──── DS18B20 #1 DATA (inlet temp)     │
+│  GPIO 32 (Pin 7)  ──── DS18B20 #2 DATA (heater temp)    │
+│  GPIO 33 (Pin 8)  ──── DS18B20 #3 DATA (ambient temp)   │
 │                                                         │
-│  GPIO 26 (Pin 10) ──── Pump Enable Relay IN            │
-│  GPIO 13 (Pin 15) ──── Pump Speed Relay IN             │
-│  GPIO 12 (Pin 13) ──── Heater Relay/SSR IN             │
+│  GPIO 26 (Pin 10) ──── Pump Enable Relay IN             │
+│  GPIO 13 (Pin 15) ──── Pump Speed Relay IN              │
+│  GPIO 12 (Pin 13) ──── Heater Relay/SSR IN              │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
          │                    │                   │
