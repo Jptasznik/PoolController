@@ -99,30 +99,40 @@ bool shouldHeaterBeOn() {
     return false;
   }
 
-  // 3. Within operating hours
+  // 3. SAFETY: Check heater outlet temperature for overheat
+  if (state.heaterTempValid && state.heaterTemp > MAX_HEATER_TEMP) {
+    Serial.println("!!! HEATER OVERHEAT DETECTED !!!");
+    Serial.print("Heater temperature: ");
+    Serial.print(state.heaterTemp, 1);
+    Serial.println("°F");
+    triggerEmergencyShutdown();
+    return false;
+  }
+
+  // 4. Within operating hours
   if (!isWithinOperatingHours()) {
     return false;
   }
 
-  // 4. Valid temperature reading
+  // 5. Valid temperature reading
   if (!state.inletTempValid) {
     Serial.println("Heater OFF: Invalid temperature sensor");
     return false;
   }
 
-  // 5. Temperature check
+  // 6. Temperature check
   if (state.inletTemp < INVALID_TEMP_LOW || state.inletTemp > INVALID_TEMP_HIGH) {
     Serial.println("Heater OFF: Temperature out of safe range");
     return false;
   }
 
-  // 6. Runtime limit check
+  // 7. Runtime limit check
   if (isRuntimeLimitExceeded()) {
     Serial.println("Heater OFF: Daily runtime limit exceeded");
     return false;
   }
 
-  // 7. Inlet temperature < Target temperature
+  // 8. Inlet temperature < Target temperature
   if (state.inletTemp >= state.targetTemp) {
     return false;  // Target reached or exceeded
   }

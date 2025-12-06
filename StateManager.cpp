@@ -222,14 +222,22 @@ void endCooldown() {
 
 bool isCooldownComplete() {
   if (!state.inCooldown) return true;
-  
-  unsigned long elapsed = millis() - state.cooldownStartTime;
-  
+
+  unsigned long currentTime = millis();
+  unsigned long elapsed = currentTime - state.cooldownStartTime;
+
+  // Sanity check: if elapsed time is impossibly large (> 1 hour),
+  // assume overflow or error and end cooldown safely
+  if (elapsed > COOLDOWN_SANITY_CHECK) {
+    Serial.println("WARNING: Cooldown timer anomaly detected (possible millis overflow), ending cooldown");
+    return true;
+  }
+
   // Check if 15 minutes elapsed
   if (elapsed >= COOLDOWN_DURATION) {
     return true;
   }
-  
+
   // Check if temperatures equalized (within 2°F)
   if (state.inletTempValid && state.heaterTempValid) {
     float tempDiff = abs(state.heaterTemp - state.inletTemp);
@@ -237,7 +245,7 @@ bool isCooldownComplete() {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -309,9 +317,9 @@ bool canPumpTurnOff() {
   return true;
 }
 
-String getPumpStateString() {
+const char* getPumpStateString() {
   if (state.inCooldown) return "COOLDOWN";
-  
+
   switch (state.pumpState) {
     case PUMP_OFF: return "OFF";
     case PUMP_LOW: return "LOW";
@@ -320,7 +328,7 @@ String getPumpStateString() {
   }
 }
 
-String getHeaterStatusString() {
+const char* getHeaterStatusString() {
   switch (state.heaterStatus) {
     case HEATER_OFF: return "OFF";
     case HEATER_ENABLED: return "ENABLED";

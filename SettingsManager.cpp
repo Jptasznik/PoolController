@@ -9,7 +9,7 @@ Preferences preferences;
 // ============================================
 
 void initSettings() {
-  preferences.begin("pool-ctrl", false);  // RW mode
+  // Settings manager ready - preferences opened/closed per transaction
   Serial.println("Settings manager initialized");
 }
 
@@ -19,14 +19,14 @@ void initSettings() {
 
 void loadAllSettings() {
   Serial.println("Loading settings from flash...");
-  
+
   state.targetTemp = loadTargetTemp();
   state.heaterEnabled = loadHeaterEnabled();
   state.pumpState = loadPumpState();
   state.maxRuntimeHours = loadMaxRuntimeHours();
   state.heaterStartHour = loadHeaterStartHour();
   state.heaterEndHour = loadHeaterEndHour();
-  
+
   Serial.println("Settings loaded:");
   Serial.print("  Target temp: ");
   Serial.println(state.targetTemp, 1);
@@ -47,37 +47,49 @@ void loadAllSettings() {
 // ============================================
 
 void saveTargetTemp(float temp) {
+  preferences.begin("pool", false);
   preferences.putFloat("targetTemp", temp);
+  preferences.end();
   Serial.print("Saved target temp: ");
   Serial.println(temp, 1);
 }
 
 void saveHeaterEnabled(bool enabled) {
+  preferences.begin("pool", false);
   preferences.putBool("heaterEn", enabled);
+  preferences.end();
   Serial.print("Saved heater enabled: ");
   Serial.println(enabled);
 }
 
 void savePumpState(PumpState state) {
+  preferences.begin("pool", false);
   preferences.putUChar("pumpState", (uint8_t)state);
+  preferences.end();
   Serial.print("Saved pump state: ");
   Serial.println((int)state);
 }
 
 void saveMaxRuntimeHours(float hours) {
+  preferences.begin("pool", false);
   preferences.putFloat("maxRuntime", hours);
+  preferences.end();
   Serial.print("Saved max runtime: ");
   Serial.println(hours, 1);
 }
 
 void saveHeaterStartHour(int hour) {
+  preferences.begin("pool", false);
   preferences.putInt("heatStart", hour);
+  preferences.end();
   Serial.print("Saved heater start hour: ");
   Serial.println(hour);
 }
 
 void saveHeaterEndHour(int hour) {
+  preferences.begin("pool", false);
   preferences.putInt("heatEnd", hour);
+  preferences.end();
   Serial.print("Saved heater end hour: ");
   Serial.println(hour);
 }
@@ -87,28 +99,45 @@ void saveHeaterEndHour(int hour) {
 // ============================================
 
 float loadTargetTemp() {
-  return preferences.getFloat("targetTemp", DEFAULT_TARGET_TEMP);
+  preferences.begin("pool", true);  // Read-only
+  float value = preferences.getFloat("targetTemp", DEFAULT_TARGET_TEMP);
+  preferences.end();
+  return value;
 }
 
 bool loadHeaterEnabled() {
-  return preferences.getBool("heaterEn", false);
+  preferences.begin("pool", true);  // Read-only
+  bool value = preferences.getBool("heaterEn", false);
+  preferences.end();
+  return value;
 }
 
 PumpState loadPumpState() {
+  preferences.begin("pool", true);  // Read-only
   uint8_t val = preferences.getUChar("pumpState", (uint8_t)PUMP_OFF);
+  preferences.end();
   return (PumpState)val;
 }
 
 float loadMaxRuntimeHours() {
-  return preferences.getFloat("maxRuntime", DEFAULT_MAX_RUNTIME_HOURS);
+  preferences.begin("pool", true);  // Read-only
+  float value = preferences.getFloat("maxRuntime", DEFAULT_MAX_RUNTIME_HOURS);
+  preferences.end();
+  return value;
 }
 
 int loadHeaterStartHour() {
-  return preferences.getInt("heatStart", DEFAULT_HEATER_START_HOUR);
+  preferences.begin("pool", true);  // Read-only
+  int value = preferences.getInt("heatStart", DEFAULT_HEATER_START_HOUR);
+  preferences.end();
+  return value;
 }
 
 int loadHeaterEndHour() {
-  return preferences.getInt("heatEnd", DEFAULT_HEATER_END_HOUR);
+  preferences.begin("pool", true);  // Read-only
+  int value = preferences.getInt("heatEnd", DEFAULT_HEATER_END_HOUR);
+  preferences.end();
+  return value;
 }
 
 // ============================================
@@ -117,9 +146,11 @@ int loadHeaterEndHour() {
 
 void factoryResetSettings() {
   Serial.println("Performing factory reset...");
-  
+
+  preferences.begin("pool", false);
   preferences.clear();  // Clear all preferences
-  
+  preferences.end();
+
   // Reset to defaults
   state.targetTemp = DEFAULT_TARGET_TEMP;
   state.heaterEnabled = false;
@@ -127,6 +158,6 @@ void factoryResetSettings() {
   state.maxRuntimeHours = DEFAULT_MAX_RUNTIME_HOURS;
   state.heaterStartHour = DEFAULT_HEATER_START_HOUR;
   state.heaterEndHour = DEFAULT_HEATER_END_HOUR;
-  
+
   Serial.println("Factory reset complete");
 }

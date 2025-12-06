@@ -87,7 +87,7 @@ void scanButtons() {
         buttons[i].pressed = false;
 
         // Handle short press (not a hold action)
-        if (pressDuration < 1000) {
+        if (pressDuration < BUTTON_SHORT_PRESS_TIME) {
           switch (i) {
             case BUTTON_HEATER:
               handleHeaterButton();

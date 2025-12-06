@@ -55,6 +55,9 @@
 #define EMERGENCY_SHUTDOWN_HOLD_TIME 10000  // 10 seconds
 #define FACTORY_RESET_HOLD_TIME 5000        // 5 seconds
 #define COOLDOWN_DURATION 900000            // 15 minutes
+#define COOLDOWN_SANITY_CHECK 3600000       // 1 hour - max cooldown before overflow check
+#define BUTTON_SHORT_PRESS_TIME 1000        // 1 second - max duration for short press
+#define WIFI_CONNECTION_TIMEOUT 10          // 10 seconds - reduced from 60
 
 // ============================================
 // TEMPERATURE LIMITS
@@ -64,6 +67,7 @@
 #define TEMP_DIFFERENTIAL_THRESHOLD 2.0  // °F for cooldown end
 #define INVALID_TEMP_LOW 32.0
 #define INVALID_TEMP_HIGH 104.0
+#define MAX_HEATER_TEMP 110.0  // °F - emergency overheat cutoff
 
 // ============================================
 // BLYNK CONFIGURATION

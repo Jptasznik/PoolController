@@ -295,12 +295,12 @@ void setup() {
   // Wait for WiFi
   Serial.println("Waiting for WiFi connection...");
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 60) {
+  while (WiFi.status() != WL_CONNECTED && attempts < WIFI_CONNECTION_TIMEOUT) {
     delay(1000);
     Serial.print(".");
     attempts++;
   }
-  
+
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nWiFi connected!");
     state.wifiConnected = true;
@@ -323,7 +323,9 @@ void setup() {
       syncTargetTempToSinric();
     });
   } else {
-    Serial.println("\nWiFi connection failed - running in offline mode");
+    Serial.println("\nWiFi not connected yet - continuing in offline mode");
+    Serial.println("WiFi will auto-connect in background when available");
+    Serial.println("Local controls (buttons, LCD) are fully functional");
   }
   
   updateLCDDisplay();
