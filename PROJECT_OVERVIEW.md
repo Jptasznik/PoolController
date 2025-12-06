@@ -5,7 +5,7 @@
 This is a complete, production-ready pool automation system with professional features including cloud connectivity, voice control, and comprehensive safety interlocks.
 
 **Key Features:**
-- ✓ Dual temperature monitoring (inlet + heater outlet)
+- ✓ Triple temperature monitoring (inlet + heater outlet + ambient)
 - ✓ Automatic heater control with thermostat logic
 - ✓ Three-speed pump control (OFF/LOW/HIGH)
 - ✓ Three SRD-03VDC-SL-C 3.3v logic Relays, powered from the 5v bus (Only 2 on at a time controlled by ICs)
@@ -82,8 +82,8 @@ PROJECT_OVERVIEW.md          This file
 - ESP32-WROOM 38-pin development board
 
 **Sensors:**
-- 2× DS18B20 waterproof temperature probes
-- 2× 4.7kΩ resistors (pull-ups)
+- 3× DS18B20 waterproof temperature probes (inlet, heater outlet, ambient)
+- 3× 4.7kΩ resistors (pull-ups)
 
 **Display:**
 - 20×4 character LCD with I2C interface (PCF8574)
