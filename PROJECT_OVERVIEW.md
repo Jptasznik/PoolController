@@ -8,8 +8,9 @@ This is a complete, production-ready pool automation system with professional fe
 - ✓ Dual temperature monitoring (inlet + heater outlet)
 - ✓ Automatic heater control with thermostat logic
 - ✓ Three-speed pump control (OFF/LOW/HIGH)
-- ✓ MCP23008 I2C button interface (clean, expandable)
-- ✓ 20x4 LCD display with real-time status
+- ✓ Three SRD-03VDC-SL-C 3.3v logic Relays, powered from the 5v bus (Only 2 on at a time controlled by ICs)
+- ✓ MCP23008 I2C button interface (clean, expandable), powered from the 5v bus 
+- ✓ 20x4 LCD display with real-time status, powered from the 5v bus 
 - ✓ Blynk cloud dashboard
 - ✓ Amazon Alexa voice control (via Sinric Pro)
 - ✓ WiFi provisioning via BLE
@@ -96,8 +97,9 @@ PROJECT_OVERVIEW.md          This file
 - 5× Momentary push buttons (SPST normally open)
 
 **Output Devices:**
-- 2-channel relay module (10A+ rated) for pump
-- 1-channel relay or SSR for heater
+- 1-channel SRD-03VDC-SL-C 3.3v logic relay module (10A+ rated) for High speed pump
+- 1-channel SRD-03VDC-SL-C 3.3v logic relay module (10A+ rated) for Low speed pump
+- 1-channel SRD-03VDC-SL-C 3.3v logic relay module for heater (switching on 24vac)
 
 **Connectivity:**
 - WiFi (built-in to ESP32)
