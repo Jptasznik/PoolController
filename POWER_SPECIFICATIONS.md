@@ -23,22 +23,22 @@ The ESP32 controller and all peripheral devices operate on **5V DC** power suppl
 | Component | Quantity | Current Draw (mA) | Power (W) | Notes |
 |-----------|----------|-------------------|-----------|-------|
 | **ESP32-WROOM Dev Board** | 1 | 80-260 | 0.4-1.3 | Active WiFi increases current |
-| **DS18B20 Temp Sensors** | 2 | 1.5 each | 0.015 total | Idle: 0.75 mA, Active: 1.5 mA |
+| **DS18B20 Temp Sensors** | 3 | 1.5 each | 0.0225 total | Inlet, heater, ambient sensors |
 | **20×4 LCD with I2C** | 1 | 60-80 | 0.3-0.4 | Backlight ON |
 | **MCP23008 GPIO Expander** | 1 | 1 | 0.005 | I2C interface |
 | **SN74LS08N AND Gate IC** | 1 | 4 | 0.02 | 2 gates used, hardware interlock |
 | **SN74LS04N Inverter IC** | 1 | 1.6 | 0.008 | 1 gate used, hardware interlock |
 | **SRD-03VDC-SL-C Relays** | 3 max | 90 each | 0.27 each | Coil energized |
-| **Pull-up Resistors (4.7kΩ)** | 2 | <1 | <0.01 | For 1-Wire sensors |
+| **Pull-up Resistors (4.7kΩ)** | 3 | <1 | <0.01 | For 1-Wire sensors |
 | **Push Buttons** | 5 | Negligible | ~0 | Passive components |
 
 ### Control System Power Summary
 
 | Operating Mode | Current Draw | Power Consumption |
 |----------------|--------------|-------------------|
-| **Idle** (WiFi connected, no relays) | ~148 mA | 0.74 W |
-| **Typical** (WiFi active, 2 relays ON) | ~428 mA | 2.14 W |
-| **Peak** (WiFi active, all 3 relays ON) | ~518 mA | 2.59 W |
+| **Idle** (WiFi connected, no relays) | ~150 mA | 0.75 W |
+| **Typical** (WiFi active, 2 relays ON) | ~430 mA | 2.15 W |
+| **Peak** (WiFi active, all 3 relays ON) | ~520 mA | 2.60 W |
 
 ### Recommended Control System Power Supply
 
@@ -110,11 +110,11 @@ The pool pump and heater operate on **120V AC** power and are controlled via rel
 
 | System | Power Draw |
 |--------|------------|
-| Controller (5V DC) | 0.74 W |
+| Controller (5V DC) | 0.75 W |
 | Pool Equipment (120V AC) | 0 W |
-| **Total** | **0.74 W** |
+| **Total** | **0.75 W** |
 
-**Current:** 148 mA @ 5V DC, 0 AMP @ 120V AC
+**Current:** 150 mA @ 5V DC, 0 AMP @ 120V AC
 
 ---
 
@@ -124,12 +124,12 @@ The pool pump and heater operate on **120V AC** power and are controlled via rel
 
 | System | Power Draw |
 |--------|------------|
-| Controller (5V DC) | 2.05 W |
+| Controller (5V DC) | 2.06 W |
 | Pump Low Speed (120V AC) | 264 W |
 | G7L Relay Coil (120V AC) | 2.0 W |
 | **Total** | **268 W** |
 
-**Current:** 410 mA @ 5V DC, 2.22 AMP @ 120V AC
+**Current:** 412 mA @ 5V DC, 2.22 AMP @ 120V AC
 
 ---
 
@@ -139,12 +139,12 @@ The pool pump and heater operate on **120V AC** power and are controlled via rel
 
 | System | Power Draw |
 |--------|------------|
-| Controller (5V DC) | 2.05 W |
+| Controller (5V DC) | 2.06 W |
 | Pump High Speed (120V AC) | 1,140 W |
 | G7L Relay Coil (120V AC) | 2.0 W |
 | **Total** | **1,144 W** |
 
-**Current:** 410 mA @ 5V DC, 9.52 AMP @ 120V AC
+**Current:** 412 mA @ 5V DC, 9.52 AMP @ 120V AC
 
 ---
 
@@ -154,13 +154,13 @@ The pool pump and heater operate on **120V AC** power and are controlled via rel
 
 | System | Power Draw |
 |--------|------------|
-| Controller (5V DC) | 2.59 W |
+| Controller (5V DC) | 2.60 W |
 | Pump High Speed (120V AC) | 1,140 W |
 | Heater Control (120V AC) | 480 W |
 | G7L Relay Coil x2 (120V AC) | 4.0 W |
 | **Total** | **1,627 W** |
 
-**Current:** 518 mA @ 5V DC, **13.53 AMP @ 120V AC**
+**Current:** 520 mA @ 5V DC, **13.53 AMP @ 120V AC**
 
 **This is the MAXIMUM simultaneous electrical load.**
 
@@ -304,12 +304,12 @@ Main Panel
 
 | Operating Scenario | 5V DC Current | 5V DC Power | 120V AC Current | 120V AC Power | Total Power |
 |-------------------|---------------|-------------|-----------------|---------------|-------------|
-| **Idle** | 148 mA | 0.74 W | 0 A | 0 W | 0.74 W |
-| **Controller Only** | 518 mA | 2.59 W | 0 A | 0 W | 2.59 W |
-| **Pump Low** | 410 mA | 2.05 W | 2.22 A | 266 W | 268 W |
-| **Pump High** | 410 mA | 2.05 W | 9.52 A | 1,142 W | 1,144 W |
-| **Heater Only** | 338 mA | 1.69 W | 4.02 A | 482 W | 484 W |
-| **PEAK (Pump+Heater)** | 518 mA | 2.59 W | 13.53 A | 1,624 W | 1,627 W |
+| **Idle** | 150 mA | 0.75 W | 0 A | 0 W | 0.75 W |
+| **Controller Only** | 520 mA | 2.60 W | 0 A | 0 W | 2.60 W |
+| **Pump Low** | 412 mA | 2.06 W | 2.22 A | 266 W | 268 W |
+| **Pump High** | 412 mA | 2.06 W | 9.52 A | 1,142 W | 1,144 W |
+| **Heater Only** | 340 mA | 1.70 W | 4.02 A | 482 W | 484 W |
+| **PEAK (Pump+Heater)** | 520 mA | 2.60 W | 13.53 A | 1,624 W | 1,627 W |
 
 ### Annual Energy Consumption Estimates
 
@@ -323,10 +323,10 @@ Based on typical pool operation patterns:
 
 | Component | Daily Usage | Daily Energy | Annual Energy | Annual Cost* |
 |-----------|-------------|--------------|---------------|--------------|
-| **Controller** | 24 hrs | 0.062 kWh | 22.6 kWh | $2.71 |
+| **Controller** | 24 hrs | 0.062 kWh | 22.7 kWh | $2.72 |
 | **Pump** | 8 hrs avg | 5.6 kWh | 1,008 kWh | $121.00 |
 | **Heater** | 2 hrs avg | 0.97 kWh | 175 kWh | $21.00 |
-| **Total** | - | 6.6 kWh | **1,206 kWh** | **$144.71** |
+| **Total** | - | 6.7 kWh | **1,207 kWh** | **$144.72** |
 
 *Based on $0.12/kWh average residential rate. Actual costs vary by location and rate structure.
 
@@ -519,7 +519,7 @@ Where:
 
 ## Summary
 
-**Control System:** 2.59W peak @ 5V (518 mA)
+**Control System:** 2.60W peak @ 5V (520 mA)
 **Pool Equipment:** 1,624W peak @ 120V (13.53 AMP)
 **Total Peak Power:** 1,627W
 

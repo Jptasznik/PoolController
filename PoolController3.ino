@@ -1,10 +1,10 @@
 /*
  * ESP32 Pool Controller System
- * 
+ *
  * Main controller file - coordinates all subsystems
- * 
+ *
  * Features:
- * - Dual DS18B20 temperature sensors
+ * - Triple DS18B20 temperature sensors (inlet, heater, ambient)
  * - MCP23008 I2C button interface
  * - 20x4 I2C LCD display
  * - Blynk cloud integration
@@ -12,7 +12,7 @@
  * - WiFi provisioning via BLE
  * - Comprehensive safety interlocks
  * - Persistent settings in flash
- * 
+ *
  * Hardware: ESP32-WROOM 38-pin development board
  */
 
