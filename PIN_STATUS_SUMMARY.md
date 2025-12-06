@@ -34,10 +34,10 @@ Pin#  GPIO    Status                 Pin#  GPIO    Status
 13    IO12   ✓  Heater Relay          26   IO4    ○  ADC2_0
 14    GND    [Ground]                 25   IO0    ⚠  BOOT button
 15    IO13   ✓  Pump Speed            24   IO2    ⚠  Onboard LED
-16    IO9    ❌ Flash SD2              23   IO15   ○  ADC2_3
-17    IO10   ❌ Flash SD3              22   IO8    ❌ Flash
-18    CMD    ❌ Flash                  21   IO7    ❌ Flash
-19    5V     [Power]                   20   IO6    ❌ Flash
+16    IO9    ❌ Flash SD2             23   IO15   ○  ADC2_3
+17    IO10   ❌ Flash SD3             22   IO8    ❌ Flash
+18    CMD    ❌ Flash                 21   IO7    ❌ Flash
+19    5V     [Power]                  20   IO6    ❌ Flash
 ```
 
 ## Color-Coded Pin Categories
