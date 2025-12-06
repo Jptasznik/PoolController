@@ -18,8 +18,9 @@ PoolController/
 ├── ButtonHandler.h/.cpp        # MCP23008 button interface
 ├── PumpControl.h/.cpp          # Pump control logic
 ├── HeaterControl.h/.cpp        # Heater control & safety
-├── BlynkIntegration.h/.cpp     # Blynk cloud connectivity
 └── SinricIntegration.h/.cpp    # Alexa/Sinric Pro integration
+
+**Note:** Blynk cloud connectivity is implemented directly in PoolController3.ino
 ```
 
 ## Quick Start Guide

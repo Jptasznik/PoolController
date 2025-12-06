@@ -29,7 +29,6 @@
 #include "ButtonHandler.h"
 #include "PumpControl.h"
 #include "HeaterControl.h"
-#include "BlynkIntegration.h"
 #include "SinricIntegration.h"
 
 #include <WiFi.h>
