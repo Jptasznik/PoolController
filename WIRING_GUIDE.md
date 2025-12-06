@@ -75,11 +75,11 @@ DS18B20 Sensor #3:
 **Pull-up resistors:** 4.7kΩ on SDA and SCL (usually built-in to modules)
 
 ```
-ESP32 GPIO 21 (Pin 25/SDA) ─────┬─────────── LCD SDA
+ESP32 GPIO 21 (Pin 33/SDA) ─────┬─────────── LCD SDA
                                 │
                                 └─────────── MCP23008 SDA (Pin 1)
-                         
-ESP32 GPIO 22 (Pin 22/SCL) ─────┬─────────── LCD SCL
+
+ESP32 GPIO 22 (Pin 36/SCL) ─────┬─────────── LCD SCL
                                 │
                                 └─────────── MCP23008 SCL (Pin 2)
 
@@ -101,9 +101,9 @@ ESP32 GND (Pin 14/20/26) ───────┬──────────�
 ```
 LCD Module Pins:
   VCC  ──── 5V (Pin 19) or 3.3V (Pin 1) - check module specs
-  GND  ──── ESP32 GND (Pin 14, 20, or 26)
-  SDA  ──── ESP32 GPIO 21 (Pin 25)
-  SCL  ──── ESP32 GPIO 22 (Pin 22)
+  GND  ──── ESP32 GND (Pin 14, 38, or 32)
+  SDA  ──── ESP32 GPIO 21 (Pin 33)
+  SCL  ──── ESP32 GPIO 22 (Pin 36)
   
 Backlight: Controlled by LCD module (always on)
 Contrast: Adjust potentiometer on back of module
@@ -263,8 +263,8 @@ GPIO 12 (Pin 13)    Result
 │           ├──── All button commons                     │
 │           └──── Relay module GND                       │
 │                                                         │
-│  GPIO 21 (Pin 25) ─┴─ I2C SDA (LCD + MCP23008)       │
-│  GPIO 22 (Pin 22) ─┴─ I2C SCL (LCD + MCP23008)       │
+│  GPIO 21 (Pin 33) ─┴─ I2C SDA (LCD + MCP23008)       │
+│  GPIO 22 (Pin 36) ─┴─ I2C SCL (LCD + MCP23008)       │
 │                                                         │
 │  GPIO 35 (Pin 6)  ──── DS18B20 #1 DATA (inlet temp)   │
 │  GPIO 32 (Pin 7)  ──── DS18B20 #2 DATA (heater temp)  │
@@ -481,10 +481,11 @@ When in doubt, consult a qualified professional.
 - [ ] I2C: GPIO 21 = SDA, GPIO 22 = SCL
 - [ ] LCD at address 0x27, powered, on I2C bus
 - [ ] MCP23008 at address 0x20, A0/A1/A2 = GND
-- [ ] DS18B20 inlet on GPIO 25 with 4.7kΩ pull-up
-- [ ] DS18B20 heater on GPIO 26 with 4.7kΩ pull-up
+- [ ] DS18B20 inlet on GPIO 35 with 4.7kΩ pull-up
+- [ ] DS18B20 heater on GPIO 32 with 4.7kΩ pull-up
+- [ ] DS18B20 ambient on GPIO 33 with 4.7kΩ pull-up
 - [ ] 5 buttons connected from GP0-GP4 to GND
-- [ ] GPIO 27 to pump enable relay
+- [ ] GPIO 26 to pump enable relay
 - [ ] GPIO 13 to pump speed relay
 - [ ] GPIO 12 to heater relay
 - [ ] All relay modules powered correctly

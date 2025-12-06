@@ -90,15 +90,15 @@ Install these 6 libraries:
 
 Temperature Sensors (DS18B20):
 - Red wire → 3.3V (Pin 1)
-- Black wire → GND (Pin 14, 20, or 26)
+- Black wire → GND (Pin 14, 32, or 38)
 - Yellow wire → GPIO 35 (Pin 6 - inlet) or GPIO 32 (Pin 7 - heater) or GPIO 33 (Pin 8 - ambient)
 - 4.7kΩ resistor between yellow and red wire
 
 I2C Devices:
-- SDA → GPIO 21 (Pin 25)
-- SCL → GPIO 22 (Pin 22)
+- SDA → GPIO 21 (Pin 33)
+- SCL → GPIO 22 (Pin 36)
 - VCC → 3.3V (Pin 1) or 5V (Pin 19) depending on device
-- GND → GND (Pin 14, 20, or 26)
+- GND → GND (Pin 14, 32, or 38)
 
 LCD Display (I2C):
 - Shares GPIO 21 (SDA) and GPIO 22 (SCL)

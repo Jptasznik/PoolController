@@ -44,8 +44,8 @@ Temperature Sensors:
 - GPIO 33 (Pin 8):  Ambient/outdoor temperature (DS18B20)
 
 I2C Bus (shared):
-- GPIO 21 (Pin 25): SDA (LCD + MCP23008)
-- GPIO 22 (Pin 22): SCL (LCD + MCP23008)
+- GPIO 21 (Pin 33): SDA (LCD + MCP23008)
+- GPIO 22 (Pin 36): SCL (LCD + MCP23008)
 
 Control Outputs:
 - GPIO 26 (Pin 10): Pump enable relay

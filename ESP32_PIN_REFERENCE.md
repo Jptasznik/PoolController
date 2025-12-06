@@ -40,23 +40,23 @@ Legend:
 
 | Physical Pin | GPIO | This Project | Type | Notes & Restrictions |
 |--------------|------|-------------|------|---------------------|
-| 33 | **GPIO 0** | Available | I/O | ⚠️ **BOOT button** - Must be HIGH during boot. Pulled up. Can use as input/output after boot but avoid LOW at boot. |
-| 23 | **GPIO 1** | Available | TX0 | ⚠️ **UART0 TX** - Used for USB serial programming/debug. Avoid using if Serial Monitor needed. |
-| 34 | **GPIO 2** | Available | I/O | ⚠️ **Onboard LED** - Must be LOW during boot. Connected to onboard LED. Pull-down at boot required. |
-| 24 | **GPIO 3** | Available | RX0 | ⚠️ **UART0 RX** - Used for USB serial programming/debug. Avoid using if Serial Monitor needed. |
-| 32 | **GPIO 4** | Available | I/O + ADC2_0 | Safe to use. ADC2 disabled when WiFi active. Touch capable (T0). |
+| 25 | **GPIO 0** | Available | I/O | ⚠️ **BOOT button** - Must be HIGH during boot. Pulled up. Can use as input/output after boot but avoid LOW at boot. |
+| 35 | **GPIO 1** | Available | TX0 | ⚠️ **UART0 TX** - Used for USB serial programming/debug. Avoid using if Serial Monitor needed. |
+| 24 | **GPIO 2** | Available | I/O | ⚠️ **Onboard LED** - Must be LOW during boot. Connected to onboard LED. Pull-down at boot required. |
+| 34 | **GPIO 3** | Available | RX0 | ⚠️ **UART0 RX** - Used for USB serial programming/debug. Avoid using if Serial Monitor needed. |
+| 26 | **GPIO 4** | Available | I/O + ADC2_0 | Safe to use. ADC2 disabled when WiFi active. Touch capable (T0). |
 | 29 | **GPIO 5** | Available | I/O | Safe to use. VSPI SS. Can be used as GPIO. |
 | 13 | **GPIO 12** | **HEATER RELAY** ✓ | I/O + ADC2_5 | ⚠️ **Boot voltage** - Must be LOW during boot (internal pull-down). Set LOW before boot or use external pull-down. |
 | 15 | **GPIO 13** | **PUMP SPEED RELAY** ✓ | I/O + ADC2_4 | Safe to use. Touch capable (T4). ADC2 disabled when WiFi active. |
 | 12 | **GPIO 14** | Available | I/O + ADC2_6 | Safe to use. Touch capable (T6). ADC2 disabled when WiFi active. |
-| 35 | **GPIO 15** | Available | I/O + ADC2_3 | Safe to use. Touch capable (T3). ADC2 disabled when WiFi active. |
-| 31 | **GPIO 16** | Available | I/O | Safe to use. UART2 RX. Can be used as GPIO. |
-| 30 | **GPIO 17** | Available | I/O | Safe to use. UART2 TX. Can be used as GPIO. |
-| 28 | **GPIO 18** | Available | I/O | Safe to use. VSPI SCK. Can be used as GPIO. |
-| 27 | **GPIO 19** | Available | I/O | Safe to use. VSPI MISO. Can be used as GPIO. |
-| 25 | **GPIO 21** | **I2C SDA** ✓ | I/O | Used for I2C data (LCD + MCP23008). Safe to use. |
-| 22 | **GPIO 22** | **I2C SCL** ✓ | I/O | Used for I2C clock (LCD + MCP23008). Safe to use. |
-| 21 | **GPIO 23** | Available | I/O | Safe to use. VSPI MOSI. Can be used as GPIO. |
+| 23 | **GPIO 15** | Available | I/O + ADC2_3 | Safe to use. Touch capable (T3). ADC2 disabled when WiFi active. |
+| 27 | **GPIO 16** | Available | I/O | Safe to use. UART2 RX. Can be used as GPIO. |
+| 28 | **GPIO 17** | Available | I/O | Safe to use. UART2 TX. Can be used as GPIO. |
+| 30 | **GPIO 18** | Available | I/O | Safe to use. VSPI SCK. Can be used as GPIO. |
+| 31 | **GPIO 19** | Available | I/O | Safe to use. VSPI MISO. Can be used as GPIO. |
+| 33 | **GPIO 21** | **I2C SDA** ✓ | I/O | Used for I2C data (LCD + MCP23008). Safe to use. |
+| 36 | **GPIO 22** | **I2C SCL** ✓ | I/O | Used for I2C clock (LCD + MCP23008). Safe to use. |
+| 37 | **GPIO 23** | Available | I/O | Safe to use. VSPI MOSI. Can be used as GPIO. |
 | 9 | **GPIO 25** | Available | I/O + ADC2_8 + DAC1 | Safe to use. ADC2 disabled when WiFi active. Has DAC output. |
 | 10 | **GPIO 26** | **PUMP ENABLE RELAY** ✓ | I/O + ADC2_9 + DAC2 | Safe to use. ADC2 disabled when WiFi active. Has DAC output. |
 | 11 | **GPIO 27** | Available | I/O + ADC2_7 | Safe to use. Touch capable (T7). ADC2 disabled when WiFi active. |
@@ -76,9 +76,9 @@ Legend:
 
 | Physical Pin | GPIO | This Project | Type | Notes & Restrictions |
 |--------------|------|-------------|------|---------------------|
-| 38 | **GPIO 6** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory. |
-| 37 | **GPIO 7** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory. |
-| 36 | **GPIO 8** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory. |
+| 20 | **GPIO 6** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory. |
+| 21 | **GPIO 7** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory. |
+| 22 | **GPIO 8** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory. |
 | 16 | **GPIO 9** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory (SD2). |
 | 17 | **GPIO 10** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory (SD3). |
 | 18 | **GPIO 11** | ⚠️ Reserved | Flash | ❌ **DO NOT USE** - Connected to SPI flash memory (CMD). |
@@ -89,7 +89,7 @@ Legend:
 |--------------|-----|----------|-------|
 | 1 | **3.3V** | 3.3V Output | Max 600mA from onboard regulator. Powers ESP32 and peripherals. |
 | 19 | **5V (VIN)** | 5V Input | Connected to USB 5V or external 5V supply (6-12V regulated to 5V). |
-| 14, 20, 26 | **GND** | Ground | Multiple ground pins available. |
+| 14, 32, 38 | **GND** | Ground | Multiple ground pins available. |
 | 2 | **EN** | Reset/Enable | Pull LOW to reset ESP32. Has external pull-up. |
 
 ## Project Pin Usage Summary
@@ -100,8 +100,8 @@ Legend:
 |--------------|------|----------|-----------|
 | 13 | 12 | Heater relay control | Single relay/SSR |
 | 15 | 13 | Pump speed relay | 2-channel relay module |
-| 25 | 21 | I2C SDA | LCD + MCP23008 (shared bus) |
-| 22 | 22 | I2C SCL | LCD + MCP23008 (shared bus) |
+| 33 | 21 | I2C SDA | LCD + MCP23008 (shared bus) |
+| 36 | 22 | I2C SCL | LCD + MCP23008 (shared bus) |
 | 10 | 26 | Pump enable relay | 2-channel relay module |
 | 7 | 32 | Heater temperature | DS18B20 sensor #2 |
 | 8 | 33 | Ambient temperature | DS18B20 sensor #3 |
@@ -210,8 +210,8 @@ Can output analog voltage (0-3.3V). Still works as digital GPIO.
 
 These pins determine boot mode. Be careful with them:
 
-| Pin | Boot Mode Function | Safe Usage |
-|-----|-------------------|------------|
+| GPIO | Boot Mode Function | Safe Usage |
+|------|-------------------|------------|
 | GPIO 0 | Must be HIGH to boot normally | Can use after boot, just ensure HIGH at startup |
 | GPIO 2 | Must be LOW to boot | Can use after boot, has pull-down |
 | GPIO 5 | VSPI SS, strapping | Safe to use |
