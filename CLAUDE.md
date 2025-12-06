@@ -16,7 +16,7 @@ This is a **modular, multi-file Arduino project** controlling pool equipment thr
 
 This is NOT a typical C/C++ project with a build system. It uses the Arduino IDE convention:
 
-- **Main sketch file:** `PoolController3.ino` (contains `setup()` and `loop()`)
+- **Main sketch file:** `PoolController3.ino` (contains `setup()` and `loop()` and all Blynk Code )
 - **All files must be in the same directory** - no subdirectories
 - **Header files (.h) and implementation files (.cpp)** are peers in the same folder
 - **Arduino IDE automatically includes all .cpp files** in the folder
@@ -35,7 +35,6 @@ LCDDisplay.h/cpp             # 20x4 I2C LCD control
 ButtonHandler.h/cpp          # MCP23008 button interface
 PumpControl.h/cpp            # Pump control logic
 HeaterControl.h/cpp          # Heater control with safety
-BlynkIntegration.h/cpp       # Cloud connectivity
 SinricIntegration.h/cpp      # Alexa voice control
 ```
 
@@ -107,8 +106,8 @@ void initModuleName() {
 - `TEMP_AMBIENT_PIN` (GPIO 33, Pin 8) - Ambient/outdoor temperature
 
 **I2C Bus (shared):**
-- `I2C_SDA` (GPIO 21, Pin 25) - Data line
-- `I2C_SCL` (GPIO 22, Pin 22) - Clock line
+- `I2C_SDA` (GPIO 21, Pin 36) - Data line
+- `I2C_SCL` (GPIO 22, Pin 33) - Clock line
 
 **Control Outputs:**
 - `PUMP_ENABLE_PIN` (GPIO 26, Pin 10) - Pump relay
@@ -116,7 +115,7 @@ void initModuleName() {
 - `HEATER_PIN` (GPIO 12, Pin 13) - Heater relay
 
 **I2C Devices:**
-- LCD Display: Address `0x27` (or `0x3F`)
+- LCD Display: Address `0x27`
 - MCP23008 GPIO Expander: Address `0x20`
 
 #### Important Hardware Constraints
