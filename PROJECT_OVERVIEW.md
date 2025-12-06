@@ -99,6 +99,14 @@ PROJECT_OVERVIEW.md          This file
 - 1-channel SRD-03VDC-SL-C 3.3v logic relay module (10A+ rated) for Low speed pump
 - 1-channel SRD-03VDC-SL-C 3.3v logic relay module for heater (switching on 24vac)
 
+**Pool Equipment Specifications:**
+- **Pool Pump:** 1 HP, 120 VAC, 2-speed operation
+  - High Speed: 9.5 AMP (1,140 W)
+  - Low Speed: 2.2 AMP (264 W)
+- **Pool Heater:** Gas heater with electronic ignition
+  - Control Circuit: 4 AMP @ 120 VAC (480 W)
+  - Total Peak Load (Pump High + Heater): 13.5 AMP @ 120 VAC (1,620 W)
+
 **Connectivity:**
 - WiFi (built-in to ESP32)
 - USB cable for programming
