@@ -99,7 +99,7 @@ float getPumpRuntimeHours();
 // Status queries
 bool isWithinOperatingHours();
 bool canPumpTurnOff();
-String getPumpStateString();
-String getHeaterStatusString();
+const char* getPumpStateString();
+const char* getHeaterStatusString();
 
 #endif // STATE_MANAGER_H
