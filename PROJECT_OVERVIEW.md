@@ -71,8 +71,6 @@ WIRING_GUIDE.md              Detailed wiring diagrams (15.2 KB)
 ESP32_PIN_REFERENCE.md       Complete ESP32 pin guide with restrictions
 PIN_STATUS_SUMMARY.md        Visual pin usage and expansion guide
 PHYSICAL_PIN_REFERENCE.md    Physical pin to GPIO mapping reference
-3RD_SENSOR_ADDITION.md       Guide for 3rd temperature sensor
-PIN_CHANGES.md               Pin assignment changes documentation
 PROJECT_OVERVIEW.md          This file
 ```
 
