@@ -19,6 +19,12 @@
 #define PUMP_SPEED_PIN 13    // LOW=low speed, HIGH=high speed
 #define HEATER_PIN 12
 
+// NOTE: For hardware-level relay interlock protection, you can optionally
+// add SN74LS08N (AND gate) and SN74LS04N (inverter) logic gates between
+// the ESP32 outputs and relay inputs to ensure only one relay is active
+// at a time. See RELAY_INTERLOCK_LOGIC.md for complete implementation.
+// The code above remains unchanged - the hardware enforces mutual exclusion.
+
 // ============================================
 // I2C ADDRESSES
 // ============================================

@@ -178,6 +178,8 @@ Repeat for all 5 buttons:
 
 ## Control Outputs - Pump
 
+### Option 1: Direct Relay Control (Original Design)
+
 **2-Channel Relay Module:**
 
 ```
@@ -192,7 +194,7 @@ Relay Outputs (connect to pump motor controller):
     COM  ──── Pump power source
     NO   ──── Pump motor controller input
     NC   ──── Not used
-    
+
   CH2 (pump speed):
     COM  ──── Speed control input
     NO   ──── High speed signal
@@ -206,6 +208,36 @@ GPIO 26 (Enable)  GPIO 13 (Speed)  Result
      HIGH             LOW         Pump LOW speed
      HIGH             HIGH        Pump HIGH speed
 ```
+
+### Option 2: Hardware Interlock with Logic Gates (Recommended)
+
+For enhanced safety, use SN74LS08N (AND gate) and SN74LS04N (inverter) to ensure only one relay can be active at a time.
+
+**Key Benefits:**
+- Hardware-enforced mutual exclusion (only one relay ON at a time)
+- Prevents both relays from energizing simultaneously
+- Fail-safe protection independent of software
+- No code changes required
+
+**Simplified Connection:**
+```
+ESP32 GPIO 26 ──┬─── SN74LS08N (AND gate 1, input A)
+                └─── SN74LS08N (AND gate 2, input A)
+
+ESP32 GPIO 13 ──┬─── SN74LS04N (inverter input)
+                └─── SN74LS08N (AND gate 2, input B)
+
+SN74LS04N output ─── SN74LS08N (AND gate 1, input B)
+
+AND gate 1 output ─── Relay CH1 (LOW speed)
+AND gate 2 output ─── Relay CH2 (HIGH speed)
+```
+
+**Logic:**
+- RELAY_LOW = ENABLE AND (NOT SPEED)
+- RELAY_HIGH = ENABLE AND SPEED
+
+**See RELAY_INTERLOCK_LOGIC.md for complete schematic, wiring diagram, and implementation details.**
 
 **Electrical Ratings:**
 - Use relay rated for pump motor current
