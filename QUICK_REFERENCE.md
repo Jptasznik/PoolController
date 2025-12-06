@@ -136,8 +136,8 @@ Line 4: Heater: ON      CLOUD
 - Each needs 4.7kΩ pull-up resistor (data to VCC)
 
 **I2C Bus (shared):**
-- Pin 25 / GPIO 21 = SDA
-- Pin 22 / GPIO 22 = SCL
+- Pin 33 / GPIO 21 = SDA
+- Pin 36 / GPIO 22 = SCL
 - LCD address: 0x27 or 0x3F
 - MCP23008 address: 0x20
 

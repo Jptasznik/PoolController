@@ -106,8 +106,8 @@ void initModuleName() {
 - `TEMP_AMBIENT_PIN` (GPIO 33, Pin 8) - Ambient/outdoor temperature
 
 **I2C Bus (shared):**
-- `I2C_SDA` (GPIO 21, Pin 36) - Data line
-- `I2C_SCL` (GPIO 22, Pin 33) - Clock line
+- `I2C_SDA` (GPIO 21, Pin 33) - Data line
+- `I2C_SCL` (GPIO 22, Pin 36) - Clock line
 
 **Control Outputs:**
 - `PUMP_ENABLE_PIN` (GPIO 26, Pin 10) - Pump relay
