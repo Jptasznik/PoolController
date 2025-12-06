@@ -19,25 +19,25 @@ Pin Status Legend:
 LEFT SIDE (Top to Bottom):          RIGHT SIDE (Top to Bottom):
 Pin#  GPIO    Status                 Pin#  GPIO    Status
 ════════════════════════════         ════════════════════════════
- 1    3V3    [Power]                  20   GND    [Ground]
- 2    EN     [Reset]                  21   IO23   ○  VSPI MOSI
- 3    IO36   ▶  ADC1_0                22   IO22   ✓  I2C SCL
- 4    IO39   ▶  ADC1_3                23   TX0    ⚠  Serial TX
- 5    IO34   ▶  ADC1_6                24   RX0    ⚠  Serial RX
- 6    IO35   ✓  Inlet Temp            25   IO21   ✓  I2C SDA
- 7    IO32   ✓  Heater Temp           26   GND    [Ground]
- 8    IO33   ✓  Ambient Temp          27   IO19   ○  VSPI MISO
- 9    IO25   ○  ADC2_8, DAC1          28   IO18   ○  VSPI SCK
+ 1    3V3    [Power]                  38   GND    [Ground]
+ 2    EN     [Reset]                  37   IO23   ○  VSPI MOSI
+ 3    IO36   ▶  ADC1_0                36   IO22   ✓  I2C SCL
+ 4    IO39   ▶  ADC1_3                35   TX0    ⚠  Serial TX
+ 5    IO34   ▶  ADC1_6                34   RX0    ⚠  Serial RX
+ 6    IO35   ✓  Inlet Temp            33   IO21   ✓  I2C SDA
+ 7    IO32   ✓  Heater Temp           32   GND    [Ground]
+ 8    IO33   ✓  Ambient Temp          31   IO19   ○  VSPI MISO
+ 9    IO25   ○  ADC2_8, DAC1          30   IO18   ○  VSPI SCK
 10    IO26   ✓  Pump Enable           29   IO5    ○  VSPI SS
-11    IO27   ○  ADC2_7                30   IO17   ○  UART2 TX
-12    IO14   ○  ADC2_6, Touch         31   IO16   ○  UART2 RX
-13    IO12   ✓  Heater Relay          32   IO4    ○  ADC2_0
-14    GND    [Ground]                 33   IO0    ⚠  BOOT button
-15    IO13   ✓  Pump Speed            34   IO2    ⚠  Onboard LED
-16    IO9    ❌ Flash SD2              35   IO15   ○  ADC2_3
-17    IO10   ❌ Flash SD3              36   IO8    ❌ Flash
-18    CMD    ❌ Flash                  37   IO7    ❌ Flash
-19    5V     [Power]                  38   IO6    ❌ Flash
+11    IO27   ○  ADC2_7                28   IO17   ○  UART2 TX
+12    IO14   ○  ADC2_6, Touch         27   IO16   ○  UART2 RX
+13    IO12   ✓  Heater Relay          26   IO4    ○  ADC2_0
+14    GND    [Ground]                 25   IO0    ⚠  BOOT button
+15    IO13   ✓  Pump Speed            24   IO2    ⚠  Onboard LED
+16    IO9    ❌ Flash SD2             23   IO15   ○  ADC2_3
+17    IO10   ❌ Flash SD3             22   IO8    ❌ Flash
+18    CMD    ❌ Flash                 21   IO7    ❌ Flash
+19    5V     [Power]                  20   IO6    ❌ Flash
 ```
 
 ## Color-Coded Pin Categories
@@ -45,9 +45,9 @@ Pin#  GPIO    Status                 Pin#  GPIO    Status
 ### 🟢 SAFE TO USE (Best for expansion)
 No restrictions, work perfectly:
 ```
-Pin 32 / GPIO 4    Pin 31 / GPIO 16   Pin 28 / GPIO 18
-Pin 29 / GPIO 5    Pin 30 / GPIO 17   Pin 27 / GPIO 19
-Pin 12 / GPIO 14   Pin 35 / GPIO 15   Pin 21 / GPIO 23
+Pin 26 / GPIO 4    Pin 27 / GPIO 16   Pin 30 / GPIO 18
+Pin 29 / GPIO 5    Pin 28 / GPIO 17   Pin 31 / GPIO 19
+Pin 12 / GPIO 14   Pin 23 / GPIO 15   Pin 37 / GPIO 23
 ```
 
 ### 🔵 INPUT-ONLY PINS
@@ -62,24 +62,24 @@ Pin 4 / GPIO 39
 ### 🟡 BOOT/STRAPPING PINS
 Usable but need care during boot:
 ```
-Pin 33 / GPIO 0  - Must be HIGH to boot (has pull-up)
-Pin 34 / GPIO 2  - Must be LOW to boot (onboard LED)
+Pin 25 / GPIO 0  - Must be HIGH to boot (has pull-up)
+Pin 24 / GPIO 2  - Must be LOW to boot (onboard LED)
 Pin 13 / GPIO 12 - Must be LOW to boot (internal pull-down) ✓ Used
 ```
 
 ### 🟠 SERIAL PINS
 Using these loses Serial Monitor debug:
 ```
-Pin 23 / GPIO 1  - TX0 (Serial transmit)
-Pin 24 / GPIO 3  - RX0 (Serial receive)
+Pin 35 / GPIO 1  - TX0 (Serial transmit)
+Pin 34 / GPIO 3  - RX0 (Serial receive)
 ```
 
 ### 🔴 DO NOT USE
 Reserved for flash memory:
 ```
-Pin 38 / GPIO 6    Pin 17 / GPIO 10
-Pin 37 / GPIO 7    Pin 18 / GPIO 11
-Pin 36 / GPIO 8    Pin 16 / GPIO 9
+Pin 20 / GPIO 6    Pin 17 / GPIO 10
+Pin 21 / GPIO 7    Pin 18 / GPIO 11
+Pin 22 / GPIO 8    Pin 16 / GPIO 9
 ```
 
 ## Project Usage Statistics
