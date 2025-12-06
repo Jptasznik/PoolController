@@ -36,6 +36,12 @@ PoolController/
 - 1-channel relay or SSR for heater
 - 5 momentary push buttons
 
+**Optional Components (for hardware relay interlock):**
+- SN74LS08N quad AND gate (14-pin DIP)
+- SN74LS04N hex inverter (14-pin DIP)
+- 2x 0.1µF ceramic capacitors
+- See `RELAY_INTERLOCK_LOGIC.md` for complete details
+
 **Pin Connections:**
 ```
 Temperature Sensors:
@@ -154,6 +160,11 @@ char auth[] = "YOUR_ACTUAL_BLYNK_TOKEN_HERE";
 5. **Temperature limits**
    - Target range: 60-104°F
    - Automatic bounds checking
+
+6. **Optional hardware relay interlock** (see `RELAY_INTERLOCK_LOGIC.md`)
+   - Add SN74LS08N and SN74LS04N logic gates for physical mutual exclusion
+   - Ensures only one pump relay can be active at a time
+   - Hardware-enforced safety independent of software
 
 ## Alexa Voice Commands
 
