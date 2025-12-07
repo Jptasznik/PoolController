@@ -33,4 +33,10 @@ int loadHeaterEndHour();
 // Factory reset
 void factoryResetSettings();
 
+// WiFi failure tracking
+int loadWiFiFailureCount();
+void saveWiFiFailureCount(int count);
+void incrementWiFiFailureCount();
+void resetWiFiFailureCount();
+
 #endif // SETTINGS_MANAGER_H
