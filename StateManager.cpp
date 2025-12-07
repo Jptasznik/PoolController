@@ -46,7 +46,15 @@ void initSystemState() {
   state.wifiConnected = false;
   state.blynkConnected = false;
   state.sinricConnected = false;
-  
+
+  // Initialize WiFi runtime failure tracking
+  state.provisioningActive = false;
+  state.provisioningStartTime = 0;
+  state.disconnectCount = 0;
+  for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
+    state.disconnectTimestamps[i] = 0;
+  }
+
   state.emergencyShutdown = false;
 }
 
@@ -335,4 +343,65 @@ const char* getHeaterStatusString() {
     case HEATER_ON: return "ON";
     default: return "UNKNOWN";
   }
+}
+
+// ============================================
+// WIFI RUNTIME FAILURE TRACKING
+// ============================================
+
+void recordWiFiDisconnect() {
+  unsigned long now = millis();
+
+  // Add new disconnect timestamp to circular buffer
+  state.disconnectTimestamps[state.disconnectCount % WIFI_MAX_DISCONNECTS] = now;
+  state.disconnectCount++;
+
+  Serial.print("WiFi disconnect recorded. Recent count: ");
+  Serial.println(getRecentDisconnectCount());
+}
+
+int getRecentDisconnectCount() {
+  unsigned long now = millis();
+  int recentCount = 0;
+
+  // Count disconnects within the time window
+  for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
+    if (state.disconnectTimestamps[i] > 0) {
+      unsigned long age = now - state.disconnectTimestamps[i];
+
+      // Handle millis() overflow (happens every ~50 days)
+      if (age < WIFI_DISCONNECT_WINDOW || age > 0xF0000000) {
+        recentCount++;
+      }
+    }
+  }
+
+  return recentCount;
+}
+
+bool isProvisioningHung() {
+  if (!state.provisioningActive) {
+    return false;
+  }
+
+  unsigned long now = millis();
+  unsigned long elapsed = now - state.provisioningStartTime;
+
+  // Handle millis() overflow
+  if (elapsed > 0xF0000000) {
+    // Overflow detected, reset tracking
+    return false;
+  }
+
+  return elapsed >= WIFI_PROVISIONING_TIMEOUT;
+}
+
+void clearWiFiRuntimeTracking() {
+  state.provisioningActive = false;
+  state.provisioningStartTime = 0;
+  state.disconnectCount = 0;
+  for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
+    state.disconnectTimestamps[i] = 0;
+  }
+  Serial.println("WiFi runtime tracking cleared");
 }
