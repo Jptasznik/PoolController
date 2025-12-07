@@ -6,12 +6,16 @@ This is a complete, production-ready pool automation system with professional fe
 
 **Key Features:**
 - ✓ Triple temperature monitoring (inlet + heater outlet + ambient)
+- ✓ Pump current monitoring with SCT-013-030 CT + ADS1115 ADC
+- ✓ Automatic pump failure detection (relay on but no current)
+- ✓ Overcurrent detection and alerting
 - ✓ Automatic heater control with thermostat logic
 - ✓ Three-speed pump control (OFF/LOW/HIGH)
 - ✓ Three SRD-03VDC-SL-C 3.3v logic Relays, powered from the 5v bus (Only 2 on at a time controlled by ICs)
-- ✓ MCP23008 I2C button interface (clean, expandable), powered from the 5v bus 
-- ✓ 20x4 LCD display with real-time status, powered from the 5v bus 
-- ✓ Blynk cloud dashboard
+- ✓ MCP23008 I2C button interface (clean, expandable), powered from the 5v bus
+- ✓ ADS1115 16-bit ADC for current sensing, powered from 3.3v
+- ✓ 20x4 LCD display with real-time status (including current), powered from the 5v bus
+- ✓ Blynk cloud dashboard with current monitoring
 - ✓ Amazon Alexa voice control (via Sinric Pro)
 - ✓ WiFi provisioning via BLE
 - ✓ Persistent settings in flash
@@ -21,18 +25,19 @@ This is a complete, production-ready pool automation system with professional fe
 
 ## Architecture
 
-**Modular Design:** The code is organized into 11 separate modules for maintainability:
+**Modular Design:** The code is organized into 12 separate modules for maintainability:
 
 1. **StateManager** - Centralized state management
-2. **SettingsManager** - Flash storage persistence  
+2. **SettingsManager** - Flash storage persistence
 3. **TemperatureSensors** - DS18B20 sensor handling
-4. **LCDDisplay** - 20x4 I2C LCD control
-5. **ButtonHandler** - MCP23008 button interface
-6. **PumpControl** - Pump logic and safety
-7. **HeaterControl** - Heater control with interlocks
-8. **SinricIntegration** - Alexa voice control
-9. **Config** - All constants and pin definitions
-10. **PoolController.ino** - Main coordinator (includes Blynk cloud dashboard)
+4. **CurrentMonitor** - ADS1115 + SCT-013 current monitoring
+5. **LCDDisplay** - 20x4 I2C LCD control
+6. **ButtonHandler** - MCP23008 button interface
+7. **PumpControl** - Pump logic and safety
+8. **HeaterControl** - Heater control with interlocks
+9. **SinricIntegration** - Alexa voice control
+10. **Config** - All constants and pin definitions
+11. **PoolController.ino** - Main coordinator (includes Blynk cloud dashboard)
 
 **Benefits:**
 - Easy to understand and modify
@@ -49,6 +54,7 @@ Config.h                     Pin definitions and constants (3.3 KB)
 StateManager.h/.cpp          Centralized state management (10.2 KB)
 SettingsManager.h/.cpp       Flash storage (4.5 KB)
 TemperatureSensors.h/.cpp    DS18B20 sensors (3.4 KB)
+CurrentMonitor.h/.cpp        ADS1115 + SCT-013 current monitoring (6.8 KB)
 LCDDisplay.h/.cpp            20x4 LCD control (3.0 KB)
 ButtonHandler.h/.cpp         MCP23008 buttons (6.0 KB)
 PumpControl.h/.cpp           Pump logic (1.8 KB)
