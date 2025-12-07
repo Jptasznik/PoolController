@@ -15,13 +15,14 @@
 ```
 Line 1: Inlet: 78.5F   Tgt:80F
 Line 2: Heater:79.2F
-Line 3: Pump: LOW
+Line 3: Pump: LOW   5.2A
 Line 4: Heater: ON      CLOUD
 ```
 
-**Pump States:** OFF, LOW, HIGH, COOLDOWN  
-**Heater States:** OFF, ENABLED, ON  
+**Pump States:** OFF, LOW, HIGH, COOLDOWN
+**Heater States:** OFF, ENABLED, ON
 **Connection:** WiFi, CLOUD (Blynk connected)
+**Current Display:** Shows pump current in amps (if sensor connected)
 
 ## Alexa Voice Commands
 
@@ -59,6 +60,12 @@ Line 4: Heater: ON      CLOUD
 - Heater disabled if sensor disconnected
 - Auto-detection and alerts
 
+✓ **Pump current monitoring** (if ADS1115 + SCT-013 installed)
+- Real-time current measurement (0.5-30A range)
+- Automatic pump failure detection (relay on but no current)
+- Overcurrent alerting (>25A threshold)
+- Alerts sent to Blynk dashboard
+
 ✓ **Operating hours enforcement**
 - Heater only runs within set hours (default 6 AM - 10 PM)
 
@@ -81,6 +88,8 @@ Line 4: Heater: ON      CLOUD
 | V8 | Heater end hour | Slider | 0-23 |
 | V9 | Today's runtime | Display | Hours |
 | V10 | Ambient temperature | Display | Read-only |
+| V11 | Pump current | Display | 0-30A |
+| V12 | Pump failure alert | LED | 0=OK, 1=FAIL |
 
 ## System Behavior
 

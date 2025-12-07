@@ -16,6 +16,8 @@ PoolController/
 ├── SettingsManager.cpp
 ├── TemperatureSensors.h
 ├── TemperatureSensors.cpp
+├── CurrentMonitor.h
+├── CurrentMonitor.cpp
 ├── LCDDisplay.h
 ├── LCDDisplay.cpp
 ├── ButtonHandler.h
@@ -47,7 +49,7 @@ Download from: https://www.arduino.cc/en/software
 ### 3. Install Libraries
 Go to: Sketch → Include Library → Manage Libraries
 
-Install these 6 libraries:
+Install these 7 libraries:
 1. **Blynk** by Volodymyr Shymanskyy
 2. **DallasTemperature** by Miles Burton
 3. **OneWire** by Paul Stoffregen
@@ -55,6 +57,7 @@ Install these 6 libraries:
    - If you see AVR warning, the library will still work, just ignore it
 5. **SinricPro** by Boris Jaeger
 6. **Adafruit MCP23008 library** by Adafruit
+7. **Adafruit ADS1X15** by Adafruit (for ADS1115 current sensor)
 
 ### 4. Get Blynk Credentials
 

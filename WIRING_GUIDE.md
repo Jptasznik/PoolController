@@ -16,6 +16,7 @@
 
 3.3V (from ESP32 regulator)
   ├─ MCP23008 VDD
+  ├─ ADS1115 VDD
   ├─ DS18B20 sensors VCC (all 3)
   └─ LCD Display VCC (if 3.3V type)
 
@@ -70,31 +71,40 @@ DS18B20 Sensor #3:
 - Use shielded cable for long runs
 - Test resistance: ~10kΩ at room temperature
 
-## I2C Bus (Shared by LCD and MCP23008)
+## I2C Bus (Shared by LCD, MCP23008, and ADS1115)
 
 **Pull-up resistors:** 4.7kΩ on SDA and SCL (usually built-in to modules)
 
 ```
 ESP32 GPIO 21 (Pin 33/SDA) ─────┬─────────── LCD SDA
                                 │
-                                └─────────── MCP23008 SDA (Pin 1)
+                                ├─────────── MCP23008 SDA (Pin 1)
+                                │
+                                └─────────── ADS1115 SDA
 
 ESP32 GPIO 22 (Pin 36/SCL) ─────┬─────────── LCD SCL
                                 │
-                                └─────────── MCP23008 SCL (Pin 2)
+                                ├─────────── MCP23008 SCL (Pin 2)
+                                │
+                                └─────────── ADS1115 SCL
 
 ESP32 3.3V or 5V (Pin 1/19) ────┬─────────── LCD VCC (check module voltage)
                                 │
-                                └─────────── MCP23008 VDD (Pin 18)
+                                ├─────────── MCP23008 VDD (Pin 18)
+                                │
+                                └─────────── ADS1115 VDD
 
 ESP32 GND (Pin 14/20/26) ───────┬─────────── LCD GND
                                 │
-                                └─────────── MCP23008 VSS (Pin 9)
+                                ├─────────── MCP23008 VSS (Pin 9)
+                                │
+                                └─────────── ADS1115 GND
 ```
 
 **I2C Addresses:**
 - LCD: 0x27 (or 0x3F depending on module)
 - MCP23008: 0x20 (when A0, A1, A2 = GND)
+- ADS1115: 0x48 (default, ADDR pin to GND)
 
 ## LCD Display (20x4 I2C)
 
@@ -147,6 +157,105 @@ A2 A1 A0 = Address
 0  1  0  = 0x22
 ... and so on
 ```
+
+## ADS1115 ADC and Current Sensor (SCT-013-030)
+
+### ADS1115 Module Wiring
+
+```
+ADS1115 16-bit ADC Module:
+  VDD  ──── ESP32 3.3V (Pin 1)
+  GND  ──── ESP32 GND (Pin 14)
+  SDA  ──── ESP32 GPIO 21 (Pin 33) - shared I2C
+  SCL  ──── ESP32 GPIO 22 (Pin 36) - shared I2C
+  ADDR ──── GND (sets address to 0x48)
+  ALRT ──── Not connected (optional alert pin)
+  A0   ──── Current sensor signal (see circuit below)
+  A1   ──── Not used (reserved for future sensors)
+  A2   ──── Not used (reserved for future sensors)
+  A3   ──── Not used (reserved for future sensors)
+```
+
+**ADS1115 I2C Address:**
+- Default (ADDR to GND): 0x48
+- Alternative addresses available by connecting ADDR to VDD, SDA, or SCL
+
+### SCT-013-030 Current Transformer Wiring
+
+**CRITICAL SAFETY WARNING:**
+⚠️ **ONLY clamp the CT around ONE wire of the pump power cable (hot OR neutral, NOT both)**
+⚠️ **NEVER open the CT secondary while current is flowing - can generate dangerous voltages**
+⚠️ **Turn OFF pump power before installing or removing the CT**
+
+**Current Sensor Signal Conditioning Circuit:**
+
+The SCT-013-030 outputs AC current (0-30mA for 0-30A primary). This must be converted to a voltage that the ADS1115 can read (0-3.3V with 1.65V bias).
+
+```
+Required Components:
+  - 62Ω burden resistor (1/4W or higher)
+  - 10kΩ resistor (for voltage divider, upper)
+  - 10kΩ resistor (for voltage divider, lower)
+  - 10µF capacitor (optional, for noise filtering)
+
+Circuit Diagram:
+
+SCT-013-030 Output
+     │
+     ├──────[62Ω burden resistor]────┐
+     │                               │
+     │                              GND
+     │
+     ├──────[10kΩ]───────┬──────── 3.3V (bias to VDD/2)
+     │                   │
+     │                 [10kΩ]
+     │                   │
+     │                  GND
+     │
+     └───────[Optional: 10µF cap to GND for filtering]
+     │
+     └──────────────────────────────── ADS1115 A0
+
+Simplified Connection:
+  SCT-013 Terminal 1 ───┬─── [62Ω] ─── GND
+                        │
+                        ├─── [10kΩ] ─── 3.3V
+                        │
+                        └─── ADS1115 A0
+
+  SCT-013 Terminal 2 ─────── [10kΩ] ─── GND
+```
+
+**Installation Steps:**
+
+1. **Power OFF** the pump completely
+2. Open the pump electrical enclosure
+3. Identify the HOT (black) or NEUTRAL (white) wire - **clamp only ONE wire**
+4. Open the CT clamp and place around the wire
+5. Close the CT clamp ensuring it clicks shut
+6. Route CT output cable to the ADS1115
+7. Build the signal conditioning circuit on a breadboard or perfboard
+8. Connect circuit output to ADS1115 channel A0
+9. Verify connections before powering on
+
+**SCT-013-030 Specifications:**
+- Input Range: 0-30A AC (primary)
+- Output: 0-30mA AC (secondary)
+- Ratio: 1000:1
+- Accuracy: ±3%
+- Cable Length: Typically 1 meter (can be extended with care)
+
+**Signal Conditioning Theory:**
+- Burden resistor converts 0-30mA to 0-1.86V AC
+- Voltage divider biases signal to 1.65V (VDD/2)
+- AC signal swings ±0.93V around 1.65V bias
+- Total range: 0.72V to 2.58V (safe for 3.3V ADC)
+- Software calculates RMS current from sampled AC waveform
+
+**Current Measurement Range:**
+- Minimum: ~0.5A (configured threshold)
+- Maximum: 30A (CT rating)
+- Resolution: ~0.01A (with 16-bit ADC)
 
 ## Push Buttons
 
