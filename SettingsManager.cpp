@@ -26,6 +26,7 @@ void loadAllSettings() {
   state.maxRuntimeHours = loadMaxRuntimeHours();
   state.heaterStartHour = loadHeaterStartHour();
   state.heaterEndHour = loadHeaterEndHour();
+  state.currentOffset = loadCurrentCalibration();
 
   Serial.println("Settings loaded:");
   Serial.print("  Target temp: ");
@@ -40,6 +41,8 @@ void loadAllSettings() {
   Serial.print(state.heaterStartHour);
   Serial.print(" - ");
   Serial.println(state.heaterEndHour);
+  Serial.print("  Current calibration: ");
+  Serial.println(state.currentOffset, 3);
 }
 
 // ============================================
@@ -189,4 +192,23 @@ void incrementWiFiFailureCount() {
 
 void resetWiFiFailureCount() {
   saveWiFiFailureCount(0);
+}
+
+// ============================================
+// CURRENT SENSOR CALIBRATION
+// ============================================
+
+float loadCurrentCalibration() {
+  preferences.begin("pool", true);  // Read-only
+  float offset = preferences.getFloat("currentCal", 0.0);
+  preferences.end();
+  return offset;
+}
+
+void saveCurrentCalibration(float offset) {
+  preferences.begin("pool", false);
+  preferences.putFloat("currentCal", offset);
+  preferences.end();
+  Serial.print("Saved current calibration: ");
+  Serial.println(offset, 3);
 }

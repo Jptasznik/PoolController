@@ -39,4 +39,8 @@ void saveWiFiFailureCount(int count);
 void incrementWiFiFailureCount();
 void resetWiFiFailureCount();
 
+// Current sensor calibration
+float loadCurrentCalibration();
+void saveCurrentCalibration(float offset);
+
 #endif // SETTINGS_MANAGER_H

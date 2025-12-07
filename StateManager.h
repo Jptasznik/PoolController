@@ -33,7 +33,14 @@ struct SystemState {
   bool inletTempValid;
   bool heaterTempValid;
   bool ambientTempValid;     // 3rd sensor validity
-  
+
+  // Current monitoring
+  float pumpCurrent;         // Current reading in amps (RMS)
+  float currentOffset;       // Calibration offset
+  bool currentSensorValid;   // Current sensor status
+  bool pumpFailureAlert;     // Pump failure detected
+  bool overcurrentAlert;     // Overcurrent detected
+
   // Control states
   bool heaterEnabled;
   HeaterStatus heaterStatus;

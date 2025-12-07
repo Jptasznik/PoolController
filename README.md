@@ -14,6 +14,7 @@ PoolController/
 ├── StateManager.h/.cpp         # Centralized state management
 ├── SettingsManager.h/.cpp      # Flash storage (Preferences)
 ├── TemperatureSensors.h/.cpp   # DS18B20 sensor handling
+├── CurrentMonitor.h/.cpp       # ADS1115 + SCT-013 current monitoring
 ├── LCDDisplay.h/.cpp           # 20x4 I2C LCD control
 ├── ButtonHandler.h/.cpp        # MCP23008 button interface
 ├── PumpControl.h/.cpp          # Pump control logic
@@ -30,11 +31,14 @@ PoolController/
 **Required Components:**
 - ESP32-WROOM 38-pin development board
 - 3x DS18B20 temperature sensors with 4.7kΩ pull-ups
+- SCT-013-030 current transformer (30A max) for pump monitoring
+- ADS1115 16-bit ADC module (I2C)
 - MCP23008 I2C GPIO expander
 - 20x4 I2C LCD display (address 0x27 or 0x3F)
 - 2-channel relay module for pump
 - 1-channel relay or SSR for heater
 - 5 momentary push buttons
+- 62Ω burden resistor and voltage divider circuit for SCT-013
 
 **Optional Components (for hardware relay interlock):**
 - SN74LS08N quad AND gate (14-pin DIP)
@@ -50,18 +54,27 @@ Temperature Sensors:
 - GPIO 33 (Pin 8):  Ambient/outdoor temperature (DS18B20)
 
 I2C Bus (shared):
-- GPIO 21 (Pin 33): SDA (LCD + MCP23008)
-- GPIO 22 (Pin 36): SCL (LCD + MCP23008)
+- GPIO 21 (Pin 33): SDA (LCD + MCP23008 + ADS1115)
+- GPIO 22 (Pin 36): SCL (LCD + MCP23008 + ADS1115)
 
 Control Outputs:
 - GPIO 26 (Pin 10): Pump enable relay
 - GPIO 13 (Pin 15): Pump speed relay (LOW=low, HIGH=high)
 - GPIO 12 (Pin 13): Heater relay
 
-MCP23008 Address: 0x20
-- Connect A0, A1, A2 to GND
-- Connect RESET to 3.3V
+I2C Device Addresses:
+- LCD Display: 0x27 (or 0x3F)
+- MCP23008: 0x20 (A0, A1, A2 to GND; RESET to 3.3V)
+- ADS1115: 0x48 (default address)
+
+MCP23008 Buttons:
 - Buttons connect GP pins to GND (internal pull-ups)
+
+Current Sensor (SCT-013-030):
+- Connect to ADS1115 channel A0
+- Requires 62Ω burden resistor
+- Voltage divider to bias to 1.65V (VDD/2)
+- Clamp one wire of pump power through CT
 ```
 
 ### 2. Arduino IDE Setup
@@ -84,6 +97,7 @@ Go to Sketch → Include Library → Manage Libraries, search and install:
    - **Note:** If you see AVR architecture warning, try "LiquidCrystal I2C" by Frank de Brabander v1.1.2+
 5. `SinricPro` by Boris Jaeger
 6. `Adafruit MCP23008 library` by Adafruit
+7. `Adafruit ADS1X15` by Adafruit (for ADS1115 ADC)
 
 ### 3. Configure Credentials
 
@@ -161,7 +175,13 @@ char auth[] = "YOUR_ACTUAL_BLYNK_TOKEN_HERE";
    - Target range: 60-104°F
    - Automatic bounds checking
 
-6. **Optional hardware relay interlock** (see `RELAY_INTERLOCK_LOGIC.md`)
+6. **Pump current monitoring** (SCT-013-030 + ADS1115)
+   - Real-time monitoring of pump current draw
+   - Automatic detection of pump failure (should be running but no current)
+   - Overcurrent detection and alerting
+   - Current readings displayed on LCD and Blynk dashboard
+
+7. **Optional hardware relay interlock** (see `RELAY_INTERLOCK_LOGIC.md`)
    - Add SN74LS08N and SN74LS04N logic gates for physical mutual exclusion
    - Ensures only one pump relay can be active at a time
    - Hardware-enforced safety independent of software

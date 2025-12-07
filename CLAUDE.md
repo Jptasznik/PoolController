@@ -26,11 +26,12 @@ This is NOT a typical C/C++ project with a build system. It uses the Arduino IDE
 
 **Core Files (Do NOT rename or remove):**
 ```
-PoolController3.ino          # Main coordinator (setup/loop)
+PoolController.ino           # Main coordinator (setup/loop)
 Config.h                     # All pin definitions and constants
 StateManager.h/cpp           # Centralized state management
 SettingsManager.h/cpp        # Flash storage persistence
 TemperatureSensors.h/cpp     # DS18B20 sensor handling
+CurrentMonitor.h/cpp         # ADS1115 + SCT-013 current monitoring
 LCDDisplay.h/cpp             # 20x4 I2C LCD control
 ButtonHandler.h/cpp          # MCP23008 button interface
 PumpControl.h/cpp            # Pump control logic
@@ -117,6 +118,7 @@ void initModuleName() {
 **I2C Devices:**
 - LCD Display: Address `0x27`
 - MCP23008 GPIO Expander: Address `0x20`
+- ADS1115 ADC: Address `0x48`
 
 #### Important Hardware Constraints
 
@@ -185,6 +187,8 @@ V7  - Heater start hour (read/write)
 V8  - Heater end hour (read/write)
 V9  - Pump runtime today (read-only)
 V10 - Ambient temperature (read-only)
+V11 - Pump current (read-only)
+V12 - Pump failure alert (read-only)
 ```
 
 **Important:** If you add virtual pins, update `BLYNK_WRITE()` handlers in PoolController3.ino
@@ -359,6 +363,7 @@ Always verify:
 4. LiquidCrystal_I2C (by Marco Schwartz or Frank de Brabander)
 5. SinricPro (by Boris Jaeger)
 6. Adafruit_MCP23X08 (by Adafruit)
+7. Adafruit_ADS1X15 (by Adafruit) - for ADS1115 ADC
 
 **ESP32 Built-in Libraries:**
 - WiFi.h

@@ -30,6 +30,7 @@
 #include "PumpControl.h"
 #include "HeaterControl.h"
 #include "SinricIntegration.h"
+#include "CurrentMonitor.h"
 
 #include <WiFi.h>
 #include <WiFiProv.h>
@@ -48,6 +49,7 @@ BlynkTimer blynkTimer;
 // ============================================
 
 unsigned long lastTempRead = 0;
+unsigned long lastCurrentRead = 0;
 unsigned long lastLCDUpdate = 0;
 unsigned long lastBlynkUpdate = 0;
 unsigned long lastSinricTempUpdate = 0;
@@ -148,17 +150,19 @@ void initBlynk() {
 
 void syncAllToBlynk() {
   if (!Blynk.connected()) return;
-  
+
   syncTemperaturesToBlynk();
   syncTargetTempToBlynk();
   syncHeaterToBlynk();
   syncPumpToBlynk();
   syncPumpRuntimeToBlynk();
-  
+  syncPumpCurrentToBlynk();
+  syncPumpAlertsToBlynk();
+
   Blynk.virtualWrite(VPIN_MAX_RUNTIME, state.maxRuntimeHours);
   Blynk.virtualWrite(VPIN_HEATER_START_HOUR, state.heaterStartHour);
   Blynk.virtualWrite(VPIN_HEATER_END_HOUR, state.heaterEndHour);
-  
+
   Serial.println("Synced all values to Blynk");
 }
 
@@ -198,6 +202,18 @@ void syncTemperaturesToBlynk() {
 void syncPumpRuntimeToBlynk() {
   if (!Blynk.connected()) return;
   Blynk.virtualWrite(VPIN_PUMP_RUNTIME_TODAY, getPumpRuntimeHours());
+}
+
+void syncPumpCurrentToBlynk() {
+  if (!Blynk.connected()) return;
+  if (state.currentSensorValid) {
+    Blynk.virtualWrite(VPIN_PUMP_CURRENT, state.pumpCurrent);
+  }
+}
+
+void syncPumpAlertsToBlynk() {
+  if (!Blynk.connected()) return;
+  Blynk.virtualWrite(VPIN_PUMP_FAILURE_ALERT, state.pumpFailureAlert ? 1 : 0);
 }
 
 // ============================================
@@ -304,6 +320,7 @@ void setup() {
   Serial.println("Initializing hardware...");
   initLCD();
   initTemperatureSensors();
+  initCurrentMonitor();
   initButtons();
   initPumpControl();
   initHeaterControl();
@@ -396,6 +413,8 @@ void setup() {
     blynkTimer.setInterval(BLYNK_UPDATE_INTERVAL, []() {
       syncTemperaturesToBlynk();
       syncPumpRuntimeToBlynk();
+      syncPumpCurrentToBlynk();
+      syncPumpAlertsToBlynk();
     });
     
     blynkTimer.setInterval(SINRIC_TEMP_UPDATE_INTERVAL, []() {
@@ -445,13 +464,19 @@ void loop() {
   
   // Scan buttons
   scanButtons();
-  
+
   // Read temperatures periodically
   if (now - lastTempRead >= TEMP_READ_INTERVAL) {
     lastTempRead = now;
     readTemperatures();
   }
-  
+
+  // Read pump current periodically
+  if (now - lastCurrentRead >= CURRENT_READ_INTERVAL) {
+    lastCurrentRead = now;
+    readPumpCurrent();
+  }
+
   // Update LCD periodically
   if (now - lastLCDUpdate >= LCD_UPDATE_INTERVAL) {
     lastLCDUpdate = now;
@@ -467,6 +492,34 @@ void loop() {
 
     // Run heater control logic
     runControlSystem();
+
+    // Check for pump failure (pump should be running but no current detected)
+    bool pumpFailure = isPumpFailureDetected();
+    if (pumpFailure && !state.pumpFailureAlert) {
+      state.pumpFailureAlert = true;
+      Serial.println("!!! PUMP FAILURE DETECTED !!!");
+      Serial.println("Pump should be running but no current detected");
+      syncPumpAlertsToBlynk();
+    } else if (!pumpFailure && state.pumpFailureAlert) {
+      state.pumpFailureAlert = false;
+      Serial.println("Pump failure cleared");
+      syncPumpAlertsToBlynk();
+    }
+
+    // Check for overcurrent
+    bool overcurrent = isOvercurrentDetected();
+    if (overcurrent && !state.overcurrentAlert) {
+      state.overcurrentAlert = true;
+      Serial.println("!!! OVERCURRENT DETECTED !!!");
+      Serial.print("Current: ");
+      Serial.print(state.pumpCurrent, 2);
+      Serial.println(" A");
+      // Consider emergency shutdown if overcurrent persists
+      // For now, just alert - user can decide on action
+    } else if (!overcurrent && state.overcurrentAlert) {
+      state.overcurrentAlert = false;
+      Serial.println("Overcurrent condition cleared");
+    }
 
     // Apply states to hardware
     applyPumpState();

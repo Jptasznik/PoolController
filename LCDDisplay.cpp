@@ -75,11 +75,20 @@ void updateLCDDisplay() {
   }
   lcd.print("        ");  // Clear rest of line
 
-  // Line 3: Pump: LOW / COOLDOWN
+  // Line 3: Pump: LOW  5.2A
   lcd.setCursor(0, 2);
   lcd.print("Pump: ");
   lcd.print(getPumpStateString());
-  lcd.print("          ");  // Clear rest of line
+
+  // Add current reading if sensor is valid
+  if (state.currentSensorValid) {
+    lcd.print("  ");
+    char currentBuf[6];
+    snprintf(currentBuf, sizeof(currentBuf), "%4.1f", state.pumpCurrent);
+    lcd.print(currentBuf);
+    lcd.print("A");
+  }
+  lcd.print("      ");  // Clear rest of line
 
   // Line 4: Heater: ON      CLOUD
   lcd.setCursor(0, 3);
