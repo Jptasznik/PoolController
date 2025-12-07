@@ -24,12 +24,14 @@ The ESP32 controller and all peripheral devices operate on **5V DC** power suppl
 |-----------|----------|-------------------|-----------|-------|
 | **ESP32-WROOM Dev Board** | 1 | 80-260 | 0.4-1.3 | Active WiFi increases current |
 | **DS18B20 Temp Sensors** | 3 | 1.5 each | 0.0225 total | Inlet, heater, ambient sensors |
+| **ADS1115 16-bit ADC** | 1 | 0.15 | 0.0005 | Current sensor interface, I2C |
 | **20×4 LCD with I2C** | 1 | 60-80 | 0.3-0.4 | Backlight ON |
 | **MCP23008 GPIO Expander** | 1 | 1 | 0.005 | I2C interface |
 | **SN74LS08N AND Gate IC** | 1 | 4 | 0.02 | 2 gates used, hardware interlock |
 | **SN74LS04N Inverter IC** | 1 | 1.6 | 0.008 | 1 gate used, hardware interlock |
 | **SRD-03VDC-SL-C Relays** | 3 max | 90 each | 0.27 each | Coil energized |
 | **Pull-up Resistors (4.7kΩ)** | 3 | <1 | <0.01 | For 1-Wire sensors |
+| **SCT-013-030 Current Sensor** | 1 | 0 | 0 | Passive current transformer |
 | **Push Buttons** | 5 | Negligible | ~0 | Passive components |
 
 ### Control System Power Summary
@@ -512,6 +514,7 @@ Where:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2 | 2025-12-07 | Add ADS1115 ADC and SCT-013-030 current sensor to component list |
 | 1.1 | 2025-12-06 | Add SN74LS08N and SN74LS04N logic ICs; Add G7L-2A relay specifications; Update all power totals |
 | 1.0 | 2024-12-06 | Initial release with complete power specifications |
 
