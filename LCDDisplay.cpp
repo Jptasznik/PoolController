@@ -137,3 +137,15 @@ void displayWiFiProvisioning() {
   // Force clear on next updateLCDDisplay call
   lcdNeedsClear = true;
 }
+
+void displayWiFiReset() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("   WiFi Reset");
+  lcd.setCursor(0, 1);
+  lcd.print("Too many failures");
+  lcd.setCursor(0, 2);
+  lcd.print("Credentials cleared");
+  lcd.setCursor(0, 3);
+  lcd.print("  Rebooting...");
+}

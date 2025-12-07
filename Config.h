@@ -94,6 +94,10 @@
 #define WIFI_PROV_SERVICE_NAME "POOL_CTRL"
 #define WIFI_PROV_POP "pool1234"
 
+// WiFi Failure Detection
+#define WIFI_MAX_BOOT_FAILURES 5        // Clear credentials after this many consecutive boot failures
+#define WIFI_FAILURE_RESET_DELAY 3000   // Delay before reset (ms)
+
 // ============================================
 // NTP CONFIGURATION
 // ============================================

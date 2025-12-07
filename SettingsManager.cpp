@@ -161,3 +161,32 @@ void factoryResetSettings() {
 
   Serial.println("Factory reset complete");
 }
+
+// ============================================
+// WIFI FAILURE TRACKING
+// ============================================
+
+int loadWiFiFailureCount() {
+  preferences.begin("pool", true);  // Read-only
+  int count = preferences.getInt("wifiFailCnt", 0);
+  preferences.end();
+  return count;
+}
+
+void saveWiFiFailureCount(int count) {
+  preferences.begin("pool", false);
+  preferences.putInt("wifiFailCnt", count);
+  preferences.end();
+  Serial.print("Saved WiFi failure count: ");
+  Serial.println(count);
+}
+
+void incrementWiFiFailureCount() {
+  int count = loadWiFiFailureCount();
+  count++;
+  saveWiFiFailureCount(count);
+}
+
+void resetWiFiFailureCount() {
+  saveWiFiFailureCount(0);
+}

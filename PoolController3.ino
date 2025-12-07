@@ -278,11 +278,46 @@ void setup() {
   // Apply loaded states to hardware
   applyPumpState();
   applyHeaterState();
-  
-  // WiFi provisioning
+
+  // ============================================
+  // WIFI FAILURE DETECTION
+  // ============================================
+
+  // Load WiFi failure count from flash
+  int wifiFailureCount = loadWiFiFailureCount();
+  Serial.print("WiFi failure count: ");
+  Serial.println(wifiFailureCount);
+
+  // Check if we've exceeded the failure threshold
+  if (wifiFailureCount >= WIFI_MAX_BOOT_FAILURES) {
+    Serial.println("========================================");
+    Serial.println("WARNING: WiFi failure threshold exceeded!");
+    Serial.println("Clearing WiFi credentials and resetting...");
+    Serial.println("========================================");
+
+    // Clear WiFi credentials
+    WiFi.disconnect(true, true);  // disconnect and erase stored credentials
+
+    // Reset failure counter
+    resetWiFiFailureCount();
+
+    // Display message on LCD
+    displayWiFiReset();
+
+    // Wait for user to see message
+    delay(WIFI_FAILURE_RESET_DELAY);
+
+    // Restart ESP32
+    ESP.restart();
+  }
+
+  // ============================================
+  // WIFI PROVISIONING
+  // ============================================
+
   Serial.println("Starting WiFi provisioning...");
   WiFi.onEvent(SysProvEvent);
-  
+
   // Check if already provisioned
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("Already provisioned, connecting to WiFi...");
@@ -295,7 +330,7 @@ void setup() {
       WIFI_PROV_SERVICE_NAME
     );
   }
-  
+
   // Wait for WiFi
   Serial.println("Waiting for WiFi connection...");
   int attempts = 0;
@@ -308,6 +343,9 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nWiFi connected!");
     state.wifiConnected = true;
+
+    // Reset failure counter on successful connection
+    resetWiFiFailureCount();
     
     // Initialize NTP time sync
     Serial.println("Syncing time with NTP...");
@@ -327,9 +365,17 @@ void setup() {
       syncTargetTempToSinric();
     });
   } else {
-    Serial.println("\nWiFi not connected yet - continuing in offline mode");
+    Serial.println("\nWiFi not connected - continuing in offline mode");
     Serial.println("WiFi will auto-connect in background when available");
     Serial.println("Local controls (buttons, LCD) are fully functional");
+
+    // Increment failure counter
+    incrementWiFiFailureCount();
+    Serial.print("WiFi failures incremented to: ");
+    Serial.println(loadWiFiFailureCount());
+    Serial.print("Will reset credentials after ");
+    Serial.print(WIFI_MAX_BOOT_FAILURES);
+    Serial.println(" consecutive boot failures");
   }
   
   updateLCDDisplay();
