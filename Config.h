@@ -30,6 +30,7 @@
 // ============================================
 #define LCD_ADDRESS 0x27      // or 0x3F depending on LCD module
 #define MCP23008_ADDRESS 0x20
+#define ADS1115_ADDRESS 0x48  // ADC for current sensor
 
 // ============================================
 // MCP23008 BUTTON PIN ASSIGNMENTS
@@ -44,6 +45,7 @@
 // TIMING CONSTANTS (milliseconds)
 // ============================================
 #define TEMP_READ_INTERVAL 5000       // 5 seconds
+#define CURRENT_READ_INTERVAL 2000    // 2 seconds
 #define LCD_UPDATE_INTERVAL 1000      // 1 second
 #define BLYNK_UPDATE_INTERVAL 2000    // 2 seconds
 #define SINRIC_TEMP_UPDATE_INTERVAL 30000  // 30 seconds
@@ -70,6 +72,20 @@
 #define MAX_HEATER_TEMP 110.0  // °F - emergency overheat cutoff
 
 // ============================================
+// CURRENT SENSOR CONFIGURATION (SCT-013-030 + ADS1115)
+// ============================================
+#define CURRENT_SENSOR_CHANNEL 0           // ADS1115 channel (A0)
+#define CURRENT_SENSOR_BIAS_VOLTAGE 1.65   // Bias voltage (half of 3.3V)
+#define CURRENT_SENSOR_BURDEN_RESISTOR 62.0  // Burden resistor in ohms
+#define CURRENT_SENSOR_CT_RATIO 1000.0     // SCT-013-030 CT ratio (1000:1)
+#define CURRENT_SENSOR_MAX_CURRENT 30.0    // Maximum measurable current (A)
+
+// Current thresholds
+#define CURRENT_THRESHOLD_PUMP_RUNNING 0.5  // Minimum current to consider pump running (A)
+#define CURRENT_THRESHOLD_OVERCURRENT 25.0  // Overcurrent alarm threshold (A)
+#define CURRENT_FAILURE_DETECTION_DELAY 5000  // Wait time before reporting pump failure (ms)
+
+// ============================================
 // BLYNK CONFIGURATION
 // ============================================
 #define BLYNK_TEMPLATE_ID "TMPL2oQXCsxt1"
@@ -87,6 +103,8 @@
 #define VPIN_HEATER_END_HOUR V8
 #define VPIN_PUMP_RUNTIME_TODAY V9
 #define VPIN_AMBIENT_TEMP V10    // 3rd temperature sensor
+#define VPIN_PUMP_CURRENT V11    // Pump current reading
+#define VPIN_PUMP_FAILURE_ALERT V12  // Pump failure alert
 
 // ============================================
 // WIFI PROVISIONING

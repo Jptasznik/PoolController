@@ -26,7 +26,14 @@ void initSystemState() {
   state.inletTempValid = false;
   state.heaterTempValid = false;
   state.ambientTempValid = false;
-  
+
+  // Initialize current monitoring
+  state.pumpCurrent = 0.0;
+  state.currentOffset = 0.0;
+  state.currentSensorValid = false;
+  state.pumpFailureAlert = false;
+  state.overcurrentAlert = false;
+
   state.heaterEnabled = false;
   state.heaterStatus = HEATER_OFF;
   state.pumpState = PUMP_OFF;
