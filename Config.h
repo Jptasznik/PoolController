@@ -98,6 +98,12 @@
 #define WIFI_MAX_BOOT_FAILURES 5        // Clear credentials after this many consecutive boot failures
 #define WIFI_FAILURE_RESET_DELAY 3000   // Delay before reset (ms)
 
+// WiFi Runtime Failure Detection
+#define WIFI_PROVISIONING_TIMEOUT 300000      // 5 minutes - max time for provisioning
+#define WIFI_DISCONNECT_WINDOW 600000         // 10 minutes - time window for disconnect tracking
+#define WIFI_MAX_DISCONNECTS 10               // Max disconnects in time window before reset
+#define WIFI_RUNTIME_CHECK_INTERVAL 10000     // 10 seconds - how often to check runtime failures
+
 // ============================================
 // NTP CONFIGURATION
 // ============================================

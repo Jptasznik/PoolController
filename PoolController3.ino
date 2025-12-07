@@ -52,6 +52,7 @@ unsigned long lastLCDUpdate = 0;
 unsigned long lastBlynkUpdate = 0;
 unsigned long lastSinricTempUpdate = 0;
 unsigned long lastControlCycle = 0;
+unsigned long lastWiFiRuntimeCheck = 0;
 
 // ============================================
 // BLYNK WRITE HANDLERS
@@ -200,6 +201,36 @@ void syncPumpRuntimeToBlynk() {
 }
 
 // ============================================
+// WIFI RUNTIME FAILURE HANDLER
+// ============================================
+
+void handleWiFiRuntimeFailure(const char* reason) {
+  Serial.println("========================================");
+  Serial.print("WiFi Runtime Failure: ");
+  Serial.println(reason);
+  Serial.println("Clearing WiFi credentials and resetting...");
+  Serial.println("========================================");
+
+  // Display message on LCD
+  displayWiFiReset();
+
+  // Clear WiFi credentials
+  WiFi.disconnect(true, true);  // disconnect and erase stored credentials
+
+  // Reset boot failure counter (this is a runtime failure, not boot failure)
+  resetWiFiFailureCount();
+
+  // Clear runtime tracking
+  clearWiFiRuntimeTracking();
+
+  // Wait for user to see message
+  delay(WIFI_FAILURE_RESET_DELAY);
+
+  // Restart ESP32
+  ESP.restart();
+}
+
+// ============================================
 // WIFI PROVISIONING CALLBACKS
 // ============================================
 
@@ -207,32 +238,38 @@ void SysProvEvent(arduino_event_t *sys_event) {
   switch (sys_event->event_id) {
     case ARDUINO_EVENT_PROV_START:
       Serial.println("WiFi Provisioning started");
+      state.provisioningActive = true;
+      state.provisioningStartTime = millis();
       displayWiFiProvisioning();
       break;
-      
+
     case ARDUINO_EVENT_PROV_CRED_RECV:
       Serial.println("WiFi credentials received");
       break;
-      
+
     case ARDUINO_EVENT_PROV_CRED_SUCCESS:
       Serial.println("WiFi credentials accepted");
       break;
-      
+
     case ARDUINO_EVENT_PROV_END:
       Serial.println("WiFi Provisioning ended");
+      state.provisioningActive = false;
+      state.provisioningStartTime = 0;
       break;
-      
+
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
       Serial.print("WiFi connected - IP: ");
       Serial.println(WiFi.localIP());
       state.wifiConnected = true;
+      clearWiFiRuntimeTracking();  // Clear disconnect tracking on successful connection
       updateLCDDisplay();
       break;
-      
+
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
       Serial.println("WiFi disconnected");
       state.wifiConnected = false;
       state.blynkConnected = false;
+      recordWiFiDisconnect();  // Track disconnect for runtime failure detection
       updateLCDDisplay();
       break;
   }
@@ -424,18 +461,36 @@ void loop() {
   // Run control system logic
   if (now - lastControlCycle >= CONTROL_CYCLE_INTERVAL) {
     lastControlCycle = now;
-    
+
     // Update pump runtime
     updatePumpRuntime();
-    
+
     // Run heater control logic
     runControlSystem();
-    
+
     // Apply states to hardware
     applyPumpState();
     applyHeaterState();
   }
-  
+
+  // Check for WiFi runtime failures periodically
+  if (now - lastWiFiRuntimeCheck >= WIFI_RUNTIME_CHECK_INTERVAL) {
+    lastWiFiRuntimeCheck = now;
+
+    // Check for provisioning hang
+    if (isProvisioningHung()) {
+      handleWiFiRuntimeFailure("Provisioning timeout - no response for 5 minutes");
+    }
+
+    // Check for excessive disconnections
+    int recentDisconnects = getRecentDisconnectCount();
+    if (recentDisconnects >= WIFI_MAX_DISCONNECTS) {
+      char msg[64];
+      snprintf(msg, sizeof(msg), "Excessive disconnects (%d in 10 minutes)", recentDisconnects);
+      handleWiFiRuntimeFailure(msg);
+    }
+  }
+
   // Small delay to prevent watchdog issues
   delay(10);
 }

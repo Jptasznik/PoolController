@@ -57,7 +57,13 @@ struct SystemState {
   bool wifiConnected;
   bool blynkConnected;
   bool sinricConnected;
-  
+
+  // WiFi runtime failure tracking
+  bool provisioningActive;
+  unsigned long provisioningStartTime;
+  unsigned long disconnectTimestamps[WIFI_MAX_DISCONNECTS];
+  int disconnectCount;
+
   // Emergency state
   bool emergencyShutdown;
 };
@@ -101,5 +107,11 @@ bool isWithinOperatingHours();
 bool canPumpTurnOff();
 const char* getPumpStateString();
 const char* getHeaterStatusString();
+
+// WiFi runtime failure tracking
+void recordWiFiDisconnect();
+int getRecentDisconnectCount();
+bool isProvisioningHung();
+void clearWiFiRuntimeTracking();
 
 #endif // STATE_MANAGER_H
