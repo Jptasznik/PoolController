@@ -1,6 +1,7 @@
 #include "CurrentMonitor.h"
 #include "Config.h"
 #include "StateManager.h"
+#include "SettingsManager.h"
 #include <Adafruit_ADS1X15.h>
 #include <Wire.h>
 
