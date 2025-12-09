@@ -49,6 +49,8 @@ void initSystemState() {
   state.maxRuntimeHours = DEFAULT_MAX_RUNTIME_HOURS;
   state.heaterStartHour = DEFAULT_HEATER_START_HOUR;
   state.heaterEndHour = DEFAULT_HEATER_END_HOUR;
+  state.minHeaterTemp = DEFAULT_MIN_HEATER_TEMP;
+  state.maxHeaterTemp = DEFAULT_MAX_HEATER_TEMP;
   
   state.wifiConnected = false;
   state.blynkConnected = false;
@@ -160,12 +162,38 @@ void setHeaterStartHour(int hour) {
 void setHeaterEndHour(int hour) {
   if (hour < 0) hour = 0;
   if (hour > 23) hour = 23;
-  
+
   state.heaterEndHour = hour;
   saveHeaterEndHour(hour);
-  
+
   Serial.print("Heater end hour: ");
   Serial.println(hour);
+}
+
+void setMinHeaterTemp(float temp) {
+  // Enforce safety limits
+  if (temp < INVALID_TEMP_LOW) temp = INVALID_TEMP_LOW;
+  if (temp > MAX_TARGET_TEMP) temp = MAX_TARGET_TEMP;
+
+  state.minHeaterTemp = temp;
+  saveMinHeaterTemp(temp);
+
+  Serial.print("Minimum heater temp: ");
+  Serial.print(temp, 1);
+  Serial.println("°F");
+}
+
+void setMaxHeaterTemp(float temp) {
+  // Enforce safety limits
+  if (temp < MIN_TARGET_TEMP) temp = MIN_TARGET_TEMP;
+  if (temp > MAX_HEATER_TEMP) temp = MAX_HEATER_TEMP;
+
+  state.maxHeaterTemp = temp;
+  saveMaxHeaterTemp(temp);
+
+  Serial.print("Maximum heater temp: ");
+  Serial.print(temp, 1);
+  Serial.println("°F");
 }
 
 // ============================================

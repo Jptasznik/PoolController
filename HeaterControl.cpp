@@ -120,19 +120,39 @@ bool shouldHeaterBeOn() {
     return false;
   }
 
-  // 6. Temperature check
+  // 6. Temperature check (hard safety limits)
   if (state.inletTemp < INVALID_TEMP_LOW || state.inletTemp > INVALID_TEMP_HIGH) {
     Serial.println("Heater OFF: Temperature out of safe range");
     return false;
   }
 
-  // 7. Runtime limit check
+  // 7. User-configurable minimum heater temperature
+  if (state.inletTemp < state.minHeaterTemp) {
+    Serial.print("Heater OFF: Water temp ");
+    Serial.print(state.inletTemp, 1);
+    Serial.print("°F below minimum ");
+    Serial.print(state.minHeaterTemp, 1);
+    Serial.println("°F");
+    return false;
+  }
+
+  // 8. User-configurable maximum heater temperature
+  if (state.inletTemp >= state.maxHeaterTemp) {
+    Serial.print("Heater OFF: Water temp ");
+    Serial.print(state.inletTemp, 1);
+    Serial.print("°F at or above maximum ");
+    Serial.print(state.maxHeaterTemp, 1);
+    Serial.println("°F");
+    return false;
+  }
+
+  // 9. Runtime limit check
   if (isRuntimeLimitExceeded()) {
     Serial.println("Heater OFF: Daily runtime limit exceeded");
     return false;
   }
 
-  // 8. Inlet temperature < Target temperature
+  // 10. Inlet temperature < Target temperature
   if (state.inletTemp >= state.targetTemp) {
     return false;  // Target reached or exceeded
   }

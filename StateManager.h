@@ -60,6 +60,8 @@ struct SystemState {
   float maxRuntimeHours;
   int heaterStartHour;
   int heaterEndHour;
+  float minHeaterTemp;  // Minimum water temp to allow heater ON (°F)
+  float maxHeaterTemp;  // Maximum water temp to allow heater ON (°F)
   
   // Connection status
   bool wifiConnected;
@@ -95,6 +97,8 @@ void setTargetTemperature(float newTemp);
 void setMaxRuntimeHours(float hours);
 void setHeaterStartHour(int hour);
 void setHeaterEndHour(int hour);
+void setMinHeaterTemp(float temp);
+void setMaxHeaterTemp(float temp);
 
 // Emergency controls
 void triggerEmergencyShutdown();
