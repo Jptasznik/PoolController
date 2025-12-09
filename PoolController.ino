@@ -319,16 +319,6 @@ void setup() {
   Serial.println("ESP32 Pool Controller");
   Serial.println("========================================\n");
 
-  // Initialize watchdog timer (30 second timeout)
-  Serial.println("Initializing watchdog timer...");
-  esp_task_wdt_config_t wdt_config = {
-    .timeout_ms = 30000,      // 30 seconds in milliseconds
-    .trigger_panic = true      // Panic on timeout
-  };
-  esp_task_wdt_init(&wdt_config);  // Initialize with config struct
-  esp_task_wdt_add(NULL);          // Add current thread to watchdog
-  Serial.println("Watchdog timer enabled (30s timeout)");
-
   // Initialize system state
   initSystemState();
   
@@ -449,9 +439,19 @@ void setup() {
     Serial.print(WIFI_MAX_BOOT_FAILURES);
     Serial.println(" consecutive boot failures");
   }
-  
+
   updateLCDDisplay();
-  
+
+  // Initialize watchdog timer (30 second timeout)
+  Serial.println("Initializing watchdog timer...");
+  esp_task_wdt_config_t wdt_config = {
+    .timeout_ms = 30000,      // 30 seconds in milliseconds
+    .trigger_panic = true      // Panic on timeout
+  };
+  esp_task_wdt_init(&wdt_config);  // Initialize with config struct
+  esp_task_wdt_add(NULL);          // Add current thread to watchdog
+  Serial.println("Watchdog timer enabled (30s timeout)");
+
   Serial.println("\n========================================");
   Serial.println("System initialized - entering main loop");
   Serial.println("========================================\n");
