@@ -124,6 +124,20 @@ BLYNK_WRITE(VPIN_HEATER_END_HOUR) {
   setHeaterEndHour(hour);
 }
 
+BLYNK_WRITE(VPIN_MIN_HEATER_TEMP) {
+  float temp = param.asFloat();
+  Serial.print("Blynk: Min heater temp ");
+  Serial.println(temp);
+  setMinHeaterTemp(temp);
+}
+
+BLYNK_WRITE(VPIN_MAX_HEATER_TEMP) {
+  float temp = param.asFloat();
+  Serial.print("Blynk: Max heater temp ");
+  Serial.println(temp);
+  setMaxHeaterTemp(temp);
+}
+
 // ============================================
 // BLYNK CONNECTION HANDLERS
 // ============================================
@@ -162,6 +176,8 @@ void syncAllToBlynk() {
   Blynk.virtualWrite(VPIN_MAX_RUNTIME, state.maxRuntimeHours);
   Blynk.virtualWrite(VPIN_HEATER_START_HOUR, state.heaterStartHour);
   Blynk.virtualWrite(VPIN_HEATER_END_HOUR, state.heaterEndHour);
+  Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);
+  Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);
 
   Serial.println("Synced all values to Blynk");
 }

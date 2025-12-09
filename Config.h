@@ -105,6 +105,8 @@
 #define VPIN_AMBIENT_TEMP V10    // 3rd temperature sensor
 #define VPIN_PUMP_CURRENT V11    // Pump current reading
 #define VPIN_PUMP_FAILURE_ALERT V12  // Pump failure alert
+#define VPIN_MIN_HEATER_TEMP V13 // Minimum water temp to allow heater ON
+#define VPIN_MAX_HEATER_TEMP V14 // Maximum water temp to allow heater ON
 
 // ============================================
 // WIFI PROVISIONING
@@ -137,5 +139,7 @@
 #define DEFAULT_MAX_RUNTIME_HOURS 8.0
 #define DEFAULT_HEATER_START_HOUR 6
 #define DEFAULT_HEATER_END_HOUR 22
+#define DEFAULT_MIN_HEATER_TEMP 50.0  // Minimum water temp to allow heater (°F)
+#define DEFAULT_MAX_HEATER_TEMP 95.0  // Maximum water temp cutoff (°F)
 
 #endif // CONFIG_H

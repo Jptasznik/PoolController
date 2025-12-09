@@ -21,6 +21,8 @@ void savePumpState(PumpState state);
 void saveMaxRuntimeHours(float hours);
 void saveHeaterStartHour(int hour);
 void saveHeaterEndHour(int hour);
+void saveMinHeaterTemp(float temp);
+void saveMaxHeaterTemp(float temp);
 
 // Load individual settings
 float loadTargetTemp();
@@ -29,6 +31,8 @@ PumpState loadPumpState();
 float loadMaxRuntimeHours();
 int loadHeaterStartHour();
 int loadHeaterEndHour();
+float loadMinHeaterTemp();
+float loadMaxHeaterTemp();
 
 // Factory reset
 void factoryResetSettings();

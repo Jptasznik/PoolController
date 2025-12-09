@@ -26,6 +26,8 @@ void loadAllSettings() {
   state.maxRuntimeHours = loadMaxRuntimeHours();
   state.heaterStartHour = loadHeaterStartHour();
   state.heaterEndHour = loadHeaterEndHour();
+  state.minHeaterTemp = loadMinHeaterTemp();
+  state.maxHeaterTemp = loadMaxHeaterTemp();
   state.currentOffset = loadCurrentCalibration();
 
   Serial.println("Settings loaded:");
@@ -41,6 +43,10 @@ void loadAllSettings() {
   Serial.print(state.heaterStartHour);
   Serial.print(" - ");
   Serial.println(state.heaterEndHour);
+  Serial.print("  Min heater temp: ");
+  Serial.println(state.minHeaterTemp, 1);
+  Serial.print("  Max heater temp: ");
+  Serial.println(state.maxHeaterTemp, 1);
   Serial.print("  Current calibration: ");
   Serial.println(state.currentOffset, 3);
 }
@@ -97,6 +103,22 @@ void saveHeaterEndHour(int hour) {
   Serial.println(hour);
 }
 
+void saveMinHeaterTemp(float temp) {
+  preferences.begin("pool", false);
+  preferences.putFloat("minHeatTemp", temp);
+  preferences.end();
+  Serial.print("Saved minimum heater temp: ");
+  Serial.println(temp, 1);
+}
+
+void saveMaxHeaterTemp(float temp) {
+  preferences.begin("pool", false);
+  preferences.putFloat("maxHeatTemp", temp);
+  preferences.end();
+  Serial.print("Saved maximum heater temp: ");
+  Serial.println(temp, 1);
+}
+
 // ============================================
 // LOAD FUNCTIONS
 // ============================================
@@ -143,6 +165,20 @@ int loadHeaterEndHour() {
   return value;
 }
 
+float loadMinHeaterTemp() {
+  preferences.begin("pool", true);  // Read-only
+  float value = preferences.getFloat("minHeatTemp", DEFAULT_MIN_HEATER_TEMP);
+  preferences.end();
+  return value;
+}
+
+float loadMaxHeaterTemp() {
+  preferences.begin("pool", true);  // Read-only
+  float value = preferences.getFloat("maxHeatTemp", DEFAULT_MAX_HEATER_TEMP);
+  preferences.end();
+  return value;
+}
+
 // ============================================
 // FACTORY RESET
 // ============================================
@@ -161,6 +197,8 @@ void factoryResetSettings() {
   state.maxRuntimeHours = DEFAULT_MAX_RUNTIME_HOURS;
   state.heaterStartHour = DEFAULT_HEATER_START_HOUR;
   state.heaterEndHour = DEFAULT_HEATER_END_HOUR;
+  state.minHeaterTemp = DEFAULT_MIN_HEATER_TEMP;
+  state.maxHeaterTemp = DEFAULT_MAX_HEATER_TEMP;
 
   Serial.println("Factory reset complete");
 }

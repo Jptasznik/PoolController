@@ -189,6 +189,8 @@ V9  - Pump runtime today (read-only)
 V10 - Ambient temperature (read-only)
 V11 - Pump current (read-only)
 V12 - Pump failure alert (read-only)
+V13 - Minimum heater temperature (read/write)
+V14 - Maximum heater temperature (read/write)
 ```
 
 **Important:** If you add virtual pins, update `BLYNK_WRITE()` handlers in PoolController3.ino

@@ -90,6 +90,8 @@ Line 4: Heater: ON      CLOUD
 | V10 | Ambient temperature | Display | Read-only |
 | V11 | Pump current | Display | 0-30A |
 | V12 | Pump failure alert | LED | 0=OK, 1=FAIL |
+| V13 | Min heater temp | Slider | 32-104°F |
+| V14 | Max heater temp | Slider | 60-110°F |
 
 ## System Behavior
 
