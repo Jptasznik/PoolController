@@ -29,6 +29,9 @@ This is NOT a typical C/C++ project with a build system. It uses the Arduino IDE
 PoolController.ino           # Main coordinator (setup/loop)
 Config.h                     # All pin definitions and constants
 StateManager.h/cpp           # Centralized state management
+StateMutex.h/cpp             # Thread-safe state access
+I2CMutex.h/cpp               # Thread-safe I2C bus access
+TaskManager.h/cpp            # FreeRTOS task management
 SettingsManager.h/cpp        # Flash storage persistence
 TemperatureSensors.h/cpp     # DS18B20 sensor handling
 CurrentMonitor.h/cpp         # ADS1115 + SCT-013 current monitoring
@@ -97,7 +100,151 @@ void initModuleName() {
 }
 ```
 
-### 4. Hardware Configuration
+### 4. FreeRTOS Multitasking Architecture
+
+This system uses **FreeRTOS multitasking** to efficiently manage multiple concurrent operations. Each subsystem runs in its own task with proper synchronization.
+
+#### Task Structure
+
+The system runs **6 concurrent tasks** across the ESP32's dual cores:
+
+**Core 1 (Application Tasks):**
+1. **TemperatureSensorTask** (Priority: 1)
+   - Interval: 5 seconds
+   - Function: Read DS18B20 temperature sensors
+   - Watchdog: 15 seconds
+   - No I2C access (uses 1-Wire)
+
+2. **CurrentMonitorTask** (Priority: 2)
+   - Interval: 2 seconds
+   - Function: Read ADS1115 current sensor
+   - Watchdog: 6 seconds
+   - **Uses I2C mutex** (ADS1115 on address 0x48)
+
+3. **LCDUpdateTask** (Priority: 1)
+   - Interval: 1 second
+   - Function: Update 20x4 LCD display
+   - Watchdog: 3 seconds
+   - **Uses I2C mutex** (LCD on address 0x27)
+
+4. **ButtonScanTask** (Priority: 3 - highest)
+   - Interval: 50 milliseconds
+   - Function: Scan MCP23008 button inputs
+   - Watchdog: 500 milliseconds
+   - **Uses I2C mutex** (MCP23008 on address 0x20)
+
+5. **ControlSystemTask** (Priority: 2)
+   - Interval: 60 seconds
+   - Function: Run heater/pump control logic, safety checks
+   - Watchdog: 180 seconds
+   - No I2C access (only state modification)
+
+**Core 0/1 (Main Loop - default Arduino task):**
+6. **Main Loop** (Priority: 1)
+   - Function: Network services (Blynk, Sinric, WiFi monitoring)
+   - Watchdog: 30 seconds
+   - No I2C access
+
+#### Thread-Safe Programming
+
+All shared resources are protected by **FreeRTOS mutexes**:
+
+**I2C Bus Mutex (`I2CMutex.h/cpp`):**
+```cpp
+// CORRECT - Always use scoped lock for I2C access
+{
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    return;  // Couldn't acquire lock, skip operation
+  }
+  // Safe to access I2C devices here (LCD, MCP23008, ADS1115)
+  lcd.print("Hello");
+}  // Lock automatically released
+```
+
+**State Mutex (`StateMutex.h/cpp`):**
+```cpp
+// CORRECT - Use scoped lock when accessing/modifying state
+{
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    return;  // Couldn't acquire lock, skip operation
+  }
+  // Safe to access state here
+  float temp = state.inletTemp;
+  state.pumpCurrent = 5.2;
+}  // Lock automatically released
+```
+
+**Best Practices:**
+- **Minimize lock time** - Copy data out of locked sections quickly
+- **Never nest locks** - Avoid deadlocks by not holding multiple locks
+- **Use scoped locks** - RAII ensures locks are always released
+- **Check lock success** - Handle timeouts gracefully
+
+#### Watchdog Timers
+
+Each task has its own watchdog timer configured with appropriate timeouts:
+
+| Task | Timeout | Reason |
+|------|---------|--------|
+| TemperatureSensorTask | 15s | 3x task interval (5s) + margin |
+| CurrentMonitorTask | 6s | 3x task interval (2s) + margin |
+| LCDUpdateTask | 3s | 3x task interval (1s) + margin |
+| ButtonScanTask | 500ms | 10x task interval (50ms) + margin |
+| ControlSystemTask | 180s | 3x task interval (60s) + margin |
+| Main Loop | 30s | Network operations can be slow |
+
+**Important:** Each task calls `esp_task_wdt_reset()` at the start of every loop iteration. If a task hangs, the watchdog will trigger a system reset.
+
+#### Task Synchronization
+
+Tasks coordinate through the shared `SystemState` structure:
+
+1. **Sensor Tasks** → Write sensor readings to state (with mutex)
+2. **Control Task** → Read state, make decisions, write commands (with mutex)
+3. **Output Tasks** → Read state, update displays/relays (with mutex)
+
+The centralized state management functions in `StateManager.cpp` are thread-safe and can be called from any task.
+
+#### Adding New Tasks
+
+To add a new task:
+
+1. **Define task function in TaskManager.cpp:**
+```cpp
+void myNewTask(void* parameter) {
+  esp_task_wdt_add(NULL);  // Add to watchdog
+
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(1000);  // 1 second
+
+  for (;;) {
+    esp_task_wdt_reset();  // Reset watchdog
+
+    // Do work here (use mutexes for shared resources)
+
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+```
+
+2. **Create task in initTasks():**
+```cpp
+xTaskCreatePinnedToCore(
+  myNewTask,           // Function
+  "MyTask",            // Name
+  4096,                // Stack size
+  NULL,                // Parameters
+  1,                   // Priority
+  &myTaskHandle,       // Handle
+  TASK_CORE_1          // Core
+);
+```
+
+3. **Update TaskManager.h** with constants and handle declaration
+
+### 5. Hardware Configuration
 
 #### Pin Assignments (Config.h)
 
@@ -138,7 +285,7 @@ void initModuleName() {
    - Can be on same or different GPIOs
    - Current configuration uses separate pins
 
-### 5. Safety Critical Code
+### 6. Safety Critical Code
 
 This system has **mandatory safety interlocks**. When modifying code:
 
@@ -170,7 +317,7 @@ This system has **mandatory safety interlocks**. When modifying code:
 - `runControlSystem()` in HeaterControl.cpp
 - Temperature validation logic in TemperatureSensors.cpp
 
-### 6. Cloud Integration
+### 7. Cloud Integration
 
 #### Blynk Virtual Pins
 Defined in Config.h - these are the API contract with the cloud:
@@ -200,7 +347,7 @@ V14 - Maximum heater temperature (read/write)
 - Dimmer Switch device: Pool Pump (speed control via percentage)
 - Credentials in `sinric_config.h`
 
-### 7. Common Development Tasks
+### 8. Common Development Tasks
 
 #### Adding a New Virtual Pin to Blynk
 
@@ -297,7 +444,7 @@ float loadNewSetting() {
 
 3. **Add to loadAllSettings()** in SettingsManager.cpp
 
-### 8. Testing and Debugging
+### 9. Testing and Debugging
 
 #### Serial Monitor
 - **Baud rate:** 115200
@@ -331,7 +478,7 @@ Always verify:
 3. Cooldown prevents pump OFF for 15 minutes
 4. Invalid temp reading disables heater
 
-### 9. Coding Conventions
+### 10. Coding Conventions
 
 #### Naming Conventions
 - **Functions:** camelCase (`initPumpControl()`, `readTemperatures()`)
@@ -356,7 +503,7 @@ Always verify:
 // ============================================
 ```
 
-### 10. Dependencies and Libraries
+### 11. Dependencies and Libraries
 
 **Required Arduino Libraries:**
 1. Blynk (by Volodymyr Shymanskyy)
@@ -376,7 +523,7 @@ Always verify:
 
 **Installation:** All via Arduino IDE Library Manager (Sketch → Include Library → Manage Libraries)
 
-### 11. Memory Considerations
+### 12. Memory Considerations
 
 ESP32 has limited RAM (~320KB). Best practices:
 
@@ -386,33 +533,41 @@ ESP32 has limited RAM (~320KB). Best practices:
 - **Watch global variables** - state struct is already large
 - **Avoid dynamic allocation** (malloc/new) when possible
 
-### 12. Timing and Task Scheduling
+### 13. Timing and Task Scheduling
 
-Main loop uses **polled intervals** (not interrupts):
+The system uses **FreeRTOS task scheduling** with cooperative multitasking:
 
 ```cpp
-unsigned long lastCheck = 0;
+void myTask(void* parameter) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(1000);  // 1 second
 
-void loop() {
-  unsigned long now = millis();
+  for (;;) {
+    esp_task_wdt_reset();  // Reset watchdog
 
-  if (now - lastCheck >= INTERVAL) {
-    lastCheck = now;
-    doTask();
+    // Do work here
+
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);  // Precise timing
   }
 }
 ```
 
-**Defined intervals in Config.h:**
-- Temperature reading: 5s
-- LCD update: 1s
-- Blynk update: 2s
-- Control cycle: 60s
-- Button scan: 50ms
+**Task Intervals (defined in Config.h):**
+- Temperature reading: 5s (TEMP_READ_INTERVAL)
+- Current monitoring: 2s (CURRENT_READ_INTERVAL)
+- LCD update: 1s (LCD_UPDATE_INTERVAL)
+- Button scan: 50ms (BUTTON_SCAN_INTERVAL)
+- Control cycle: 60s (CONTROL_CYCLE_INTERVAL)
+- Blynk update: 2s (BLYNK_UPDATE_INTERVAL)
 
-**Never use delay() in loop()** - it blocks everything. Use millis() polling.
+**Important Notes:**
+- **Use vTaskDelayUntil()** - Provides precise periodic timing
+- **Use vTaskDelay()** for relative delays
+- **delay() can still be used** in tasks but blocks that task only (not the entire system)
+- **Main loop** handles network services and should avoid blocking operations
+- **Each task is independent** and runs according to its own schedule
 
-### 13. WiFi and Network
+### 14. WiFi and Network
 
 #### WiFi Provisioning
 - Uses **BLE provisioning** via ESP BLE Provisioning app
@@ -435,7 +590,7 @@ configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER1, NTP_SERVER2);
 ```
 Used for operating hours enforcement.
 
-### 14. Version Control and Git
+### 15. Version Control and Git
 
 Current branch: `claude/claude-md-miu9qz78g82t3q4r-018b8tPRfz77RkdRvHbJHaxB`
 
@@ -452,7 +607,7 @@ Current branch: `claude/claude-md-miu9qz78g82t3q4r-018b8tPRfz77RkdRvHbJHaxB`
 - Temporary test files
 - IDE-specific files
 
-### 15. Common Pitfalls and Gotchas
+### 16. Common Pitfalls and Gotchas
 
 #### Arduino IDE Quirks
 - **Case-sensitive filenames** on Linux, case-insensitive on Windows
@@ -476,7 +631,7 @@ Current branch: `claude/claude-md-miu9qz78g82t3q4r-018b8tPRfz77RkdRvHbJHaxB`
 - **Address conflicts** - ensure each device has unique address
 - **Bus capacitance** - long wires can cause issues
 
-### 16. Feature Enhancement Guidelines
+### 17. Feature Enhancement Guidelines
 
 When adding new features:
 
@@ -488,7 +643,7 @@ When adding new features:
 6. **Test offline mode** - features should degrade gracefully without WiFi
 7. **Consider flash wear** - don't write to Preferences too frequently
 
-### 17. Quick Reference Commands
+### 18. Quick Reference Commands
 
 #### Compile and Upload
 ```
@@ -509,7 +664,7 @@ Hold Button 5 (BUTTON_RESET on GP4) for 5 seconds
 #### Emergency Shutdown
 Hold Button 2 (BUTTON_PUMP on GP1) for 10 seconds
 
-### 18. Documentation Files Reference
+### 19. Documentation Files Reference
 
 - **README.md** - Complete user-facing documentation, troubleshooting
 - **INSTALL.md** - Step-by-step installation and setup guide
@@ -522,7 +677,7 @@ Hold Button 2 (BUTTON_PUMP on GP1) for 10 seconds
 - **QUICK_REFERENCE.md** - Quick reference card for common operations
 - **CLAUDE.md** (this file) - AI assistant development guide
 
-### 19. When to Ask User for Clarification
+### 20. When to Ask User for Clarification
 
 Ask the user before:
 - **Changing pin assignments** (may affect their hardware)
@@ -532,7 +687,7 @@ Ask the user before:
 - **Removing or renaming existing features** (may be in use)
 - **Changing timing intervals significantly** (affects user experience)
 
-### 20. Testing Checklist for Changes
+### 21. Testing Checklist for Changes
 
 Before considering a change complete:
 

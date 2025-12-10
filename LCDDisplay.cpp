@@ -1,6 +1,8 @@
 #include "LCDDisplay.h"
 #include "Config.h"
 #include "StateManager.h"
+#include "I2CMutex.h"
+#include "StateMutex.h"
 #include <LiquidCrystal_I2C.h>
 
 // LCD instance (20 columns, 4 rows)
@@ -15,11 +17,18 @@ static bool lcdNeedsClear = true;
 
 void initLCD() {
   Serial.println("Initializing LCD display...");
-  
+
+  // Lock I2C bus for LCD initialization
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    Serial.println("ERROR: Failed to lock I2C for LCD init!");
+    return;
+  }
+
   lcd.init();
   lcd.backlight();
   lcd.clear();
-  
+
   // Display startup message
   lcd.setCursor(0, 0);
   lcd.print("  Pool Controller");
@@ -27,7 +36,7 @@ void initLCD() {
   lcd.print("   Initializing...");
   lcd.setCursor(0, 3);
   lcd.print("    Please Wait");
-  
+
   Serial.println("LCD display initialized");
 }
 
@@ -36,6 +45,39 @@ void initLCD() {
 // ============================================
 
 void updateLCDDisplay() {
+  // Copy state data while holding state lock (minimize lock time)
+  float inletTemp, heaterTemp, targetTemp, pumpCurrent;
+  bool inletTempValid, heaterTempValid, currentSensorValid;
+  bool blynkConnected, wifiConnected;
+  const char* pumpStateStr;
+  const char* heaterStatusStr;
+
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      return;  // Can't access state, skip update
+    }
+
+    // Copy values we need
+    inletTemp = state.inletTemp;
+    heaterTemp = state.heaterTemp;
+    targetTemp = state.targetTemp;
+    pumpCurrent = state.pumpCurrent;
+    inletTempValid = state.inletTempValid;
+    heaterTempValid = state.heaterTempValid;
+    currentSensorValid = state.currentSensorValid;
+    blynkConnected = state.blynkConnected;
+    wifiConnected = state.wifiConnected;
+    pumpStateStr = getPumpStateString();
+    heaterStatusStr = getHeaterStatusString();
+  }  // Release state lock
+
+  // Now update LCD with I2C lock (state lock is released)
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    return;  // Can't access I2C, skip update
+  }
+
   // Only clear on first call or when needed (prevents flicker)
   if (lcdNeedsClear) {
     lcd.clear();
@@ -45,9 +87,9 @@ void updateLCDDisplay() {
   // Line 1: Inlet: 78.5F   Tgt:80F
   lcd.setCursor(0, 0);
   lcd.print("Inlet:");
-  if (state.inletTempValid) {
+  if (inletTempValid) {
     char tempBuf[6];
-    snprintf(tempBuf, sizeof(tempBuf), "%5.1f", state.inletTemp);
+    snprintf(tempBuf, sizeof(tempBuf), "%5.1f", inletTemp);
     lcd.print(tempBuf);
     lcd.print("F");
   } else {
@@ -58,16 +100,16 @@ void updateLCDDisplay() {
   lcd.setCursor(12, 0);
   lcd.print("Tgt:");
   char targetBuf[4];
-  snprintf(targetBuf, sizeof(targetBuf), "%3d", (int)state.targetTemp);
+  snprintf(targetBuf, sizeof(targetBuf), "%3d", (int)targetTemp);
   lcd.print(targetBuf);
   lcd.print("F  ");  // Clear trailing chars
 
   // Line 2: Heater:79.2F
   lcd.setCursor(0, 1);
   lcd.print("Heater:");
-  if (state.heaterTempValid) {
+  if (heaterTempValid) {
     char tempBuf[6];
-    snprintf(tempBuf, sizeof(tempBuf), "%5.1f", state.heaterTemp);
+    snprintf(tempBuf, sizeof(tempBuf), "%5.1f", heaterTemp);
     lcd.print(tempBuf);
     lcd.print("F");
   } else {
@@ -78,13 +120,13 @@ void updateLCDDisplay() {
   // Line 3: Pump: LOW  5.2A
   lcd.setCursor(0, 2);
   lcd.print("Pump: ");
-  lcd.print(getPumpStateString());
+  lcd.print(pumpStateStr);
 
   // Add current reading if sensor is valid
-  if (state.currentSensorValid) {
+  if (currentSensorValid) {
     lcd.print("  ");
     char currentBuf[6];
-    snprintf(currentBuf, sizeof(currentBuf), "%4.1f", state.pumpCurrent);
+    snprintf(currentBuf, sizeof(currentBuf), "%4.1f", pumpCurrent);
     lcd.print(currentBuf);
     lcd.print("A");
   }
@@ -93,14 +135,14 @@ void updateLCDDisplay() {
   // Line 4: Heater: ON      CLOUD
   lcd.setCursor(0, 3);
   lcd.print("Heater: ");
-  lcd.print(getHeaterStatusString());
+  lcd.print(heaterStatusStr);
   lcd.print("    ");  // Clear gap before status
 
   // Connection status (right side)
   lcd.setCursor(15, 3);
-  if (state.blynkConnected) {
+  if (blynkConnected) {
     lcd.print("CLOUD");
-  } else if (state.wifiConnected) {
+  } else if (wifiConnected) {
     lcd.print("WiFi ");
   } else {
     lcd.print("     ");
@@ -112,6 +154,11 @@ void updateLCDDisplay() {
 // ============================================
 
 void displayEmergencyShutdown() {
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    return;
+  }
+
   lcd.clear();
   lcd.setCursor(0, 1);
   lcd.print("    EMERGENCY");
@@ -125,6 +172,11 @@ void displayEmergencyShutdown() {
 }
 
 void displayFactoryReset() {
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    return;
+  }
+
   lcd.clear();
   lcd.setCursor(0, 1);
   lcd.print("  FACTORY RESET!");
@@ -133,6 +185,11 @@ void displayFactoryReset() {
 }
 
 void displayWiFiProvisioning() {
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    return;
+  }
+
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("WiFi Provisioning");
@@ -148,6 +205,11 @@ void displayWiFiProvisioning() {
 }
 
 void displayWiFiReset() {
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    return;
+  }
+
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("   WiFi Reset");

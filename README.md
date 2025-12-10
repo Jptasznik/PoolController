@@ -12,6 +12,9 @@ PoolController/
 ├── sinric_config.h             # Sinric Pro credentials (YOU MUST EDIT)
 │
 ├── StateManager.h/.cpp         # Centralized state management
+├── StateMutex.h/.cpp           # Thread-safe state access
+├── I2CMutex.h/.cpp             # Thread-safe I2C bus access
+├── TaskManager.h/.cpp          # FreeRTOS task management
 ├── SettingsManager.h/.cpp      # Flash storage (Preferences)
 ├── TemperatureSensors.h/.cpp   # DS18B20 sensor handling
 ├── CurrentMonitor.h/.cpp       # ADS1115 + SCT-013 current monitoring
@@ -21,7 +24,9 @@ PoolController/
 ├── HeaterControl.h/.cpp        # Heater control & safety
 └── SinricIntegration.h/.cpp    # Alexa/Sinric Pro integration
 
-**Note:** Blynk cloud connectivity is implemented directly in PoolController3.ino
+**Note:** Blynk cloud connectivity is implemented directly in PoolController.ino
+
+**Architecture:** This system uses FreeRTOS multitasking with 6 concurrent tasks, each with its own watchdog timer. All I2C and state access is protected by mutexes for thread safety.
 ```
 
 ## Quick Start Guide
