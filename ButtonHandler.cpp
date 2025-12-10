@@ -1,6 +1,8 @@
 #include "ButtonHandler.h"
 #include "Config.h"
 #include "StateManager.h"
+#include "StateMutex.h"
+#include "I2CMutex.h"
 #include "SettingsManager.h"
 #include "LCDDisplay.h"
 #include <Adafruit_MCP23X08.h>
@@ -30,14 +32,21 @@ unsigned long lastHoldCheck = 0;
 
 void initButtons() {
   Serial.println("Initializing MCP23008 button handler...");
-  
+
+  // Lock I2C bus for MCP23008 initialization
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    Serial.println("ERROR: Failed to lock I2C for MCP23008 init!");
+    return;
+  }
+
   if (!mcp.begin_I2C(MCP23008_ADDRESS)) {
     Serial.println("ERROR: MCP23008 not found!");
     return;
   }
-  
+
   Serial.println("MCP23008 found at address 0x20");
-  
+
   // Configure all button pins as inputs with pull-ups
   for (int i = 0; i <= 4; i++) {
     mcp.pinMode(i, INPUT_PULLUP);
@@ -46,7 +55,7 @@ void initButtons() {
     buttons[i].pressStartTime = 0;
     buttons[i].lastDebounceTime = 0;
   }
-  
+
   Serial.println("Button handler initialized");
 }
 
@@ -56,15 +65,22 @@ void initButtons() {
 
 void scanButtons() {
   unsigned long now = millis();
-  
+
   // Scan buttons at regular interval
   if (now - lastButtonScan < BUTTON_SCAN_INTERVAL) {
     return;
   }
   lastButtonScan = now;
-  
-  // Read all button states
-  uint8_t gpio = mcp.readGPIO();
+
+  // Read all button states with I2C lock
+  uint8_t gpio;
+  {
+    I2CScopedLock i2cLock;
+    if (!i2cLock.isLocked()) {
+      return;  // Can't access I2C, skip this scan
+    }
+    gpio = mcp.readGPIO();
+  }  // Release I2C lock
 
   // Check each button
   for (int i = 0; i <= 4; i++) {

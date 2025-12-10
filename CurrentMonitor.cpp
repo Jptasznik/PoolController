@@ -1,6 +1,8 @@
 #include "CurrentMonitor.h"
 #include "Config.h"
 #include "StateManager.h"
+#include "StateMutex.h"
+#include "I2CMutex.h"
 #include "SettingsManager.h"
 #include <Adafruit_ADS1X15.h>
 #include <Wire.h>
@@ -17,6 +19,14 @@ Adafruit_ADS1115 ads;
 
 void initCurrentMonitor() {
   Serial.println("Initializing current monitor...");
+
+  // Lock I2C bus for ADS1115 initialization
+  I2CScopedLock i2cLock;
+  if (!i2cLock.isLocked()) {
+    Serial.println("ERROR: Failed to lock I2C for ADS1115 init!");
+    state.currentSensorValid = false;
+    return;
+  }
 
   // Initialize ADS1115
   if (!ads.begin(ADS1115_ADDRESS)) {
@@ -52,8 +62,24 @@ void initCurrentMonitor() {
 // ============================================
 
 void readPumpCurrent() {
-  if (!state.currentSensorValid) {
-    state.pumpCurrent = 0.0;
+  bool currentSensorValid;
+  float currentOffset;
+
+  // Read state values with lock
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      return;
+    }
+    currentSensorValid = state.currentSensorValid;
+    currentOffset = state.currentOffset;
+  }
+
+  if (!currentSensorValid) {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      state.pumpCurrent = 0.0;
+    }
     return;
   }
 
@@ -67,29 +93,40 @@ void readPumpCurrent() {
   float sumSquares = 0.0;
   int validSamples = 0;
 
-  for (int i = 0; i < NUM_SAMPLES; i++) {
-    // Read voltage from ADS1115 (Channel 0)
-    int16_t adc = ads.readADC_SingleEnded(CURRENT_SENSOR_CHANNEL);
+  // Lock I2C for entire sampling period
+  {
+    I2CScopedLock i2cLock;
+    if (!i2cLock.isLocked()) {
+      return;  // Can't access I2C, skip this reading
+    }
 
-    // Convert ADC reading to voltage
-    // ADS1115: 16-bit, ±4.096V range
-    // Resolution: 4.096V / 32768 = 0.000125 V/bit
-    float voltage = adc * 0.000125;
+    for (int i = 0; i < NUM_SAMPLES; i++) {
+      // Read voltage from ADS1115 (Channel 0)
+      int16_t adc = ads.readADC_SingleEnded(CURRENT_SENSOR_CHANNEL);
 
-    // Subtract bias voltage (should be centered around 1.65V)
-    // This gives us the AC component
-    float acVoltage = voltage - CURRENT_SENSOR_BIAS_VOLTAGE;
+      // Convert ADC reading to voltage
+      // ADS1115: 16-bit, ±4.096V range
+      // Resolution: 4.096V / 32768 = 0.000125 V/bit
+      float voltage = adc * 0.000125;
 
-    // Accumulate squared values for RMS calculation
-    sumSquares += acVoltage * acVoltage;
-    validSamples++;
+      // Subtract bias voltage (should be centered around 1.65V)
+      // This gives us the AC component
+      float acVoltage = voltage - CURRENT_SENSOR_BIAS_VOLTAGE;
 
-    // Small delay between samples
-    delayMicroseconds(SAMPLE_DELAY_US);
-  }
+      // Accumulate squared values for RMS calculation
+      sumSquares += acVoltage * acVoltage;
+      validSamples++;
+
+      // Small delay between samples
+      delayMicroseconds(SAMPLE_DELAY_US);
+    }
+  }  // Release I2C lock
 
   if (validSamples == 0) {
-    state.pumpCurrent = 0.0;
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      state.pumpCurrent = 0.0;
+    }
     return;
   }
 
@@ -103,7 +140,7 @@ void readPumpCurrent() {
   float rmsCurrent = (rmsVoltage / CURRENT_SENSOR_BURDEN_RESISTOR) * CURRENT_SENSOR_CT_RATIO;
 
   // Apply calibration offset
-  rmsCurrent -= state.currentOffset;
+  rmsCurrent -= currentOffset;
 
   // Clamp to valid range
   if (rmsCurrent < 0.0) {
@@ -113,8 +150,13 @@ void readPumpCurrent() {
     rmsCurrent = CURRENT_SENSOR_MAX_CURRENT;
   }
 
-  // Update state
-  state.pumpCurrent = rmsCurrent;
+  // Update state with lock
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      state.pumpCurrent = rmsCurrent;
+    }
+  }
 
   // Debug output (optional - can be disabled for production)
   static unsigned long lastDebugPrint = 0;
@@ -134,6 +176,10 @@ void readPumpCurrent() {
 
 bool isPumpCurrentDetected() {
   // Consider pump running if current is above threshold
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    return false;
+  }
   return state.pumpCurrent >= CURRENT_THRESHOLD_PUMP_RUNNING;
 }
 
@@ -144,20 +190,32 @@ bool isPumpCurrentDetected() {
 bool isPumpFailureDetected() {
   // Pump failure: pump should be running but no current detected
   // Only check if sensor is valid
-  if (!state.currentSensorValid) {
+  bool currentSensorValid;
+  PumpState pumpState;
+
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      return false;
+    }
+    currentSensorValid = state.currentSensorValid;
+    pumpState = state.pumpState;
+  }
+
+  if (!currentSensorValid) {
     return false;
   }
 
   // If pump state is not OFF, but current is below threshold
-  if (state.pumpState != PUMP_OFF && !isPumpCurrentDetected()) {
+  if (pumpState != PUMP_OFF && !isPumpCurrentDetected()) {
     // Additional check: wait for stabilization
     // Don't report failure immediately after pump state change
     static unsigned long lastPumpStateChange = 0;
     static PumpState lastPumpState = PUMP_OFF;
 
-    if (state.pumpState != lastPumpState) {
+    if (pumpState != lastPumpState) {
       lastPumpStateChange = millis();
-      lastPumpState = state.pumpState;
+      lastPumpState = pumpState;
       return false;  // Don't report failure during transition
     }
 
@@ -176,6 +234,11 @@ bool isPumpFailureDetected() {
 
 bool isOvercurrentDetected() {
   // Check if current exceeds maximum threshold
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    return false;
+  }
+
   if (!state.currentSensorValid) {
     return false;
   }
@@ -188,7 +251,16 @@ bool isOvercurrentDetected() {
 // ============================================
 
 void calibrateCurrentSensor() {
-  if (!state.currentSensorValid) {
+  bool currentSensorValid;
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      return;
+    }
+    currentSensorValid = state.currentSensorValid;
+  }
+
+  if (!currentSensorValid) {
     Serial.println("Cannot calibrate - sensor not initialized");
     return;
   }
@@ -200,23 +272,38 @@ void calibrateCurrentSensor() {
   const int CAL_SAMPLES = 50;
   float sumCurrent = 0.0;
 
-  for (int i = 0; i < CAL_SAMPLES; i++) {
-    // Read voltage from ADS1115
-    int16_t adc = ads.readADC_SingleEnded(CURRENT_SENSOR_CHANNEL);
-    float voltage = adc * 0.000125;
-    float acVoltage = voltage - CURRENT_SENSOR_BIAS_VOLTAGE;
-    float current = (acVoltage / CURRENT_SENSOR_BURDEN_RESISTOR) * CURRENT_SENSOR_CT_RATIO;
+  {
+    I2CScopedLock i2cLock;
+    if (!i2cLock.isLocked()) {
+      Serial.println("Failed to lock I2C for calibration");
+      return;
+    }
 
-    sumCurrent += abs(current);  // Use absolute value for offset
-    delay(20);  // Short delay between samples
+    for (int i = 0; i < CAL_SAMPLES; i++) {
+      // Read voltage from ADS1115
+      int16_t adc = ads.readADC_SingleEnded(CURRENT_SENSOR_CHANNEL);
+      float voltage = adc * 0.000125;
+      float acVoltage = voltage - CURRENT_SENSOR_BIAS_VOLTAGE;
+      float current = (acVoltage / CURRENT_SENSOR_BURDEN_RESISTOR) * CURRENT_SENSOR_CT_RATIO;
+
+      sumCurrent += abs(current);  // Use absolute value for offset
+      delay(20);  // Short delay between samples
+    }
+  }  // Release I2C lock
+
+  float calibratedOffset = sumCurrent / CAL_SAMPLES;
+
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      state.currentOffset = calibratedOffset;
+    }
   }
 
-  state.currentOffset = sumCurrent / CAL_SAMPLES;
-
   Serial.print("Calibration complete - Offset: ");
-  Serial.print(state.currentOffset, 3);
+  Serial.print(calibratedOffset, 3);
   Serial.println(" A");
 
   // Save calibration to flash
-  saveCurrentCalibration(state.currentOffset);
+  saveCurrentCalibration(calibratedOffset);
 }

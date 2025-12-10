@@ -25,25 +25,40 @@ This is a complete, production-ready pool automation system with professional fe
 
 ## Architecture
 
-**Modular Design:** The code is organized into 12 separate modules for maintainability:
+**FreeRTOS Multitasking Design:** The system uses ESP32's built-in FreeRTOS for true multitasking with **6 concurrent tasks**:
+
+1. **TemperatureSensorTask** - Reads DS18B20 sensors every 5s
+2. **CurrentMonitorTask** - Reads ADS1115 current sensor every 2s
+3. **LCDUpdateTask** - Updates display every 1s
+4. **ButtonScanTask** - Scans MCP23008 buttons every 50ms (highest priority)
+5. **ControlSystemTask** - Runs heater/pump logic every 60s
+6. **Main Loop** - Handles network services (Blynk, Sinric, WiFi)
+
+**Modular Code Organization:** 15 separate modules for maintainability:
 
 1. **StateManager** - Centralized state management
-2. **SettingsManager** - Flash storage persistence
-3. **TemperatureSensors** - DS18B20 sensor handling
-4. **CurrentMonitor** - ADS1115 + SCT-013 current monitoring
-5. **LCDDisplay** - 20x4 I2C LCD control
-6. **ButtonHandler** - MCP23008 button interface
-7. **PumpControl** - Pump logic and safety
-8. **HeaterControl** - Heater control with interlocks
-9. **SinricIntegration** - Alexa voice control
-10. **Config** - All constants and pin definitions
-11. **PoolController.ino** - Main coordinator (includes Blynk cloud dashboard)
+2. **StateMutex** - Thread-safe state access
+3. **I2CMutex** - Thread-safe I2C bus access
+4. **TaskManager** - FreeRTOS task management
+5. **SettingsManager** - Flash storage persistence
+6. **TemperatureSensors** - DS18B20 sensor handling
+7. **CurrentMonitor** - ADS1115 + SCT-013 current monitoring
+8. **LCDDisplay** - 20x4 I2C LCD control
+9. **ButtonHandler** - MCP23008 button interface
+10. **PumpControl** - Pump logic and safety
+11. **HeaterControl** - Heater control with interlocks
+12. **SinricIntegration** - Alexa voice control
+13. **Config** - All constants and pin definitions
+14. **PoolController.ino** - Main coordinator (includes Blynk cloud dashboard)
 
 **Benefits:**
-- Easy to understand and modify
-- Each module can be tested independently
-- Clear separation of concerns
-- Scalable for future features
+- **True multitasking** - All subsystems run concurrently
+- **Responsive** - Button presses handled immediately (high priority task)
+- **Thread-safe** - Mutex protection for shared resources (I2C bus, state)
+- **Watchdog timers** - Each task monitored independently
+- **Modular** - Easy to understand and modify
+- **Testable** - Each module can be tested independently
+- **Scalable** - Add new tasks without affecting existing ones
 
 ## File Manifest
 
@@ -52,10 +67,13 @@ This is a complete, production-ready pool automation system with professional fe
 PoolController.ino          Main sketch file (7.3 KB)
 Config.h                     Pin definitions and constants (3.3 KB)
 StateManager.h/.cpp          Centralized state management (10.2 KB)
+StateMutex.h/.cpp            Thread-safe state access (1.5 KB)
+I2CMutex.h/.cpp              Thread-safe I2C bus access (1.5 KB)
+TaskManager.h/.cpp           FreeRTOS task management (8.5 KB)
 SettingsManager.h/.cpp       Flash storage (4.5 KB)
 TemperatureSensors.h/.cpp    DS18B20 sensors (3.4 KB)
-CurrentMonitor.h/.cpp        ADS1115 + SCT-013 current monitoring (6.8 KB)
-LCDDisplay.h/.cpp            20x4 LCD control (3.0 KB)
+CurrentMonitor.h/.cpp        ADS1115 + SCT-013 current monitoring (8.2 KB)
+LCDDisplay.h/.cpp            20x4 LCD control (4.8 KB)
 ButtonHandler.h/.cpp         MCP23008 buttons (6.0 KB)
 PumpControl.h/.cpp           Pump logic (1.8 KB)
 HeaterControl.h/.cpp         Heater control (3.7 KB)

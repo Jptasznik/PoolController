@@ -23,6 +23,8 @@
 #include "Config.h"
 #include "blynk_auth.h"
 #include "StateManager.h"
+#include "StateMutex.h"
+#include "I2CMutex.h"
 #include "SettingsManager.h"
 #include "TemperatureSensors.h"
 #include "LCDDisplay.h"
@@ -31,6 +33,7 @@
 #include "HeaterControl.h"
 #include "SinricIntegration.h"
 #include "CurrentMonitor.h"
+#include "TaskManager.h"
 
 #include <WiFi.h>
 #include <WiFiProv.h>
@@ -48,12 +51,6 @@ BlynkTimer blynkTimer;
 // TIMING VARIABLES
 // ============================================
 
-unsigned long lastTempRead = 0;
-unsigned long lastCurrentRead = 0;
-unsigned long lastLCDUpdate = 0;
-unsigned long lastBlynkUpdate = 0;
-unsigned long lastSinricTempUpdate = 0;
-unsigned long lastControlCycle = 0;
 unsigned long lastWiFiRuntimeCheck = 0;
 
 // ============================================
@@ -319,9 +316,18 @@ void setup() {
   Serial.println("ESP32 Pool Controller");
   Serial.println("========================================\n");
 
+  // Initialize mutexes for thread-safe access
+  Serial.println("Initializing mutexes...");
+  initI2CMutex();
+  initStateMutex();
+
   // Initialize system state
   initSystemState();
-  
+
+  // Initialize I2C bus
+  Wire.begin(I2C_SDA, I2C_SCL);
+  Serial.println("I2C bus initialized");
+
   // Initialize hardware
   Serial.println("Initializing hardware...");
   initLCD();
@@ -442,18 +448,23 @@ void setup() {
 
   updateLCDDisplay();
 
-  // Initialize watchdog timer (30 second timeout)
-  Serial.println("Initializing watchdog timer...");
+  // Initialize watchdog timer (main task: 30 second timeout)
+  Serial.println("Initializing main task watchdog timer...");
   esp_task_wdt_config_t wdt_config = {
     .timeout_ms = 30000,      // 30 seconds in milliseconds
     .trigger_panic = true      // Panic on timeout
   };
   esp_task_wdt_init(&wdt_config);  // Initialize with config struct
-  esp_task_wdt_add(NULL);          // Add current thread to watchdog
-  Serial.println("Watchdog timer enabled (30s timeout)");
+  esp_task_wdt_add(NULL);          // Add main task to watchdog
+  Serial.println("Main task watchdog timer enabled (30s timeout)");
+
+  // Start FreeRTOS tasks (each task has its own watchdog)
+  initTasks();
 
   Serial.println("\n========================================");
   Serial.println("System initialized - entering main loop");
+  Serial.println("Main loop handles network services");
+  Serial.println("All other functions run in FreeRTOS tasks");
   Serial.println("========================================\n");
 }
 
@@ -467,79 +478,36 @@ void loop() {
 
   unsigned long now = millis();
 
+  // ============================================
+  // NETWORK SERVICES (Main loop responsibility)
+  // ============================================
+  // All other functions run in FreeRTOS tasks:
+  // - Temperature reading (TemperatureSensorTask)
+  // - Current monitoring (CurrentMonitorTask)
+  // - LCD updates (LCDUpdateTask)
+  // - Button scanning (ButtonScanTask)
+  // - Control system logic (ControlSystemTask)
+  // ============================================
+
+  bool wifiConnected;
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      wifiConnected = state.wifiConnected;
+    } else {
+      wifiConnected = false;
+    }
+  }
+
   // Run Blynk
-  if (state.wifiConnected) {
+  if (wifiConnected) {
     Blynk.run();
     blynkTimer.run();
   }
-  
+
   // Run Sinric Pro (Alexa)
-  if (state.wifiConnected) {
+  if (wifiConnected) {
     handleSinricEvents();
-  }
-  
-  // Scan buttons
-  scanButtons();
-
-  // Read temperatures periodically
-  if (now - lastTempRead >= TEMP_READ_INTERVAL) {
-    lastTempRead = now;
-    readTemperatures();
-  }
-
-  // Read pump current periodically
-  if (now - lastCurrentRead >= CURRENT_READ_INTERVAL) {
-    lastCurrentRead = now;
-    readPumpCurrent();
-  }
-
-  // Update LCD periodically
-  if (now - lastLCDUpdate >= LCD_UPDATE_INTERVAL) {
-    lastLCDUpdate = now;
-    updateLCDDisplay();
-  }
-  
-  // Run control system logic
-  if (now - lastControlCycle >= CONTROL_CYCLE_INTERVAL) {
-    lastControlCycle = now;
-
-    // Update pump runtime
-    updatePumpRuntime();
-
-    // Run heater control logic
-    runControlSystem();
-
-    // Check for pump failure (pump should be running but no current detected)
-    bool pumpFailure = isPumpFailureDetected();
-    if (pumpFailure && !state.pumpFailureAlert) {
-      state.pumpFailureAlert = true;
-      Serial.println("!!! PUMP FAILURE DETECTED !!!");
-      Serial.println("Pump should be running but no current detected");
-      syncPumpAlertsToBlynk();
-    } else if (!pumpFailure && state.pumpFailureAlert) {
-      state.pumpFailureAlert = false;
-      Serial.println("Pump failure cleared");
-      syncPumpAlertsToBlynk();
-    }
-
-    // Check for overcurrent
-    bool overcurrent = isOvercurrentDetected();
-    if (overcurrent && !state.overcurrentAlert) {
-      state.overcurrentAlert = true;
-      Serial.println("!!! OVERCURRENT DETECTED !!!");
-      Serial.print("Current: ");
-      Serial.print(state.pumpCurrent, 2);
-      Serial.println(" A");
-      // Consider emergency shutdown if overcurrent persists
-      // For now, just alert - user can decide on action
-    } else if (!overcurrent && state.overcurrentAlert) {
-      state.overcurrentAlert = false;
-      Serial.println("Overcurrent condition cleared");
-    }
-
-    // Apply states to hardware
-    applyPumpState();
-    applyHeaterState();
   }
 
   // Check for WiFi runtime failures periodically
