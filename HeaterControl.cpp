@@ -1,4 +1,7 @@
+#define LOG_MODULE "HEATER"
+
 #include "HeaterControl.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
 #include "StateMutex.h"
@@ -9,12 +12,12 @@
 // ============================================
 
 void initHeaterControl() {
-  Serial.println("Initializing heater control...");
-  
+  LOG_INFO("Initializing heater control...");
+
   pinMode(HEATER_PIN, OUTPUT);
   digitalWrite(HEATER_PIN, LOW);
-  
-  Serial.println("Heater control initialized");
+
+  LOG_INFO("Heater control initialized");
 }
 
 // ============================================
@@ -34,7 +37,7 @@ void runControlSystem() {
   {
     StateScopedLock stateLock;
     if (!stateLock.isLocked()) {
-      Serial.println("ERROR: Control system mutex timeout");
+      LOG_ERROR("Control system mutex timeout");
       return;
     }
 
@@ -58,7 +61,7 @@ void runControlSystem() {
 
   // CRITICAL SAFETY: Ensure pump runs when heater is on
   if (newStatus == HEATER_ON && currentPumpState == PUMP_OFF) {
-    Serial.println("SAFETY: Starting pump (LOW) because heater is ON");
+    LOG_WARN("SAFETY: Starting pump (LOW) because heater is ON");
     setPumpState(PUMP_LOW);  // This function handles mutex internally
   }
 
@@ -67,7 +70,7 @@ void runControlSystem() {
 
   // Handle transitions
   if (previousStatus == HEATER_ON && newStatus != HEATER_ON) {
-    Serial.println("Heater turned OFF - starting cooldown");
+    LOG_INFO("Heater turned OFF - starting cooldown");
     startCooldown();
   }
 
@@ -78,13 +81,8 @@ void runControlSystem() {
 
   // Log state changes
   if (previousStatus != newStatus) {
-    Serial.print("Heater status changed: ");
-    Serial.print(getHeaterStatusString());
-    Serial.print(" (Inlet: ");
-    Serial.print(inletTemp, 1);
-    Serial.print("°F, Target: ");
-    Serial.print(targetTemp, 1);
-    Serial.println("°F)");
+    LOG_INFOF("Heater status changed: %s (Inlet: %.1f°F, Target: %.1f°F)",
+              getHeaterStatusString(), inletTemp, targetTemp);
   }
 }
 
@@ -98,7 +96,7 @@ void applyHeaterState() {
   {
     StateScopedLock stateLock;
     if (!stateLock.isLocked()) {
-      Serial.println("ERROR: Failed to read heater status for hardware apply");
+      LOG_ERROR("Failed to read heater status for hardware apply");
       return;
     }
     currentStatus = state.heaterStatus;
@@ -123,7 +121,7 @@ bool shouldHeaterBeOn() {
   {
     StateScopedLock stateLock;
     if (!stateLock.isLocked()) {
-      Serial.println("ERROR: Failed to read state in shouldHeaterBeOn()");
+      LOG_ERROR("Failed to read state in shouldHeaterBeOn()");
       return false;  // Fail safe - don't turn on heater
     }
 
@@ -151,10 +149,8 @@ bool shouldHeaterBeOn() {
 
   // 3. SAFETY: Check heater outlet temperature for overheat
   if (heaterTempValid && heaterTemp > MAX_HEATER_TEMP) {
-    Serial.println("!!! HEATER OVERHEAT DETECTED !!!");
-    Serial.print("Heater temperature: ");
-    Serial.print(heaterTemp, 1);
-    Serial.println("°F");
+    LOG_ERROR("!!! HEATER OVERHEAT DETECTED !!!");
+    LOG_ERRORF("Heater temperature: %.1f°F", heaterTemp);
     triggerEmergencyShutdown();
     return false;
   }
@@ -166,39 +162,31 @@ bool shouldHeaterBeOn() {
 
   // 5. Valid temperature reading
   if (!inletTempValid) {
-    Serial.println("Heater OFF: Invalid temperature sensor");
+    LOG_WARN("Heater OFF: Invalid temperature sensor");
     return false;
   }
 
   // 6. Temperature check (hard safety limits)
   if (inletTemp < INVALID_TEMP_LOW || inletTemp > INVALID_TEMP_HIGH) {
-    Serial.println("Heater OFF: Temperature out of safe range");
+    LOG_WARN("Heater OFF: Temperature out of safe range");
     return false;
   }
 
   // 7. User-configurable minimum heater temperature
   if (inletTemp < minHeaterTemp) {
-    Serial.print("Heater OFF: Water temp ");
-    Serial.print(inletTemp, 1);
-    Serial.print("°F below minimum ");
-    Serial.print(minHeaterTemp, 1);
-    Serial.println("°F");
+    LOG_WARNF("Heater OFF: Water temp %.1f°F below minimum %.1f°F", inletTemp, minHeaterTemp);
     return false;
   }
 
   // 8. User-configurable maximum heater temperature
   if (inletTemp >= maxHeaterTemp) {
-    Serial.print("Heater OFF: Water temp ");
-    Serial.print(inletTemp, 1);
-    Serial.print("°F at or above maximum ");
-    Serial.print(maxHeaterTemp, 1);
-    Serial.println("°F");
+    LOG_WARNF("Heater OFF: Water temp %.1f°F at or above maximum %.1f°F", inletTemp, maxHeaterTemp);
     return false;
   }
 
   // 9. Runtime limit check
   if (isRuntimeLimitExceeded()) {
-    Serial.println("Heater OFF: Daily runtime limit exceeded");
+    LOG_WARN("Heater OFF: Daily runtime limit exceeded");
     return false;
   }
 
