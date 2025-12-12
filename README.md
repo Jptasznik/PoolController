@@ -225,6 +225,11 @@ Configure these in your Blynk template:
 - **V8:** Heater end hour (slider, 0-23)
 - **V9:** Today's pump runtime (display, hours, read-only)
 - **V10:** Ambient temperature (display, read-only)
+- **V11:** Pump current (display, amps, read-only)
+- **V12:** Pump failure alert (LED indicator, read-only)
+- **V13:** Minimum heater temperature (slider, 32-104°F)
+- **V14:** Maximum heater temperature (slider, 32-104°F)
+- **V15:** Log level (slider, 0-3: DEBUG/INFO/WARN/ERROR)
 
 ## LCD Display Layout
 
@@ -336,6 +341,27 @@ Set baud rate to **115200** to view structured logging output:
 
 **Module Names:**
 - MAIN, TASKS, STATE, SETTINGS, TEMP, CURRENT, LCD, BUTTONS, PUMP, HEATER, SINRIC
+
+### Remote Log Level Control
+
+You can adjust the log level remotely via the **Blynk dashboard** using virtual pin **V15**:
+
+- **0** = DEBUG (show all messages including detailed diagnostics)
+- **1** = INFO (show general system information and above)
+- **2** = WARN (show only warnings and errors)
+- **3** = ERROR (show only errors)
+
+The log level setting is saved to flash memory and persists across reboots.
+
+### Persistent Log Buffer
+
+The system maintains a **1KB circular log buffer** in ESP32 flash memory:
+- Stores up to **12 recent log entries** (INFO level and above)
+- Persists across reboots and power cycles
+- Automatically overwrites oldest entries when full
+- Only INFO, WARN, and ERROR messages stored (DEBUG excluded to reduce flash wear)
+
+This buffer can be useful for debugging issues that occur when Serial Monitor is not connected.
 
 ## Customization
 
