@@ -314,16 +314,28 @@ Factory reset clears all settings.
 
 ## Serial Monitor Output
 
-Set baud rate to **115200** to view:
-- System initialization
-- Temperature readings
-- Button presses
-- Alexa commands
-- Blynk updates
-- Control decisions
-- Safety interlock triggers
-- Connection status
-- Error messages
+Set baud rate to **115200** to view structured logging output:
+
+**Log Format:** `[timestamp] [LEVEL] [MODULE] Message`
+
+**Example Output:**
+```
+[1234] [INF] [MAIN] ESP32 Pool Controller
+[1456] [INF] [SETTINGS] Loading settings from flash...
+[2345] [INF] [TEMP] Initializing temperature sensors...
+[5678] [DBG] [TEMP] Inlet: 72.5°F  Heater: 75.2°F
+[8901] [INF] [STATE] Target temperature: 78.0°F
+[9012] [WRN] [HEATER] SAFETY: Starting pump (LOW) because heater is ON
+```
+
+**Log Levels:**
+- `[DBG]` - Debug: Detailed diagnostic information
+- `[INF]` - Info: General system information
+- `[WRN]` - Warning: Potential issues or safety triggers
+- `[ERR]` - Error: Serious problems requiring attention
+
+**Module Names:**
+- MAIN, TASKS, STATE, SETTINGS, TEMP, CURRENT, LCD, BUTTONS, PUMP, HEATER, SINRIC
 
 ## Customization
 
