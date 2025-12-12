@@ -110,6 +110,14 @@ void flushLogs();
 void saveLogLevel(LogLevel level);
 LogLevel loadLogLevel();
 
+// Save/load log buffer size to/from NVS flash
+void saveLogBufferSize(unsigned int size);
+unsigned int loadLogBufferSize();
+
+// Get/set current log buffer size (runtime control)
+unsigned int getLogBufferMaxEntries();
+void setLogBufferMaxEntries(unsigned int size);
+
 // ============================================
 // CIRCULAR LOG BUFFER (NVS)
 // ============================================

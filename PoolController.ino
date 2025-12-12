@@ -146,6 +146,20 @@ BLYNK_WRITE(VPIN_LOG_LEVEL) {
   }
 }
 
+BLYNK_WRITE(VPIN_LOG_BUFFER_SIZE) {
+  int size = param.asInt();
+  LOG_INFOF("Blynk: Log buffer size %d", size);
+
+  // Validate buffer size (12-100 entries)
+  if (size >= MIN_LOG_BUFFER_SIZE && size <= MAX_LOG_BUFFER_SIZE) {
+    setLogBufferMaxEntries(size);
+    saveLogBufferSize(size);
+  } else {
+    LOG_WARNF("Invalid log buffer size: %d (valid range: %d-%d)",
+              size, MIN_LOG_BUFFER_SIZE, MAX_LOG_BUFFER_SIZE);
+  }
+}
+
 // ============================================
 // BLYNK CONNECTION HANDLERS
 // ============================================
@@ -192,6 +206,7 @@ void syncAllToBlynk() {
   Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);
   Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);
   Blynk.virtualWrite(VPIN_LOG_LEVEL, (int)getLogLevel());
+  Blynk.virtualWrite(VPIN_LOG_BUFFER_SIZE, (int)getLogBufferMaxEntries());
 
   LOG_INFO("Synced all values to Blynk");
 }

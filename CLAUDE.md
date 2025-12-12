@@ -270,8 +270,9 @@ The logging framework includes **persistent storage** in ESP32 NVS flash memory:
 
 **Features:**
 - **Persistent Log Level** - Log level setting survives reboots
-- **Circular Log Buffer** - 1KB buffer stores recent log entries (up to 12 entries)
-- **Remote Control** - Blynk virtual pin V15 for remote log level adjustment
+- **Dynamic Buffer Size** - Configurable buffer size (12-100 entries) via Blynk
+- **Circular Log Buffer** - Stores recent log entries in flash memory
+- **Remote Control** - Blynk virtual pins for log level and buffer size
 - **Flash Wear Protection** - Only INFO/WARN/ERROR messages stored (DEBUG excluded)
 
 **NVS Functions:**
@@ -280,28 +281,38 @@ The logging framework includes **persistent storage** in ESP32 NVS flash memory:
 saveLogLevel(LOG_INFO);
 LogLevel level = loadLogLevel();
 
+// Save/load buffer size to/from flash
+saveLogBufferSize(50);
+unsigned int size = loadLogBufferSize();
+
+// Get/set buffer size at runtime
+unsigned int maxEntries = getLogBufferMaxEntries();
+setLogBufferMaxEntries(50);
+
 // Initialize circular buffer
 initLogBuffer();
 
 // Retrieve stored logs
-char buffer[1024];
+char buffer[8192];  // Large enough for max 100 entries
 int count = getLogEntries(buffer, sizeof(buffer));
 
 // Clear all stored logs
 clearLogBuffer();
 
-// Get current buffer size
-size_t size = getLogBufferSize();
+// Get current buffer usage
+size_t bytes = getLogBufferSize();
 ```
 
 **Blynk Integration:**
-- Virtual Pin **V15** controls log level remotely
-- Valid values: 0=DEBUG, 1=INFO, 2=WARN, 3=ERROR
-- Log level automatically syncs to Blynk dashboard on connection
+- Virtual Pin **V15** - Log level control (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR)
+- Virtual Pin **V16** - Log buffer size (12-100 entries)
+- Settings automatically sync to Blynk dashboard on connection
 - Changes are immediately saved to NVS flash
 
 **Storage Details:**
-- Maximum 12 log entries (~80 characters each)
+- Configurable buffer size: 12-100 entries (default 12)
+- Each entry up to 80 characters
+- Buffer size range: ~1KB (12 entries) to ~8KB (100 entries)
 - Circular buffer overwrites oldest entries when full
 - Persists across reboots and power cycles
 - Thread-safe with dedicated NVS mutex
@@ -617,6 +628,7 @@ V12 - Pump failure alert (read-only)
 V13 - Minimum heater temperature (read/write)
 V14 - Maximum heater temperature (read/write)
 V15 - Log level (read/write) - 0=DEBUG, 1=INFO, 2=WARN, 3=ERROR
+V16 - Log buffer size (read/write) - 12-100 entries
 ```
 
 **Important:** If you add virtual pins, update `BLYNK_WRITE()` handlers in PoolController3.ino

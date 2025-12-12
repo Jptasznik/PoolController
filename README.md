@@ -230,6 +230,7 @@ Configure these in your Blynk template:
 - **V13:** Minimum heater temperature (slider, 32-104°F)
 - **V14:** Maximum heater temperature (slider, 32-104°F)
 - **V15:** Log level (slider, 0-3: DEBUG/INFO/WARN/ERROR)
+- **V16:** Log buffer size (slider, 12-100 entries)
 
 ## LCD Display Layout
 
@@ -355,13 +356,16 @@ The log level setting is saved to flash memory and persists across reboots.
 
 ### Persistent Log Buffer
 
-The system maintains a **1KB circular log buffer** in ESP32 flash memory:
-- Stores up to **12 recent log entries** (INFO level and above)
+The system maintains a **configurable circular log buffer** in ESP32 flash memory:
+- **Adjustable buffer size** via Blynk V16 (12-100 entries, default 12)
+- Buffer size range: ~1KB (12 entries) to ~8KB (100 entries)
+- Stores recent log entries (INFO level and above)
 - Persists across reboots and power cycles
 - Automatically overwrites oldest entries when full
 - Only INFO, WARN, and ERROR messages stored (DEBUG excluded to reduce flash wear)
+- Buffer size setting is saved to flash and persists across reboots
 
-This buffer can be useful for debugging issues that occur when Serial Monitor is not connected.
+This buffer can be useful for debugging issues that occur when Serial Monitor is not connected. Increase the buffer size via Blynk to capture more historical log data.
 
 ## Customization
 

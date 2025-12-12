@@ -1,4 +1,5 @@
 #include "Logger.h"
+#include "Config.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <stdarg.h>
@@ -27,8 +28,8 @@ static Preferences preferences;
 static SemaphoreHandle_t nvsMutex = NULL;
 
 // Circular log buffer configuration
-#define LOG_NVS_MAX_ENTRIES 12  // ~1KB total (12 entries * 80 chars + overhead)
 #define LOG_ENTRY_MAX_SIZE 80   // Maximum size per log entry
+static unsigned int logBufferMaxEntries = DEFAULT_LOG_BUFFER_SIZE;  // Dynamic buffer size (12-100)
 
 // ============================================
 // ANSI COLOR CODES (for terminal support)
@@ -65,6 +66,12 @@ void initLogger() {
   LogLevel savedLevel = loadLogLevel();
   if (savedLevel >= LOG_DEBUG && savedLevel <= LOG_ERROR) {
     currentLogLevel = savedLevel;
+  }
+
+  // Load saved log buffer size from NVS
+  unsigned int savedBufferSize = loadLogBufferSize();
+  if (savedBufferSize >= MIN_LOG_BUFFER_SIZE && savedBufferSize <= MAX_LOG_BUFFER_SIZE) {
+    logBufferMaxEntries = savedBufferSize;
   }
 
   LOG_INFO("Logging system initialized");
@@ -163,7 +170,7 @@ void log(LogLevel level, const char* module, const char* message) {
       preferences.putString(key, nvsEntry);
 
       // Update write index (circular)
-      writeIndex = (writeIndex + 1) % LOG_NVS_MAX_ENTRIES;
+      writeIndex = (writeIndex + 1) % logBufferMaxEntries;
       preferences.putUInt("logIndex", writeIndex);
 
       preferences.end();
@@ -312,6 +319,48 @@ LogLevel loadLogLevel() {
   return level;
 }
 
+void saveLogBufferSize(unsigned int size) {
+  if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("logger", false);
+    preferences.putUInt("logBufSize", size);
+    preferences.end();
+    xSemaphoreGive(nvsMutex);
+  }
+}
+
+unsigned int loadLogBufferSize() {
+  unsigned int size = DEFAULT_LOG_BUFFER_SIZE;  // Default
+
+  if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("logger", true);  // Read-only
+    unsigned int storedSize = preferences.getUInt("logBufSize", DEFAULT_LOG_BUFFER_SIZE);
+    preferences.end();
+    xSemaphoreGive(nvsMutex);
+
+    // Validate stored value
+    if (storedSize >= MIN_LOG_BUFFER_SIZE && storedSize <= MAX_LOG_BUFFER_SIZE) {
+      size = storedSize;
+    }
+  }
+
+  return size;
+}
+
+unsigned int getLogBufferMaxEntries() {
+  return logBufferMaxEntries;
+}
+
+void setLogBufferMaxEntries(unsigned int size) {
+  // Validate size
+  if (size < MIN_LOG_BUFFER_SIZE) {
+    size = MIN_LOG_BUFFER_SIZE;
+  } else if (size > MAX_LOG_BUFFER_SIZE) {
+    size = MAX_LOG_BUFFER_SIZE;
+  }
+
+  logBufferMaxEntries = size;
+}
+
 // ============================================
 // CIRCULAR LOG BUFFER (NVS)
 // ============================================
@@ -351,9 +400,9 @@ int getLogEntries(char* buffer, size_t bufferSize) {
     unsigned int writeIndex = preferences.getUInt("logIndex", 0);
 
     // Read entries in chronological order (oldest to newest)
-    for (unsigned int i = 0; i < LOG_NVS_MAX_ENTRIES; i++) {
+    for (unsigned int i = 0; i < logBufferMaxEntries; i++) {
       // Calculate read index (start from oldest entry)
-      unsigned int readIndex = (writeIndex + i) % LOG_NVS_MAX_ENTRIES;
+      unsigned int readIndex = (writeIndex + i) % logBufferMaxEntries;
 
       char key[16];
       snprintf(key, sizeof(key), "log%02u", readIndex);
@@ -389,8 +438,8 @@ void clearLogBuffer() {
   if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
     preferences.begin("logger", false);
 
-    // Clear all log entries
-    for (unsigned int i = 0; i < LOG_NVS_MAX_ENTRIES; i++) {
+    // Clear all log entries (use MAX_LOG_BUFFER_SIZE to clean up old entries if size was reduced)
+    for (unsigned int i = 0; i < MAX_LOG_BUFFER_SIZE; i++) {
       char key[16];
       snprintf(key, sizeof(key), "log%02u", i);
       preferences.remove(key);
@@ -411,7 +460,7 @@ size_t getLogBufferSize() {
     preferences.begin("logger", true);  // Read-only
 
     // Count size of all stored log entries
-    for (unsigned int i = 0; i < LOG_NVS_MAX_ENTRIES; i++) {
+    for (unsigned int i = 0; i < logBufferMaxEntries; i++) {
       char key[16];
       snprintf(key, sizeof(key), "log%02u", i);
 
