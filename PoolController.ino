@@ -24,6 +24,7 @@
 #include "StateManager.h"
 #include "StateMutex.h"
 #include "I2CMutex.h"
+#include "Logger.h"
 #include "CredentialsManager.h"
 #include "SettingsManager.h"
 #include "TemperatureSensors.h"
@@ -40,6 +41,12 @@
 #include <BlynkSimpleEsp32.h>
 #include <time.h>
 #include <esp_task_wdt.h>
+
+// ============================================
+// MODULE NAME FOR LOGGING
+// ============================================
+
+#define LOG_MODULE "MAIN"
 
 // ============================================
 // GLOBAL OBJECTS
