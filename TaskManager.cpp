@@ -221,8 +221,10 @@ void initTasks() {
   Serial.println("Initializing FreeRTOS Tasks");
   Serial.println("========================================");
 
+  BaseType_t result;
+
   // Create temperature sensor task
-  xTaskCreatePinnedToCore(
+  result = xTaskCreatePinnedToCore(
     temperatureSensorTask,           // Task function
     "TemperatureTask",               // Name
     TEMPERATURE_TASK_STACK_SIZE,     // Stack size
@@ -231,10 +233,17 @@ void initTasks() {
     &temperatureTaskHandle,          // Task handle
     TASK_CORE_1                      // Core
   );
+  if (result != pdPASS) {
+    Serial.println("FATAL ERROR: Failed to create Temperature sensor task!");
+    Serial.println("System cannot operate safely without this task.");
+    Serial.println("Restarting in 5 seconds...");
+    delay(5000);
+    ESP.restart();
+  }
   Serial.println("[INIT] Temperature sensor task created");
 
   // Create current monitor task
-  xTaskCreatePinnedToCore(
+  result = xTaskCreatePinnedToCore(
     currentMonitorTask,
     "CurrentTask",
     CURRENT_TASK_STACK_SIZE,
@@ -243,10 +252,17 @@ void initTasks() {
     &currentTaskHandle,
     TASK_CORE_1
   );
+  if (result != pdPASS) {
+    Serial.println("FATAL ERROR: Failed to create Current monitor task!");
+    Serial.println("System cannot operate safely without this task.");
+    Serial.println("Restarting in 5 seconds...");
+    delay(5000);
+    ESP.restart();
+  }
   Serial.println("[INIT] Current monitor task created");
 
   // Create LCD update task
-  xTaskCreatePinnedToCore(
+  result = xTaskCreatePinnedToCore(
     lcdUpdateTask,
     "LCDTask",
     LCD_TASK_STACK_SIZE,
@@ -255,10 +271,17 @@ void initTasks() {
     &lcdTaskHandle,
     TASK_CORE_1
   );
+  if (result != pdPASS) {
+    Serial.println("FATAL ERROR: Failed to create LCD update task!");
+    Serial.println("System cannot operate safely without this task.");
+    Serial.println("Restarting in 5 seconds...");
+    delay(5000);
+    ESP.restart();
+  }
   Serial.println("[INIT] LCD update task created");
 
   // Create button scan task
-  xTaskCreatePinnedToCore(
+  result = xTaskCreatePinnedToCore(
     buttonScanTask,
     "ButtonTask",
     BUTTON_TASK_STACK_SIZE,
@@ -267,10 +290,17 @@ void initTasks() {
     &buttonTaskHandle,
     TASK_CORE_1
   );
+  if (result != pdPASS) {
+    Serial.println("FATAL ERROR: Failed to create Button scan task!");
+    Serial.println("System cannot operate safely without this task.");
+    Serial.println("Restarting in 5 seconds...");
+    delay(5000);
+    ESP.restart();
+  }
   Serial.println("[INIT] Button scan task created");
 
   // Create control system task
-  xTaskCreatePinnedToCore(
+  result = xTaskCreatePinnedToCore(
     controlSystemTask,
     "ControlTask",
     CONTROL_TASK_STACK_SIZE,
@@ -279,6 +309,13 @@ void initTasks() {
     &controlTaskHandle,
     TASK_CORE_1
   );
+  if (result != pdPASS) {
+    Serial.println("FATAL ERROR: Failed to create Control system task!");
+    Serial.println("System cannot operate safely without this task.");
+    Serial.println("Restarting in 5 seconds...");
+    delay(5000);
+    ESP.restart();
+  }
   Serial.println("[INIT] Control system task created");
 
   Serial.println("========================================");
