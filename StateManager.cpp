@@ -482,7 +482,7 @@ int getRecentDisconnectCount() {
       unsigned long age = now - state.disconnectTimestamps[i];
 
       // Handle millis() overflow (happens every ~50 days)
-      if (age < WIFI_DISCONNECT_WINDOW || age > 0xF0000000) {
+      if (age < WIFI_DISCONNECT_WINDOW || age > MILLIS_OVERFLOW_THRESHOLD) {
         recentCount++;
       }
     }
@@ -500,7 +500,7 @@ bool isProvisioningHung() {
   unsigned long elapsed = now - state.provisioningStartTime;
 
   // Handle millis() overflow
-  if (elapsed > 0xF0000000) {
+  if (elapsed > MILLIS_OVERFLOW_THRESHOLD) {
     // Overflow detected, reset tracking
     return false;
   }
