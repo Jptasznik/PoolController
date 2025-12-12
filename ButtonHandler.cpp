@@ -1,4 +1,7 @@
+#define LOG_MODULE "BUTTONS"
+
 #include "ButtonHandler.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
 #include "StateMutex.h"
@@ -31,21 +34,21 @@ unsigned long lastHoldCheck = 0;
 // ============================================
 
 void initButtons() {
-  Serial.println("Initializing MCP23008 button handler...");
+  LOG_INFO("Initializing MCP23008 button handler...");
 
   // Lock I2C bus for MCP23008 initialization
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
-    Serial.println("ERROR: Failed to lock I2C for MCP23008 init!");
+    LOG_ERROR("Failed to lock I2C for MCP23008 init!");
     return;
   }
 
   if (!mcp.begin_I2C(MCP23008_ADDRESS)) {
-    Serial.println("ERROR: MCP23008 not found!");
+    LOG_ERROR("MCP23008 not found!");
     return;
   }
 
-  Serial.println("MCP23008 found at address 0x20");
+  LOG_INFO("MCP23008 found at address 0x20");
 
   // Configure all button pins as inputs with pull-ups
   for (int i = 0; i <= 4; i++) {
@@ -56,7 +59,7 @@ void initButtons() {
     buttons[i].lastDebounceTime = 0;
   }
 
-  Serial.println("Button handler initialized");
+  LOG_INFO("Button handler initialized");
 }
 
 // ============================================
@@ -136,25 +139,25 @@ void scanButtons() {
     if (buttons[BUTTON_PUMP].pressed) {
       unsigned long holdTime = now - buttons[BUTTON_PUMP].pressStartTime;
       if (holdTime >= EMERGENCY_SHUTDOWN_HOLD_TIME) {
-        Serial.println("Emergency shutdown hold detected!");
+        LOG_WARN("Emergency shutdown hold detected!");
         triggerEmergencyShutdown();
         buttons[BUTTON_PUMP].pressed = false;  // Prevent repeat
       }
     }
-    
+
     // Factory reset (Button 5)
     if (buttons[BUTTON_RESET].pressed) {
       unsigned long holdTime = now - buttons[BUTTON_RESET].pressStartTime;
       if (holdTime >= FACTORY_RESET_HOLD_TIME) {
-        Serial.println("Factory reset hold detected!");
+        LOG_WARN("Factory reset hold detected!");
         displayFactoryReset();
-        
+
         // Clear WiFi credentials - disconnect and erase
         WiFi.disconnect(true, true);
-        
+
         // Clear all settings
         factoryResetSettings();
-        
+
         delay(2000);
         ESP.restart();
       }
@@ -167,21 +170,21 @@ void scanButtons() {
 // ============================================
 
 void handleHeaterButton() {
-  Serial.println("Button: Heater toggle");
+  LOG_INFO("Button: Heater toggle");
   setHeaterEnabledState(!state.heaterEnabled);
-  
+
   if (state.emergencyShutdown) {
     clearEmergencyShutdown();
   }
 }
 
 void handlePumpButton() {
-  Serial.println("Button: Pump cycle");
-  
+  LOG_INFO("Button: Pump cycle");
+
   if (state.emergencyShutdown) {
     clearEmergencyShutdown();
   }
-  
+
   // Cycle through states: OFF → LOW → HIGH → OFF
   switch (state.pumpState) {
     case PUMP_OFF:
@@ -194,19 +197,19 @@ void handlePumpButton() {
       if (canPumpTurnOff()) {
         setPumpState(PUMP_OFF);
       } else {
-        Serial.println("Cannot turn pump OFF (safety interlock)");
+        LOG_WARN("Cannot turn pump OFF (safety interlock)");
       }
       break;
   }
 }
 
 void handleTempUpButton() {
-  Serial.println("Button: Temperature +1°F");
+  LOG_INFO("Button: Temperature +1°F");
   setTargetTemperature(state.targetTemp + 1.0);
 }
 
 void handleTempDownButton() {
-  Serial.println("Button: Temperature -1°F");
+  LOG_INFO("Button: Temperature -1°F");
   setTargetTemperature(state.targetTemp - 1.0);
 }
 

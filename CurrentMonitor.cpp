@@ -1,4 +1,7 @@
+#define LOG_MODULE "CURRENT"
+
 #include "CurrentMonitor.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
 #include "StateMutex.h"
@@ -18,20 +21,20 @@ Adafruit_ADS1115 ads;
 // ============================================
 
 void initCurrentMonitor() {
-  Serial.println("Initializing current monitor...");
+  LOG_INFO("Initializing current monitor...");
 
   // Lock I2C bus for ADS1115 initialization
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
-    Serial.println("ERROR: Failed to lock I2C for ADS1115 init!");
+    LOG_ERROR("Failed to lock I2C for ADS1115 init!");
     state.currentSensorValid = false;
     return;
   }
 
   // Initialize ADS1115
   if (!ads.begin(ADS1115_ADDRESS)) {
-    Serial.println("ERROR: Failed to initialize ADS1115!");
-    Serial.println("Check I2C connections and address");
+    LOG_ERROR("Failed to initialize ADS1115!");
+    LOG_ERROR("Check I2C connections and address");
     state.currentSensorValid = false;
     return;
   }
@@ -42,19 +45,16 @@ void initCurrentMonitor() {
   ads.setGain(GAIN_ONE);  // ±4.096V
   ads.setDataRate(RATE_ADS1115_860SPS);
 
-  Serial.println("ADS1115 initialized successfully");
-  Serial.print("  I2C Address: 0x");
-  Serial.println(ADS1115_ADDRESS, HEX);
-  Serial.println("  Gain: ±4.096V");
-  Serial.println("  Data Rate: 860 SPS");
+  LOG_INFO("ADS1115 initialized successfully");
+  LOG_INFOF("  I2C Address: 0x%02X", ADS1115_ADDRESS);
+  LOG_INFO("  Gain: ±4.096V");
+  LOG_INFO("  Data Rate: 860 SPS");
 
   state.currentSensorValid = true;
   state.pumpCurrent = 0.0;
 
   // Note: calibration offset is loaded from flash in loadAllSettings()
-  Serial.print("Using saved current calibration offset: ");
-  Serial.print(state.currentOffset, 3);
-  Serial.println(" A");
+  LOG_INFOF("Using saved current calibration offset: %.3f A", state.currentOffset);
 }
 
 // ============================================
@@ -162,11 +162,7 @@ void readPumpCurrent() {
   static unsigned long lastDebugPrint = 0;
   if (millis() - lastDebugPrint >= 5000) {  // Print every 5 seconds
     lastDebugPrint = millis();
-    Serial.print("Pump Current: ");
-    Serial.print(rmsCurrent, 2);
-    Serial.print(" A (RMS voltage: ");
-    Serial.print(rmsVoltage, 3);
-    Serial.println(" V)");
+    LOG_DEBUGF("Pump Current: %.2f A (RMS voltage: %.3f V)", rmsCurrent, rmsVoltage);
   }
 }
 
@@ -261,12 +257,12 @@ void calibrateCurrentSensor() {
   }
 
   if (!currentSensorValid) {
-    Serial.println("Cannot calibrate - sensor not initialized");
+    LOG_ERROR("Cannot calibrate - sensor not initialized");
     return;
   }
 
-  Serial.println("Calibrating current sensor...");
-  Serial.println("Ensure pump is OFF during calibration");
+  LOG_INFO("Calibrating current sensor...");
+  LOG_INFO("Ensure pump is OFF during calibration");
 
   // Take multiple readings to measure offset
   const int CAL_SAMPLES = 50;
@@ -275,7 +271,7 @@ void calibrateCurrentSensor() {
   {
     I2CScopedLock i2cLock;
     if (!i2cLock.isLocked()) {
-      Serial.println("Failed to lock I2C for calibration");
+      LOG_ERROR("Failed to lock I2C for calibration");
       return;
     }
 
@@ -300,9 +296,7 @@ void calibrateCurrentSensor() {
     }
   }
 
-  Serial.print("Calibration complete - Offset: ");
-  Serial.print(calibratedOffset, 3);
-  Serial.println(" A");
+  LOG_INFOF("Calibration complete - Offset: %.3f A", calibratedOffset);
 
   // Save calibration to flash
   saveCurrentCalibration(calibratedOffset);

@@ -1,4 +1,7 @@
+#define LOG_MODULE "SINRIC"
+
 #include "SinricIntegration.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
 #include "CredentialsManager.h"
@@ -11,39 +14,35 @@
 // ============================================
 
 bool onPowerStateThermostat(const String &deviceId, bool &state) {
-  Serial.print("Alexa: Thermostat power ");
-  Serial.println(state ? "ON" : "OFF");
-  
+  LOG_INFOF("Alexa: Thermostat power %s", state ? "ON" : "OFF");
+
   setHeaterEnabledState(state);
   return true;
 }
 
 bool onTargetTemperature(const String &deviceId, float &temperature) {
-  Serial.print("Alexa: Set target temperature ");
-  Serial.println(temperature);
-  
+  LOG_INFOF("Alexa: Set target temperature %.1f", temperature);
+
   setTargetTemperature(temperature);
   return true;
 }
 
 bool onAdjustTargetTemperature(const String &deviceId, float &temperatureDelta) {
-  Serial.print("Alexa: Adjust temperature ");
-  Serial.println(temperatureDelta);
-  
+  LOG_INFOF("Alexa: Adjust temperature %.1f", temperatureDelta);
+
   setTargetTemperature(state.targetTemp + temperatureDelta);
   return true;
 }
 
 bool onThermostatMode(const String &deviceId, String &mode) {
-  Serial.print("Alexa: Thermostat mode ");
-  Serial.println(mode);
-  
+  LOG_INFOF("Alexa: Thermostat mode %s", mode.c_str());
+
   if (mode == "HEAT") {
     setHeaterEnabledState(true);
   } else if (mode == "OFF") {
     setHeaterEnabledState(false);
   }
-  
+
   return true;
 }
 
@@ -52,32 +51,30 @@ bool onThermostatMode(const String &deviceId, String &mode) {
 // ============================================
 
 bool onPowerStatePump(const String &deviceId, bool &state) {
-  Serial.print("Alexa: Pump power ");
-  Serial.println(state ? "ON" : "OFF");
-  
+  LOG_INFOF("Alexa: Pump power %s", state ? "ON" : "OFF");
+
   if (state) {
     setPumpState(PUMP_LOW);
   } else {
     if (canPumpTurnOff()) {
       setPumpState(PUMP_OFF);
     } else {
-      Serial.println("Cannot turn pump OFF (safety interlock)");
+      LOG_WARN("Cannot turn pump OFF (safety interlock)");
       return false;
     }
   }
-  
+
   return true;
 }
 
 bool onPowerLevelPump(const String &deviceId, int &powerLevel) {
-  Serial.print("Alexa: Pump power level ");
-  Serial.println(powerLevel);
-  
+  LOG_INFOF("Alexa: Pump power level %d", powerLevel);
+
   if (powerLevel == 0) {
     if (canPumpTurnOff()) {
       setPumpState(PUMP_OFF);
     } else {
-      Serial.println("Cannot turn pump OFF (safety interlock)");
+      LOG_WARN("Cannot turn pump OFF (safety interlock)");
       return false;
     }
   } else if (powerLevel <= 50) {
@@ -85,23 +82,22 @@ bool onPowerLevelPump(const String &deviceId, int &powerLevel) {
   } else {
     setPumpState(PUMP_HIGH);
   }
-  
+
   return true;
 }
 
 bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
-  Serial.print("Alexa: Adjust pump power level ");
-  Serial.println(powerLevelDelta);
-  
+  LOG_INFOF("Alexa: Adjust pump power level %d", powerLevelDelta);
+
   // Convert current state to power level
   int currentLevel = 0;
   if (state.pumpState == PUMP_LOW) currentLevel = 25;
   if (state.pumpState == PUMP_HIGH) currentLevel = 75;
-  
+
   int newLevel = currentLevel + powerLevelDelta;
   if (newLevel < 0) newLevel = 0;
   if (newLevel > 100) newLevel = 100;
-  
+
   return onPowerLevelPump(deviceId, newLevel);
 }
 
@@ -111,11 +107,11 @@ bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
 
 void initSinric() {
   if (!hasSinricCredentials()) {
-    Serial.println("WARNING: Sinric Pro credentials not configured, skipping Sinric initialization");
+    LOG_WARN("Sinric Pro credentials not configured, skipping Sinric initialization");
     return;
   }
 
-  Serial.println("Initializing Sinric Pro...");
+  LOG_INFO("Initializing Sinric Pro...");
 
   // Setup thermostat device
   SinricProThermostat &thermostat = SinricPro[getSinricThermostatId()];
@@ -133,7 +129,7 @@ void initSinric() {
   // Connect to Sinric Pro
   SinricPro.begin(getSinricAppKey(), getSinricAppSecret());
 
-  Serial.println("Sinric Pro initialized");
+  LOG_INFO("Sinric Pro initialized");
 }
 
 // ============================================

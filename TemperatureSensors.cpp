@@ -1,4 +1,7 @@
+#define LOG_MODULE "TEMP"
+
 #include "TemperatureSensors.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
 #include "StateMutex.h"
@@ -20,27 +23,22 @@ DallasTemperature ambientSensor(&ambientWire);
 // ============================================
 
 void initTemperatureSensors() {
-  Serial.println("Initializing temperature sensors...");
-  
+  LOG_INFO("Initializing temperature sensors...");
+
   inletSensor.begin();
   heaterSensor.begin();
   ambientSensor.begin();
-  
-  Serial.print("Inlet sensor devices: ");
-  Serial.println(inletSensor.getDeviceCount());
-  
-  Serial.print("Heater sensor devices: ");
-  Serial.println(heaterSensor.getDeviceCount());
-  
-  Serial.print("Ambient sensor devices: ");
-  Serial.println(ambientSensor.getDeviceCount());
-  
+
+  LOG_INFOF("Inlet sensor devices: %d", inletSensor.getDeviceCount());
+  LOG_INFOF("Heater sensor devices: %d", heaterSensor.getDeviceCount());
+  LOG_INFOF("Ambient sensor devices: %d", ambientSensor.getDeviceCount());
+
   // Set resolution to 12-bit (0.0625°C precision)
   inletSensor.setResolution(12);
   heaterSensor.setResolution(12);
   ambientSensor.setResolution(12);
-  
-  Serial.println("Temperature sensors initialized");
+
+  LOG_INFO("Temperature sensors initialized");
 }
 
 // ============================================
@@ -64,11 +62,10 @@ void readTemperatures() {
     inletValid = isValidTemperature(inletTemp);
 
     if (!inletValid) {
-      Serial.print("WARNING: Inlet temp out of range: ");
-      Serial.println(inletTemp, 1);
+      LOG_WARNF("Inlet temp out of range: %.1f", inletTemp);
     }
   } else {
-    Serial.println("WARNING: Inlet sensor disconnected");
+    LOG_WARN("Inlet sensor disconnected");
   }
 
   // Read heater temperature
@@ -78,11 +75,10 @@ void readTemperatures() {
     heaterValid = isValidTemperature(heaterTemp);
 
     if (!heaterValid) {
-      Serial.print("WARNING: Heater temp out of range: ");
-      Serial.println(heaterTemp, 1);
+      LOG_WARNF("Heater temp out of range: %.1f", heaterTemp);
     }
   } else {
-    Serial.println("WARNING: Heater sensor disconnected");
+    LOG_WARN("Heater sensor disconnected");
   }
 
   // Read ambient temperature (3rd sensor)
@@ -92,11 +88,10 @@ void readTemperatures() {
     ambientValid = isValidTemperature(ambientTemp);
 
     if (!ambientValid) {
-      Serial.print("WARNING: Ambient temp out of range: ");
-      Serial.println(ambientTemp, 1);
+      LOG_WARNF("Ambient temp out of range: %.1f", ambientTemp);
     }
   } else {
-    Serial.println("WARNING: Ambient sensor disconnected");
+    LOG_WARN("Ambient sensor disconnected");
   }
 
   // Update state with mutex protection
@@ -110,30 +105,33 @@ void readTemperatures() {
       state.ambientTemp = ambientTemp;
       state.ambientTempValid = ambientValid;
     } else {
-      Serial.println("ERROR: Failed to update temperature state (mutex timeout)");
+      LOG_ERROR("Failed to update temperature state (mutex timeout)");
       return;
     }
   }
 
   // Log valid temperatures (using local copies)
+  // Build a single formatted string for all valid temperatures
+  char tempMsg[80] = "";
+  bool hasData = false;
+
   if (inletValid) {
-    Serial.print("Inlet: ");
-    Serial.print(inletTemp, 1);
-    Serial.print("°F  ");
+    sprintf(tempMsg + strlen(tempMsg), "Inlet: %.1f°F  ", inletTemp);
+    hasData = true;
   }
 
   if (heaterValid) {
-    Serial.print("Heater: ");
-    Serial.print(heaterTemp, 1);
-    Serial.print("°F  ");
+    sprintf(tempMsg + strlen(tempMsg), "Heater: %.1f°F  ", heaterTemp);
+    hasData = true;
   }
 
   if (ambientValid) {
-    Serial.print("Ambient: ");
-    Serial.print(ambientTemp, 1);
-    Serial.println("°F");
-  } else if (inletValid || heaterValid) {
-    Serial.println();
+    sprintf(tempMsg + strlen(tempMsg), "Ambient: %.1f°F", ambientTemp);
+    hasData = true;
+  }
+
+  if (hasData) {
+    LOG_DEBUG(tempMsg);
   }
 }
 

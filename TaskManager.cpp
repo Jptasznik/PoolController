@@ -1,4 +1,7 @@
+#define LOG_MODULE "TASKS"
+
 #include "TaskManager.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
 #include "StateMutex.h"
@@ -24,11 +27,11 @@ TaskHandle_t controlTaskHandle = NULL;
 // ============================================
 
 void temperatureSensorTask(void* parameter) {
-  Serial.println("[TEMP TASK] Starting temperature sensor task");
+  LOG_INFO("Temperature sensor task started");
 
   // Add this task to watchdog
   esp_task_wdt_add(NULL);
-  Serial.println("[TEMP TASK] Watchdog timer added");
+  LOG_DEBUG("Temperature task watchdog timer added");
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(TEMP_READ_INTERVAL);
@@ -50,11 +53,11 @@ void temperatureSensorTask(void* parameter) {
 // ============================================
 
 void currentMonitorTask(void* parameter) {
-  Serial.println("[CURRENT TASK] Starting current monitor task");
+  LOG_INFO("Current monitor task started");
 
   // Add this task to watchdog
   esp_task_wdt_add(NULL);
-  Serial.println("[CURRENT TASK] Watchdog timer added");
+  LOG_DEBUG("Current task watchdog timer added");
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(CURRENT_READ_INTERVAL);
@@ -76,11 +79,11 @@ void currentMonitorTask(void* parameter) {
 // ============================================
 
 void lcdUpdateTask(void* parameter) {
-  Serial.println("[LCD TASK] Starting LCD update task");
+  LOG_INFO("LCD update task started");
 
   // Add this task to watchdog
   esp_task_wdt_add(NULL);
-  Serial.println("[LCD TASK] Watchdog timer added");
+  LOG_DEBUG("LCD task watchdog timer added");
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(LCD_UPDATE_INTERVAL);
@@ -102,11 +105,11 @@ void lcdUpdateTask(void* parameter) {
 // ============================================
 
 void buttonScanTask(void* parameter) {
-  Serial.println("[BUTTON TASK] Starting button scan task");
+  LOG_INFO("Button scan task started");
 
   // Add this task to watchdog
   esp_task_wdt_add(NULL);
-  Serial.println("[BUTTON TASK] Watchdog timer added");
+  LOG_DEBUG("Button task watchdog timer added");
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(BUTTON_SCAN_INTERVAL);
@@ -128,11 +131,11 @@ void buttonScanTask(void* parameter) {
 // ============================================
 
 void controlSystemTask(void* parameter) {
-  Serial.println("[CONTROL TASK] Starting control system task");
+  LOG_INFO("Control system task started");
 
   // Add this task to watchdog
   esp_task_wdt_add(NULL);
-  Serial.println("[CONTROL TASK] Watchdog timer added");
+  LOG_DEBUG("Control task watchdog timer added");
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(CONTROL_CYCLE_INTERVAL);
@@ -164,14 +167,14 @@ void controlSystemTask(void* parameter) {
       if (stateLock.isLocked()) {
         state.pumpFailureAlert = true;
       }
-      Serial.println("!!! PUMP FAILURE DETECTED !!!");
-      Serial.println("Pump should be running but no current detected");
+      LOG_ERROR("!!! PUMP FAILURE DETECTED !!!");
+      LOG_ERROR("Pump should be running but no current detected");
     } else if (!pumpFailure && currentPumpFailureAlert) {
       StateScopedLock stateLock;
       if (stateLock.isLocked()) {
         state.pumpFailureAlert = false;
       }
-      Serial.println("Pump failure cleared");
+      LOG_INFO("Pump failure cleared");
     }
 
     // Check for overcurrent
@@ -190,17 +193,15 @@ void controlSystemTask(void* parameter) {
       StateScopedLock stateLock;
       if (stateLock.isLocked()) {
         state.overcurrentAlert = true;
-        Serial.println("!!! OVERCURRENT DETECTED !!!");
-        Serial.print("Current: ");
-        Serial.print(state.pumpCurrent, 2);
-        Serial.println(" A");
+        LOG_ERROR("!!! OVERCURRENT DETECTED !!!");
+        LOG_ERRORF("Current: %.2f A", state.pumpCurrent);
       }
     } else if (!overcurrent && currentOvercurrentAlert) {
       StateScopedLock stateLock;
       if (stateLock.isLocked()) {
         state.overcurrentAlert = false;
       }
-      Serial.println("Overcurrent condition cleared");
+      LOG_INFO("Overcurrent condition cleared");
     }
 
     // Apply states to hardware
@@ -217,9 +218,9 @@ void controlSystemTask(void* parameter) {
 // ============================================
 
 void initTasks() {
-  Serial.println("========================================");
-  Serial.println("Initializing FreeRTOS Tasks");
-  Serial.println("========================================");
+  LOG_INFO("========================================");
+  LOG_INFO("Initializing FreeRTOS Tasks");
+  LOG_INFO("========================================");
 
   BaseType_t result;
 
@@ -234,13 +235,13 @@ void initTasks() {
     TASK_CORE_1                      // Core
   );
   if (result != pdPASS) {
-    Serial.println("FATAL ERROR: Failed to create Temperature sensor task!");
-    Serial.println("System cannot operate safely without this task.");
-    Serial.println("Restarting in 5 seconds...");
+    LOG_ERROR("FATAL ERROR: Failed to create Temperature sensor task!");
+    LOG_ERROR("System cannot operate safely without this task.");
+    LOG_ERROR("Restarting in 5 seconds...");
     delay(5000);
     ESP.restart();
   }
-  Serial.println("[INIT] Temperature sensor task created");
+  LOG_INFO("[INIT] Temperature sensor task created");
 
   // Create current monitor task
   result = xTaskCreatePinnedToCore(
@@ -253,13 +254,13 @@ void initTasks() {
     TASK_CORE_1
   );
   if (result != pdPASS) {
-    Serial.println("FATAL ERROR: Failed to create Current monitor task!");
-    Serial.println("System cannot operate safely without this task.");
-    Serial.println("Restarting in 5 seconds...");
+    LOG_ERROR("FATAL ERROR: Failed to create Current monitor task!");
+    LOG_ERROR("System cannot operate safely without this task.");
+    LOG_ERROR("Restarting in 5 seconds...");
     delay(5000);
     ESP.restart();
   }
-  Serial.println("[INIT] Current monitor task created");
+  LOG_INFO("[INIT] Current monitor task created");
 
   // Create LCD update task
   result = xTaskCreatePinnedToCore(
@@ -272,13 +273,13 @@ void initTasks() {
     TASK_CORE_1
   );
   if (result != pdPASS) {
-    Serial.println("FATAL ERROR: Failed to create LCD update task!");
-    Serial.println("System cannot operate safely without this task.");
-    Serial.println("Restarting in 5 seconds...");
+    LOG_ERROR("FATAL ERROR: Failed to create LCD update task!");
+    LOG_ERROR("System cannot operate safely without this task.");
+    LOG_ERROR("Restarting in 5 seconds...");
     delay(5000);
     ESP.restart();
   }
-  Serial.println("[INIT] LCD update task created");
+  LOG_INFO("[INIT] LCD update task created");
 
   // Create button scan task
   result = xTaskCreatePinnedToCore(
@@ -291,13 +292,13 @@ void initTasks() {
     TASK_CORE_1
   );
   if (result != pdPASS) {
-    Serial.println("FATAL ERROR: Failed to create Button scan task!");
-    Serial.println("System cannot operate safely without this task.");
-    Serial.println("Restarting in 5 seconds...");
+    LOG_ERROR("FATAL ERROR: Failed to create Button scan task!");
+    LOG_ERROR("System cannot operate safely without this task.");
+    LOG_ERROR("Restarting in 5 seconds...");
     delay(5000);
     ESP.restart();
   }
-  Serial.println("[INIT] Button scan task created");
+  LOG_INFO("[INIT] Button scan task created");
 
   // Create control system task
   result = xTaskCreatePinnedToCore(
@@ -310,15 +311,15 @@ void initTasks() {
     TASK_CORE_1
   );
   if (result != pdPASS) {
-    Serial.println("FATAL ERROR: Failed to create Control system task!");
-    Serial.println("System cannot operate safely without this task.");
-    Serial.println("Restarting in 5 seconds...");
+    LOG_ERROR("FATAL ERROR: Failed to create Control system task!");
+    LOG_ERROR("System cannot operate safely without this task.");
+    LOG_ERROR("Restarting in 5 seconds...");
     delay(5000);
     ESP.restart();
   }
-  Serial.println("[INIT] Control system task created");
+  LOG_INFO("[INIT] Control system task created");
 
-  Serial.println("========================================");
-  Serial.println("All FreeRTOS tasks started successfully");
-  Serial.println("========================================\n");
+  LOG_INFO("========================================");
+  LOG_INFO("All FreeRTOS tasks started successfully");
+  LOG_INFO("========================================\n");
 }

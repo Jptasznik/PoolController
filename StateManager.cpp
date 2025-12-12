@@ -1,4 +1,7 @@
+#define LOG_MODULE "STATE"
+
 #include "StateManager.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateMutex.h"
 #include "SettingsManager.h"
@@ -74,16 +77,15 @@ void initSystemState() {
 
 void setHeaterEnabledState(bool enabled) {
   if (state.emergencyShutdown && enabled) {
-    Serial.println("Cannot enable heater during emergency shutdown");
+    LOG_WARN("Cannot enable heater during emergency shutdown");
     return;
   }
-  
+
   state.heaterEnabled = enabled;
   saveHeaterEnabled(enabled);
-  
-  Serial.print("Heater enabled state: ");
-  Serial.println(enabled ? "ENABLED" : "DISABLED");
-  
+
+  LOG_INFOF("Heater enabled state: %s", enabled ? "ENABLED" : "DISABLED");
+
   // Update all interfaces
   updateLCDDisplay();
   syncHeaterToBlynk();
@@ -92,28 +94,27 @@ void setHeaterEnabledState(bool enabled) {
 
 void setPumpState(PumpState newState) {
   if (state.emergencyShutdown && newState != PUMP_OFF) {
-    Serial.println("Cannot enable pump during emergency shutdown");
+    LOG_WARN("Cannot enable pump during emergency shutdown");
     return;
   }
-  
+
   // Safety check: prevent turning off pump if heater is on
   if (newState == PUMP_OFF && state.heaterStatus == HEATER_ON) {
-    Serial.println("Cannot turn pump OFF while heater is ON (safety interlock)");
+    LOG_WARN("Cannot turn pump OFF while heater is ON (safety interlock)");
     return;
   }
-  
+
   // Safety check: prevent turning off pump during cooldown
   if (newState == PUMP_OFF && state.inCooldown) {
-    Serial.println("Cannot turn pump OFF during cooldown period");
+    LOG_WARN("Cannot turn pump OFF during cooldown period");
     return;
   }
-  
+
   state.pumpState = newState;
   savePumpState(newState);
-  
-  Serial.print("Pump state: ");
-  Serial.println(getPumpStateString());
-  
+
+  LOG_INFOF("Pump state: %s", getPumpStateString());
+
   // Update all interfaces
   updateLCDDisplay();
   syncPumpToBlynk();
@@ -124,14 +125,12 @@ void setTargetTemperature(float newTemp) {
   // Enforce limits
   if (newTemp < MIN_TARGET_TEMP) newTemp = MIN_TARGET_TEMP;
   if (newTemp > MAX_TARGET_TEMP) newTemp = MAX_TARGET_TEMP;
-  
+
   state.targetTemp = newTemp;
   saveTargetTemp(newTemp);
-  
-  Serial.print("Target temperature: ");
-  Serial.print(newTemp, 1);
-  Serial.println("°F");
-  
+
+  LOG_INFOF("Target temperature: %.1f°F", newTemp);
+
   // Update all interfaces
   updateLCDDisplay();
   syncTargetTempToBlynk();
@@ -141,23 +140,21 @@ void setTargetTemperature(float newTemp) {
 void setMaxRuntimeHours(float hours) {
   if (hours < 0) hours = 0;
   if (hours > 24) hours = 24;
-  
+
   state.maxRuntimeHours = hours;
   saveMaxRuntimeHours(hours);
-  
-  Serial.print("Max runtime hours: ");
-  Serial.println(hours, 1);
+
+  LOG_INFOF("Max runtime hours: %.1f", hours);
 }
 
 void setHeaterStartHour(int hour) {
   if (hour < 0) hour = 0;
   if (hour > 23) hour = 23;
-  
+
   state.heaterStartHour = hour;
   saveHeaterStartHour(hour);
-  
-  Serial.print("Heater start hour: ");
-  Serial.println(hour);
+
+  LOG_INFOF("Heater start hour: %d", hour);
 }
 
 void setHeaterEndHour(int hour) {
@@ -167,8 +164,7 @@ void setHeaterEndHour(int hour) {
   state.heaterEndHour = hour;
   saveHeaterEndHour(hour);
 
-  Serial.print("Heater end hour: ");
-  Serial.println(hour);
+  LOG_INFOF("Heater end hour: %d", hour);
 }
 
 void setMinHeaterTemp(float temp) {
@@ -179,9 +175,7 @@ void setMinHeaterTemp(float temp) {
   state.minHeaterTemp = temp;
   saveMinHeaterTemp(temp);
 
-  Serial.print("Minimum heater temp: ");
-  Serial.print(temp, 1);
-  Serial.println("°F");
+  LOG_INFOF("Minimum heater temp: %.1f°F", temp);
 }
 
 void setMaxHeaterTemp(float temp) {
@@ -192,9 +186,7 @@ void setMaxHeaterTemp(float temp) {
   state.maxHeaterTemp = temp;
   saveMaxHeaterTemp(temp);
 
-  Serial.print("Maximum heater temp: ");
-  Serial.print(temp, 1);
-  Serial.println("°F");
+  LOG_INFOF("Maximum heater temp: %.1f°F", temp);
 }
 
 // ============================================
@@ -202,7 +194,7 @@ void setMaxHeaterTemp(float temp) {
 // ============================================
 
 void triggerEmergencyShutdown() {
-  Serial.println("!!! EMERGENCY SHUTDOWN TRIGGERED !!!");
+  LOG_ERROR("!!! EMERGENCY SHUTDOWN TRIGGERED !!!");
 
   // CRITICAL: Immediately disable hardware FIRST (no mutex delay for safety)
   digitalWrite(HEATER_PIN, LOW);
@@ -247,7 +239,7 @@ void clearEmergencyShutdown() {
       state.emergencyShutdown = false;
     }
   }
-  Serial.println("Emergency shutdown cleared");
+  LOG_INFO("Emergency shutdown cleared");
   updateLCDDisplay();
 }
 
@@ -262,7 +254,7 @@ void startCooldown() {
   {
     StateScopedLock stateLock;
     if (!stateLock.isLocked()) {
-      Serial.println("ERROR: Failed to lock state for cooldown start");
+      LOG_ERROR("Failed to lock state for cooldown start");
       return;
     }
 
@@ -271,7 +263,7 @@ void startCooldown() {
   }
 
   if (!inCooldown) {
-    Serial.println("Starting 15-minute cooldown period");
+    LOG_INFO("Starting 15-minute cooldown period");
 
     {
       StateScopedLock stateLock;
@@ -298,7 +290,7 @@ void endCooldown() {
   {
     StateScopedLock stateLock;
     if (!stateLock.isLocked()) {
-      Serial.println("ERROR: Failed to lock state for cooldown end");
+      LOG_ERROR("Failed to lock state for cooldown end");
       return;
     }
 
@@ -307,7 +299,7 @@ void endCooldown() {
   }
 
   if (inCooldown) {
-    Serial.println("Cooldown period ended");
+    LOG_INFO("Cooldown period ended");
 
     {
       StateScopedLock stateLock;
@@ -349,7 +341,7 @@ bool isCooldownComplete() {
   // Sanity check: if elapsed time is impossibly large (> 1 hour),
   // assume overflow or error and end cooldown safely
   if (elapsed > COOLDOWN_SANITY_CHECK) {
-    Serial.println("WARNING: Cooldown timer anomaly detected (possible millis overflow), ending cooldown");
+    LOG_WARN("Cooldown timer anomaly detected (possible millis overflow), ending cooldown");
     return true;
   }
 
@@ -381,7 +373,7 @@ void updatePumpRuntime() {
   // assume millis() overflow or system suspension occurred
   // In this case, don't accumulate runtime to avoid corruption
   if (elapsed > 3600000) {  // 1 hour
-    Serial.println("WARNING: Runtime tracking anomaly detected, skipping accumulation");
+    LOG_WARN("Runtime tracking anomaly detected, skipping accumulation");
     state.lastRuntimeUpdate = now;
     return;
   }
@@ -406,7 +398,7 @@ void updatePumpRuntime() {
 }
 
 void resetDailyRuntime() {
-  Serial.println("Resetting daily pump runtime counter");
+  LOG_INFO("Resetting daily pump runtime counter");
   state.pumpRuntimeToday = 0;
   state.lastRuntimeUpdate = millis();
 }
@@ -477,8 +469,7 @@ void recordWiFiDisconnect() {
   state.disconnectTimestamps[state.disconnectCount % WIFI_MAX_DISCONNECTS] = now;
   state.disconnectCount++;
 
-  Serial.print("WiFi disconnect recorded. Recent count: ");
-  Serial.println(getRecentDisconnectCount());
+  LOG_INFOF("WiFi disconnect recorded. Recent count: %d", getRecentDisconnectCount());
 }
 
 int getRecentDisconnectCount() {
@@ -524,5 +515,5 @@ void clearWiFiRuntimeTracking() {
   for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
     state.disconnectTimestamps[i] = 0;
   }
-  Serial.println("WiFi runtime tracking cleared");
+  LOG_INFO("WiFi runtime tracking cleared");
 }

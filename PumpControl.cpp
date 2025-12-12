@@ -1,4 +1,7 @@
+#define LOG_MODULE "PUMP"
+
 #include "PumpControl.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
 
@@ -7,15 +10,15 @@
 // ============================================
 
 void initPumpControl() {
-  Serial.println("Initializing pump control...");
-  
+  LOG_INFO("Initializing pump control...");
+
   pinMode(PUMP_ENABLE_PIN, OUTPUT);
   pinMode(PUMP_SPEED_PIN, OUTPUT);
-  
+
   digitalWrite(PUMP_ENABLE_PIN, LOW);
   digitalWrite(PUMP_SPEED_PIN, LOW);
-  
-  Serial.println("Pump control initialized");
+
+  LOG_INFO("Pump control initialized");
 }
 
 // ============================================
