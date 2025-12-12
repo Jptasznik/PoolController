@@ -32,6 +32,7 @@ StateManager.h/cpp           # Centralized state management
 StateMutex.h/cpp             # Thread-safe state access
 I2CMutex.h/cpp               # Thread-safe I2C bus access
 TaskManager.h/cpp            # FreeRTOS task management
+MessageQueue.h/cpp           # FreeRTOS message queues for inter-task communication
 Logger.h/cpp                 # Structured logging framework
 CredentialsManager.h/cpp     # Secure credential storage in flash
 SettingsManager.h/cpp        # Flash storage persistence
@@ -488,13 +489,98 @@ Each task has its own watchdog timer configured with appropriate timeouts:
 
 #### Task Synchronization
 
-Tasks coordinate through the shared `SystemState` structure:
+Tasks coordinate through two mechanisms:
 
-1. **Sensor Tasks** → Write sensor readings to state (with mutex)
-2. **Control Task** → Read state, make decisions, write commands (with mutex)
-3. **Output Tasks** → Read state, update displays/relays (with mutex)
+**1. Shared State (Legacy)**
+- Tasks access shared `SystemState` structure with mutexes
+- Centralized state management functions in `StateManager.cpp`
+- Thread-safe via `StateMutex` protection
 
-The centralized state management functions in `StateManager.cpp` are thread-safe and can be called from any task.
+**2. Message Queues (Recommended)**
+- Tasks communicate via FreeRTOS message queues
+- Decouples tasks from direct state modification
+- Clear data flow and event handling
+- Defined in `MessageQueue.h/cpp`
+
+#### Message Queue System
+
+The system provides **three message queues** for inter-task communication:
+
+**Control Queue** (`controlQueue`)
+- **Purpose**: Sensor data and control commands
+- **Size**: 10 messages
+- **Producers**: Temperature task, current monitor task, button task
+- **Consumers**: Control system task
+- **Messages**: Temperature updates, current readings, button presses, pump/heater commands
+
+**Display Queue** (`displayQueue`)
+- **Purpose**: Display update requests
+- **Size**: 5 messages (can drop if full)
+- **Producers**: Control task, button task, network handlers
+- **Consumers**: LCD update task
+- **Messages**: Display update requests, refresh commands
+
+**Event Queue** (`eventQueue`)
+- **Purpose**: System events for logging and monitoring
+- **Size**: 20 messages
+- **Producers**: All tasks
+- **Consumers**: Main loop (for logging/telemetry)
+- **Messages**: Cooldown events, connection status changes, runtime updates
+
+**Message Queue Usage Example:**
+
+```cpp
+// Sending a temperature update (in TemperatureSensorTask)
+Message msg = createTemperatureMessage(inlet, heater, ambient, valid);
+if (!sendToControlQueue(&msg)) {
+  LOG_WARN("Control queue full!");
+}
+
+// Receiving messages (in ControlSystemTask)
+Message msg;
+if (receiveFromControlQueue(&msg, QUEUE_RECEIVE_TIMEOUT_MS)) {
+  switch (msg.type) {
+    case MSG_TEMPERATURE_UPDATE:
+      float inletTemp = msg.payload.temperature.inletTemp;
+      // Process temperature data
+      break;
+
+    case MSG_BUTTON_PRESS:
+      uint8_t button = msg.payload.button.buttonNumber;
+      // Handle button press
+      break;
+  }
+}
+```
+
+**Available Message Types:**
+- `MSG_TEMPERATURE_UPDATE` - Sensor readings
+- `MSG_CURRENT_UPDATE` - Current measurement
+- `MSG_BUTTON_PRESS` - Button event
+- `MSG_PUMP_COMMAND` - Pump control
+- `MSG_HEATER_COMMAND` - Heater control
+- `MSG_TARGET_TEMP_CHANGE` - Temperature setpoint
+- `MSG_DISPLAY_UPDATE_REQUEST` - Display refresh
+- `MSG_COOLDOWN_START/END` - Cooldown events
+- `MSG_WIFI_STATUS_CHANGE` - Network events
+
+**Helper Functions:**
+```cpp
+// Queue status
+uint32_t waiting = getControlQueueWaiting();
+
+// Message creation helpers
+Message msg1 = createTemperatureMessage(72.5, 75.0, 68.0, true);
+Message msg2 = createButtonMessage(BUTTON_TEMP_UP, false);
+Message msg3 = createPumpCommandMessage(PUMP_HIGH, false);
+```
+
+**Benefits:**
+- **Decoupling**: Tasks don't need direct access to each other
+- **Thread Safety**: Built-in synchronization
+- **Event-Driven**: React to events rather than polling
+- **Debugging**: Trace message flow easily
+- **Reliability**: Messages queued even if consumer is busy
 
 #### Adding New Tasks
 
