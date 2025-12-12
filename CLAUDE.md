@@ -32,6 +32,7 @@ StateManager.h/cpp           # Centralized state management
 StateMutex.h/cpp             # Thread-safe state access
 I2CMutex.h/cpp               # Thread-safe I2C bus access
 TaskManager.h/cpp            # FreeRTOS task management
+Logger.h/cpp                 # Structured logging framework
 CredentialsManager.h/cpp     # Secure credential storage in flash
 SettingsManager.h/cpp        # Flash storage persistence
 TemperatureSensors.h/cpp     # DS18B20 sensor handling
@@ -169,7 +170,127 @@ printCredentialStatus();  // Debug output
 - Cloud services are automatically disabled if credentials are not configured
 - Credentials are thread-safe (protected by mutex)
 
-### 5. FreeRTOS Multitasking Architecture
+### 5. Logging Framework
+
+The system includes a comprehensive **logging framework** that provides structured logging with multiple severity levels. The framework is designed for extensibility, currently outputting to Serial but easily extendable for flash storage or cloud logging.
+
+#### Log Levels
+
+```cpp
+LOG_DEBUG  // Detailed debugging information
+LOG_INFO   // General informational messages
+LOG_WARN   // Warning messages (potential issues)
+LOG_ERROR  // Error messages (serious problems)
+```
+
+#### Using the Logger
+
+**1. Define module name at the top of your .cpp file:**
+```cpp
+#define LOG_MODULE "MYMODULE"
+
+#include "MyModule.h"
+#include "Logger.h"
+// ... other includes
+```
+
+**2. Use logging macros in your code:**
+```cpp
+// Simple messages
+LOG_DEBUG("Entering function");
+LOG_INFO("System initialized");
+LOG_WARN("Temperature approaching limit");
+LOG_ERROR("Sensor failure detected");
+
+// Formatted messages (printf-style)
+LOG_DEBUGF("Reading sensor %d", sensorId);
+LOG_INFOF("Temperature: %.1f°F", temp);
+LOG_WARNF("Retry attempt %d of %d", attempt, maxAttempts);
+LOG_ERRORF("Failed to connect after %d attempts", attempts);
+```
+
+**3. Initialize in setup():**
+```cpp
+void setup() {
+  Serial.begin(115200);
+  initLogger();  // Initialize logging system
+  // ... rest of setup
+}
+```
+
+#### Configuration
+
+```cpp
+// Set minimum log level (filters out lower priority messages)
+setLogLevel(LOG_INFO);  // Only show INFO, WARN, ERROR
+
+// Enable/disable timestamps
+setLogTimestamps(true);  // Default: enabled
+
+// Enable colored output (if terminal supports ANSI colors)
+setLogColors(true);  // Default: disabled
+```
+
+#### Log Output Format
+
+```
+[timestamp] [LEVEL] [MODULE] Message
+```
+
+Example:
+```
+[12345] [INF] [CREDENTIALS] Blynk credentials loaded
+[12567] [ERR] [SENSOR] Temperature sensor timeout
+[12890] [WRN] [PUMP] Current below threshold
+```
+
+#### Future Extensibility
+
+The logging framework is designed to be extensible. You can add custom log handlers for:
+- **Flash storage** - Log to ESP32 flash memory
+- **Cloud logging** - Send logs to remote server
+- **Log buffering** - Buffer logs for later analysis
+- **Multiple outputs** - Write to Serial + file + network simultaneously
+
+```cpp
+// Add custom log handler (future enhancement)
+void myCustomHandler(LogLevel level, const char* module,
+                     const char* message, unsigned long timestamp) {
+  // Send to cloud, write to file, etc.
+}
+
+addLogHandler(myCustomHandler);
+```
+
+#### Thread Safety
+
+All logging functions are **thread-safe** and can be called from any FreeRTOS task. The logger uses a mutex to prevent concurrent access.
+
+#### Best Practices
+
+- **Use appropriate log levels** - Don't log everything as ERROR
+- **Be concise** - Log messages should be brief and informative
+- **Include context** - Module names help identify the source
+- **Use formatted logging** - LOG_INFOF is cleaner than building strings
+- **Avoid logging in tight loops** - Can impact performance
+- **Use DEBUG for verbose info** - Set log level to INFO in production
+
+#### Migration from Serial.println
+
+Old code:
+```cpp
+Serial.println("ERROR: Sensor failed");
+Serial.print("Temperature: ");
+Serial.println(temp);
+```
+
+New code:
+```cpp
+LOG_ERROR("Sensor failed");
+LOG_INFOF("Temperature: %.1f", temp);
+```
+
+### 6. FreeRTOS Multitasking Architecture
 
 This system uses **FreeRTOS multitasking** to efficiently manage multiple concurrent operations. Each subsystem runs in its own task with proper synchronization.
 

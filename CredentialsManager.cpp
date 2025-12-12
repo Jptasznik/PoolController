@@ -1,4 +1,7 @@
+#define LOG_MODULE "CREDENTIALS"
+
 #include "CredentialsManager.h"
+#include "Logger.h"
 #include <Preferences.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -26,15 +29,15 @@ static bool sinricConfigured = false;
 // ============================================
 
 void initCredentials() {
-  Serial.println("========================================");
-  Serial.println("Initializing Credentials Manager");
-  Serial.println("========================================");
+  LOG_INFO("========================================");
+  LOG_INFO("Initializing Credentials Manager");
+  LOG_INFO("========================================");
 
   // Create mutex for thread-safe credential access
   if (credentialsMutex == NULL) {
     credentialsMutex = xSemaphoreCreateMutex();
     if (credentialsMutex == NULL) {
-      Serial.println("ERROR: Failed to create credentials mutex!");
+      LOG_ERROR("Failed to create credentials mutex!");
       return;
     }
   }
@@ -49,9 +52,9 @@ void initCredentials() {
       strncpy(blynkAuthToken, blynkAuth.c_str(), BLYNK_AUTH_MAX_LENGTH - 1);
       blynkAuthToken[BLYNK_AUTH_MAX_LENGTH - 1] = '\0';
       blynkConfigured = true;
-      Serial.println("[CRED] Blynk credentials loaded");
+      LOG_INFO("Blynk credentials loaded");
     } else {
-      Serial.println("[CRED] No Blynk credentials found");
+      LOG_INFO("No Blynk credentials found");
     }
 
     // Load Sinric Pro credentials
@@ -74,19 +77,19 @@ void initCredentials() {
       sinricPumpId[SINRIC_DEVICE_ID_MAX_LENGTH - 1] = '\0';
 
       sinricConfigured = true;
-      Serial.println("[CRED] Sinric Pro credentials loaded");
+      LOG_INFO("Sinric Pro credentials loaded");
     } else {
-      Serial.println("[CRED] No Sinric Pro credentials found");
+      LOG_INFO("No Sinric Pro credentials found");
     }
 
     preferences.end();
     xSemaphoreGive(credentialsMutex);
   } else {
-    Serial.println("ERROR: Credentials mutex timeout during initialization");
+    LOG_ERROR("Credentials mutex timeout during initialization");
   }
 
   printCredentialStatus();
-  Serial.println("========================================\n");
+  LOG_INFO("========================================\n");
 }
 
 // ============================================
@@ -99,7 +102,7 @@ const char* getBlynkAuthToken() {
 
 bool setBlynkAuthToken(const char* token) {
   if (token == NULL || strlen(token) == 0) {
-    Serial.println("ERROR: Invalid Blynk token");
+    LOG_ERROR("Invalid Blynk token");
     return false;
   }
 
@@ -115,10 +118,10 @@ bool setBlynkAuthToken(const char* token) {
     preferences.end();
 
     xSemaphoreGive(credentialsMutex);
-    Serial.println("Blynk credentials saved to flash");
+    LOG_INFO("Blynk credentials saved to flash");
     return true;
   } else {
-    Serial.println("ERROR: Credentials mutex timeout in setBlynkAuthToken");
+    LOG_ERROR("Credentials mutex timeout in setBlynkAuthToken");
     return false;
   }
 }
