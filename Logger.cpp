@@ -2,6 +2,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <stdarg.h>
+#include <Preferences.h>
 
 // ============================================
 // INTERNAL STATE
@@ -20,6 +21,14 @@ static int logHandlerCount = 0;
 // Buffer for formatted messages
 #define LOG_BUFFER_SIZE 256
 static char logBuffer[LOG_BUFFER_SIZE];
+
+// NVS storage
+static Preferences preferences;
+static SemaphoreHandle_t nvsMutex = NULL;
+
+// Circular log buffer configuration
+#define LOG_NVS_MAX_ENTRIES 12  // ~1KB total (12 entries * 80 chars + overhead)
+#define LOG_ENTRY_MAX_SIZE 80   // Maximum size per log entry
 
 // ============================================
 // ANSI COLOR CODES (for terminal support)
@@ -42,6 +51,20 @@ void initLogger() {
     if (logMutex == NULL) {
       Serial.println("ERROR: Failed to create log mutex!");
     }
+  }
+
+  // Create mutex for NVS access
+  if (nvsMutex == NULL) {
+    nvsMutex = xSemaphoreCreateMutex();
+    if (nvsMutex == NULL) {
+      Serial.println("ERROR: Failed to create NVS mutex!");
+    }
+  }
+
+  // Load saved log level from NVS
+  LogLevel savedLevel = loadLogLevel();
+  if (savedLevel >= LOG_DEBUG && savedLevel <= LOG_ERROR) {
+    currentLogLevel = savedLevel;
   }
 
   LOG_INFO("Logging system initialized");
@@ -118,6 +141,34 @@ void log(LogLevel level, const char* module, const char* message) {
 
   if (colorsEnabled) {
     Serial.print(COLOR_RESET);
+  }
+
+  // Write to NVS circular buffer (INFO level and above only, to save flash wear)
+  if (level >= LOG_INFO) {
+    // Format entry for NVS: "[timestamp] [LEVEL] [MODULE] message"
+    char nvsEntry[LOG_ENTRY_MAX_SIZE];
+    snprintf(nvsEntry, LOG_ENTRY_MAX_SIZE, "[%lu] [%s] [%s] %s",
+             timestamp, logLevelToShortString(level), module, message);
+
+    // Write to circular buffer (non-blocking, best effort)
+    if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+      preferences.begin("logger", false);
+
+      // Get current write index
+      unsigned int writeIndex = preferences.getUInt("logIndex", 0);
+
+      // Write entry
+      char key[16];
+      snprintf(key, sizeof(key), "log%02u", writeIndex);
+      preferences.putString(key, nvsEntry);
+
+      // Update write index (circular)
+      writeIndex = (writeIndex + 1) % LOG_NVS_MAX_ENTRIES;
+      preferences.putUInt("logIndex", writeIndex);
+
+      preferences.end();
+      xSemaphoreGive(nvsMutex);
+    }
   }
 
   // Call custom log handlers
@@ -228,4 +279,151 @@ const char* logLevelToShortString(LogLevel level) {
 void flushLogs() {
   Serial.flush();
   // Future: flush other log destinations (files, network buffers, etc.)
+}
+
+// ============================================
+// NVS PERSISTENCE
+// ============================================
+
+void saveLogLevel(LogLevel level) {
+  if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("logger", false);
+    preferences.putUChar("logLevel", (uint8_t)level);
+    preferences.end();
+    xSemaphoreGive(nvsMutex);
+  }
+}
+
+LogLevel loadLogLevel() {
+  LogLevel level = LOG_INFO;  // Default
+
+  if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("logger", true);  // Read-only
+    uint8_t storedLevel = preferences.getUChar("logLevel", LOG_INFO);
+    preferences.end();
+    xSemaphoreGive(nvsMutex);
+
+    // Validate stored value
+    if (storedLevel >= LOG_DEBUG && storedLevel <= LOG_ERROR) {
+      level = (LogLevel)storedLevel;
+    }
+  }
+
+  return level;
+}
+
+// ============================================
+// CIRCULAR LOG BUFFER (NVS)
+// ============================================
+
+void initLogBuffer() {
+  // Create NVS mutex if not already created
+  if (nvsMutex == NULL) {
+    nvsMutex = xSemaphoreCreateMutex();
+    if (nvsMutex == NULL) {
+      Serial.println("ERROR: Failed to create NVS mutex for log buffer!");
+      return;
+    }
+  }
+
+  // Initialize write index if needed
+  if (xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("logger", false);
+    if (!preferences.isKey("logIndex")) {
+      preferences.putUInt("logIndex", 0);
+    }
+    preferences.end();
+    xSemaphoreGive(nvsMutex);
+  }
+}
+
+int getLogEntries(char* buffer, size_t bufferSize) {
+  if (buffer == NULL || bufferSize == 0) {
+    return 0;
+  }
+
+  int entriesRead = 0;
+  size_t bufferPos = 0;
+
+  if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("logger", true);  // Read-only
+
+    unsigned int writeIndex = preferences.getUInt("logIndex", 0);
+
+    // Read entries in chronological order (oldest to newest)
+    for (unsigned int i = 0; i < LOG_NVS_MAX_ENTRIES; i++) {
+      // Calculate read index (start from oldest entry)
+      unsigned int readIndex = (writeIndex + i) % LOG_NVS_MAX_ENTRIES;
+
+      char key[16];
+      snprintf(key, sizeof(key), "log%02u", readIndex);
+
+      String entry = preferences.getString(key, "");
+      if (entry.length() > 0) {
+        // Check if entry fits in buffer (including newline and null terminator)
+        if (bufferPos + entry.length() + 2 < bufferSize) {
+          // Copy entry to buffer
+          strcpy(buffer + bufferPos, entry.c_str());
+          bufferPos += entry.length();
+
+          // Add newline
+          buffer[bufferPos++] = '\n';
+          buffer[bufferPos] = '\0';
+
+          entriesRead++;
+        } else {
+          // Buffer full
+          break;
+        }
+      }
+    }
+
+    preferences.end();
+    xSemaphoreGive(nvsMutex);
+  }
+
+  return entriesRead;
+}
+
+void clearLogBuffer() {
+  if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("logger", false);
+
+    // Clear all log entries
+    for (unsigned int i = 0; i < LOG_NVS_MAX_ENTRIES; i++) {
+      char key[16];
+      snprintf(key, sizeof(key), "log%02u", i);
+      preferences.remove(key);
+    }
+
+    // Reset write index
+    preferences.putUInt("logIndex", 0);
+
+    preferences.end();
+    xSemaphoreGive(nvsMutex);
+  }
+}
+
+size_t getLogBufferSize() {
+  size_t totalSize = 0;
+
+  if (nvsMutex != NULL && xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("logger", true);  // Read-only
+
+    // Count size of all stored log entries
+    for (unsigned int i = 0; i < LOG_NVS_MAX_ENTRIES; i++) {
+      char key[16];
+      snprintf(key, sizeof(key), "log%02u", i);
+
+      String entry = preferences.getString(key, "");
+      if (entry.length() > 0) {
+        totalSize += entry.length() + 1;  // +1 for newline
+      }
+    }
+
+    preferences.end();
+    xSemaphoreGive(nvsMutex);
+  }
+
+  return totalSize;
 }

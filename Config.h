@@ -111,6 +111,7 @@
 #define VPIN_PUMP_FAILURE_ALERT V12  // Pump failure alert
 #define VPIN_MIN_HEATER_TEMP V13 // Minimum water temp to allow heater ON
 #define VPIN_MAX_HEATER_TEMP V14 // Maximum water temp to allow heater ON
+#define VPIN_LOG_LEVEL V15       // Log level control (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR)
 
 // ============================================
 // WIFI PROVISIONING

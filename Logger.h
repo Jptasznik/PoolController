@@ -102,4 +102,32 @@ const char* logLevelToShortString(LogLevel level);
 // Flush all log outputs (ensure everything is written)
 void flushLogs();
 
+// ============================================
+// NVS PERSISTENCE
+// ============================================
+
+// Save/load log level to/from NVS flash
+void saveLogLevel(LogLevel level);
+LogLevel loadLogLevel();
+
+// ============================================
+// CIRCULAR LOG BUFFER (NVS)
+// ============================================
+
+// Initialize the circular log buffer in NVS
+void initLogBuffer();
+
+// Get log entries from the circular buffer
+// Returns number of entries retrieved
+// maxEntries: maximum number of entries to retrieve
+// buffer: output buffer to store log entries (each entry up to 80 chars)
+// bufferSize: size of the output buffer in bytes
+int getLogEntries(char* buffer, size_t bufferSize);
+
+// Clear the circular log buffer
+void clearLogBuffer();
+
+// Get the size of stored logs in bytes
+size_t getLogBufferSize();
+
 #endif // LOGGER_H

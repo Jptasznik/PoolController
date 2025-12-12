@@ -133,6 +133,19 @@ BLYNK_WRITE(VPIN_MAX_HEATER_TEMP) {
   setMaxHeaterTemp(temp);
 }
 
+BLYNK_WRITE(VPIN_LOG_LEVEL) {
+  int level = param.asInt();
+  LOG_INFOF("Blynk: Log level %d", level);
+
+  // Validate log level (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR)
+  if (level >= LOG_DEBUG && level <= LOG_ERROR) {
+    setLogLevel((LogLevel)level);
+    saveLogLevel((LogLevel)level);
+  } else {
+    LOG_WARNF("Invalid log level: %d", level);
+  }
+}
+
 // ============================================
 // BLYNK CONNECTION HANDLERS
 // ============================================
@@ -178,6 +191,7 @@ void syncAllToBlynk() {
   Blynk.virtualWrite(VPIN_HEATER_END_HOUR, state.heaterEndHour);
   Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);
   Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);
+  Blynk.virtualWrite(VPIN_LOG_LEVEL, (int)getLogLevel());
 
   LOG_INFO("Synced all values to Blynk");
 }
@@ -316,6 +330,7 @@ void setup() {
 
   // Initialize logging system (must be after Serial.begin)
   initLogger();
+  initLogBuffer();
 
   LOG_INFO("\n\n========================================");
   LOG_INFO("ESP32 Pool Controller");
