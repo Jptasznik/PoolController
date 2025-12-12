@@ -264,16 +264,58 @@ Example:
 [12890] [WRN] [PUMP] Current below threshold
 ```
 
+#### NVS Persistence and Circular Log Buffer
+
+The logging framework includes **persistent storage** in ESP32 NVS flash memory:
+
+**Features:**
+- **Persistent Log Level** - Log level setting survives reboots
+- **Circular Log Buffer** - 1KB buffer stores recent log entries (up to 12 entries)
+- **Remote Control** - Blynk virtual pin V15 for remote log level adjustment
+- **Flash Wear Protection** - Only INFO/WARN/ERROR messages stored (DEBUG excluded)
+
+**NVS Functions:**
+```cpp
+// Save/load log level to/from flash
+saveLogLevel(LOG_INFO);
+LogLevel level = loadLogLevel();
+
+// Initialize circular buffer
+initLogBuffer();
+
+// Retrieve stored logs
+char buffer[1024];
+int count = getLogEntries(buffer, sizeof(buffer));
+
+// Clear all stored logs
+clearLogBuffer();
+
+// Get current buffer size
+size_t size = getLogBufferSize();
+```
+
+**Blynk Integration:**
+- Virtual Pin **V15** controls log level remotely
+- Valid values: 0=DEBUG, 1=INFO, 2=WARN, 3=ERROR
+- Log level automatically syncs to Blynk dashboard on connection
+- Changes are immediately saved to NVS flash
+
+**Storage Details:**
+- Maximum 12 log entries (~80 characters each)
+- Circular buffer overwrites oldest entries when full
+- Persists across reboots and power cycles
+- Thread-safe with dedicated NVS mutex
+- Non-blocking writes (10ms timeout) to avoid task delays
+
 #### Future Extensibility
 
 The logging framework is designed to be extensible. You can add custom log handlers for:
-- **Flash storage** - Log to ESP32 flash memory
 - **Cloud logging** - Send logs to remote server
-- **Log buffering** - Buffer logs for later analysis
 - **Multiple outputs** - Write to Serial + file + network simultaneously
+- **Custom filtering** - Filter logs by module or pattern
 
 ```cpp
-// Add custom log handler (future enhancement)
+// Add custom log handler
 void myCustomHandler(LogLevel level, const char* module,
                      const char* message, unsigned long timestamp) {
   // Send to cloud, write to file, etc.
@@ -574,6 +616,7 @@ V11 - Pump current (read-only)
 V12 - Pump failure alert (read-only)
 V13 - Minimum heater temperature (read/write)
 V14 - Maximum heater temperature (read/write)
+V15 - Log level (read/write) - 0=DEBUG, 1=INFO, 2=WARN, 3=ERROR
 ```
 
 **Important:** If you add virtual pins, update `BLYNK_WRITE()` handlers in PoolController3.ino
