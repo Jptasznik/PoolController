@@ -153,32 +153,35 @@ void handleSinricEvents() {
 
 void syncHeaterToSinric() {
   if (!SinricPro.isConnected()) return;
-  
-  SinricProThermostat &thermostat = SinricPro[SINRIC_THERMOSTAT_ID];
+  if (!hasSinricCredentials()) return;
+
+  SinricProThermostat &thermostat = SinricPro[getSinricThermostatId()];
   thermostat.sendPowerStateEvent(state.heaterEnabled);
   thermostat.sendThermostatModeEvent(state.heaterEnabled ? "HEAT" : "OFF");
 }
 
 void syncPumpToSinric() {
   if (!SinricPro.isConnected()) return;
-  
-  SinricProDimSwitch &pump = SinricPro[SINRIC_PUMP_ID];
-  
+  if (!hasSinricCredentials()) return;
+
+  SinricProDimSwitch &pump = SinricPro[getSinricPumpId()];
+
   bool powerState = (state.pumpState != PUMP_OFF);
   int powerLevel = 0;
   if (state.pumpState == PUMP_LOW) powerLevel = 25;
   if (state.pumpState == PUMP_HIGH) powerLevel = 75;
-  
+
   pump.sendPowerStateEvent(powerState);
   pump.sendPowerLevelEvent(powerLevel);
 }
 
 void syncTargetTempToSinric() {
   if (!SinricPro.isConnected()) return;
-  
-  SinricProThermostat &thermostat = SinricPro[SINRIC_THERMOSTAT_ID];
+  if (!hasSinricCredentials()) return;
+
+  SinricProThermostat &thermostat = SinricPro[getSinricThermostatId()];
   thermostat.sendTargetTemperatureEvent(state.targetTemp);
-  
+
   if (state.inletTempValid) {
     thermostat.sendTemperatureEvent(state.inletTemp);
   }
