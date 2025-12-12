@@ -13,6 +13,10 @@
 static Preferences preferences;
 static SemaphoreHandle_t credentialsMutex = NULL;
 
+// NVS configuration
+#define CREDENTIALS_NVS_NAMESPACE "credentials"     // NVS namespace for credentials
+#define CREDENTIALS_MUTEX_TIMEOUT_MS 1000           // Timeout for acquiring credentials mutex (ms)
+
 // Credential buffers (loaded from flash on init)
 static char blynkAuthToken[BLYNK_AUTH_MAX_LENGTH] = "";
 static char sinricAppKey[SINRIC_APP_KEY_MAX_LENGTH] = "";
@@ -43,8 +47,8 @@ void initCredentials() {
   }
 
   // Load credentials from flash
-  if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("credentials", true);  // Read-only
+  if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(CREDENTIALS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(CREDENTIALS_NVS_NAMESPACE, true);  // Read-only
 
     // Load Blynk credentials
     String blynkAuth = preferences.getString("blynkAuth", "");
@@ -106,14 +110,14 @@ bool setBlynkAuthToken(const char* token) {
     return false;
   }
 
-  if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+  if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(CREDENTIALS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
     // Update internal buffer
     strncpy(blynkAuthToken, token, BLYNK_AUTH_MAX_LENGTH - 1);
     blynkAuthToken[BLYNK_AUTH_MAX_LENGTH - 1] = '\0';
     blynkConfigured = true;
 
     // Save to flash
-    preferences.begin("credentials", false);
+    preferences.begin(CREDENTIALS_NVS_NAMESPACE, false);
     preferences.putString("blynkAuth", blynkAuthToken);
     preferences.end();
 
@@ -162,7 +166,7 @@ bool setSinricCredentials(
     return false;
   }
 
-  if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+  if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(CREDENTIALS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
     // Update internal buffers
     strncpy(sinricAppKey, appKey, SINRIC_APP_KEY_MAX_LENGTH - 1);
     sinricAppKey[SINRIC_APP_KEY_MAX_LENGTH - 1] = '\0';
@@ -179,7 +183,7 @@ bool setSinricCredentials(
     sinricConfigured = true;
 
     // Save to flash
-    preferences.begin("credentials", false);
+    preferences.begin(CREDENTIALS_NVS_NAMESPACE, false);
     preferences.putString("sinricKey", sinricAppKey);
     preferences.putString("sinricSecret", sinricAppSecret);
     preferences.putString("sinricThermo", sinricThermostatId);
@@ -206,7 +210,7 @@ bool hasSinricCredentials() {
 void clearAllCredentials() {
   Serial.println("Clearing all stored credentials...");
 
-  if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+  if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(CREDENTIALS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
     // Clear internal buffers
     memset(blynkAuthToken, 0, sizeof(blynkAuthToken));
     memset(sinricAppKey, 0, sizeof(sinricAppKey));
@@ -218,7 +222,7 @@ void clearAllCredentials() {
     sinricConfigured = false;
 
     // Clear flash storage
-    preferences.begin("credentials", false);
+    preferences.begin(CREDENTIALS_NVS_NAMESPACE, false);
     preferences.clear();
     preferences.end();
 

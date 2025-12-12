@@ -12,6 +12,10 @@ Preferences preferences;
 // Preferences mutex for thread-safe flash access
 static SemaphoreHandle_t preferencesMutex = NULL;
 
+// NVS configuration
+#define SETTINGS_NVS_NAMESPACE "pool"           // NVS namespace for settings
+#define SETTINGS_MUTEX_TIMEOUT_MS 1000          // Timeout for acquiring preferences mutex (ms)
+
 // ============================================
 // INITIALIZATION
 // ============================================
@@ -62,8 +66,8 @@ void loadAllSettings() {
 // ============================================
 
 void saveTargetTemp(float temp) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putFloat("targetTemp", temp);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -74,8 +78,8 @@ void saveTargetTemp(float temp) {
 }
 
 void saveHeaterEnabled(bool enabled) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putBool("heaterEn", enabled);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -86,8 +90,8 @@ void saveHeaterEnabled(bool enabled) {
 }
 
 void savePumpState(PumpState state) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putUChar("pumpState", (uint8_t)state);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -98,8 +102,8 @@ void savePumpState(PumpState state) {
 }
 
 void saveMaxRuntimeHours(float hours) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putFloat("maxRuntime", hours);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -110,8 +114,8 @@ void saveMaxRuntimeHours(float hours) {
 }
 
 void saveHeaterStartHour(int hour) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putInt("heatStart", hour);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -122,8 +126,8 @@ void saveHeaterStartHour(int hour) {
 }
 
 void saveHeaterEndHour(int hour) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putInt("heatEnd", hour);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -134,8 +138,8 @@ void saveHeaterEndHour(int hour) {
 }
 
 void saveMinHeaterTemp(float temp) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putFloat("minHeatTemp", temp);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -146,8 +150,8 @@ void saveMinHeaterTemp(float temp) {
 }
 
 void saveMaxHeaterTemp(float temp) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putFloat("maxHeatTemp", temp);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -162,8 +166,8 @@ void saveMaxHeaterTemp(float temp) {
 // ============================================
 
 float loadTargetTemp() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     float value = preferences.getFloat("targetTemp", DEFAULT_TARGET_TEMP);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -175,8 +179,8 @@ float loadTargetTemp() {
 }
 
 bool loadHeaterEnabled() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     bool value = preferences.getBool("heaterEn", false);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -188,8 +192,8 @@ bool loadHeaterEnabled() {
 }
 
 PumpState loadPumpState() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     uint8_t val = preferences.getUChar("pumpState", (uint8_t)PUMP_OFF);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -201,8 +205,8 @@ PumpState loadPumpState() {
 }
 
 float loadMaxRuntimeHours() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     float value = preferences.getFloat("maxRuntime", DEFAULT_MAX_RUNTIME_HOURS);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -214,8 +218,8 @@ float loadMaxRuntimeHours() {
 }
 
 int loadHeaterStartHour() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     int value = preferences.getInt("heatStart", DEFAULT_HEATER_START_HOUR);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -227,8 +231,8 @@ int loadHeaterStartHour() {
 }
 
 int loadHeaterEndHour() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     int value = preferences.getInt("heatEnd", DEFAULT_HEATER_END_HOUR);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -240,8 +244,8 @@ int loadHeaterEndHour() {
 }
 
 float loadMinHeaterTemp() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     float value = preferences.getFloat("minHeatTemp", DEFAULT_MIN_HEATER_TEMP);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -253,8 +257,8 @@ float loadMinHeaterTemp() {
 }
 
 float loadMaxHeaterTemp() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     float value = preferences.getFloat("maxHeatTemp", DEFAULT_MAX_HEATER_TEMP);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -272,8 +276,8 @@ float loadMaxHeaterTemp() {
 void factoryResetSettings() {
   LOG_WARN("Performing factory reset...");
 
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.clear();  // Clear all preferences
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -299,8 +303,8 @@ void factoryResetSettings() {
 // ============================================
 
 int loadWiFiFailureCount() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     int count = preferences.getInt("wifiFailCnt", 0);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -312,8 +316,8 @@ int loadWiFiFailureCount() {
 }
 
 void saveWiFiFailureCount(int count) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putInt("wifiFailCnt", count);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -338,8 +342,8 @@ void resetWiFiFailureCount() {
 // ============================================
 
 float loadCurrentCalibration() {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", true);  // Read-only
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
     float offset = preferences.getFloat("currentCal", 0.0);
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -351,8 +355,8 @@ float loadCurrentCalibration() {
 }
 
 void saveCurrentCalibration(float offset) {
-  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
-    preferences.begin("pool", false);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
     preferences.putFloat("currentCal", offset);
     preferences.end();
     xSemaphoreGive(preferencesMutex);

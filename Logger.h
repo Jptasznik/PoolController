@@ -6,13 +6,17 @@
 // ============================================
 // LOGGING FRAMEWORK
 // ============================================
-// Provides structured logging with multiple severity levels.
-// Initial implementation uses Serial output, but designed to be
-// extensible for future enhancements like:
-// - Flash storage logging
-// - Cloud/network logging
-// - Log rotation and buffering
-// - Multiple simultaneous outputs
+// Provides structured logging with multiple severity levels and NVS persistence.
+// Features:
+// - Serial output with timestamps and module identifiers
+// - NVS flash storage for log persistence across reboots
+// - Configurable circular log buffer (12-100 entries)
+// - Remote control via Blynk (log level and buffer size)
+// - Thread-safe operation with FreeRTOS mutexes
+// - Extensible for future enhancements:
+//   - Cloud/network logging
+//   - Multiple simultaneous outputs
+//   - Custom log filtering
 
 // ============================================
 // LOG LEVELS

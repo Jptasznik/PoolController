@@ -1091,10 +1091,12 @@ This is a well-structured, safety-critical embedded system. The modular architec
 ---
 
 **Last Updated:** 2025-12-12
-**Project Version:** 1.1
+**Project Version:** 1.2
 **Major Updates:**
 - ✅ Logging framework fully integrated across all 11 modules (December 2025)
 - ✅ All Serial.println() calls replaced with structured logging
 - ✅ Module-based LOG_MODULE identifiers for all components
+- ✅ NVS persistent logging with configurable circular buffer (December 2025)
+- ✅ Remote log control via Blynk (log level V15, buffer size V16)
 
 **Claude Assistant:** Ready to help with this codebase!

@@ -15,7 +15,9 @@ PoolController/
 ├── StateMutex.h/.cpp           # Thread-safe state access
 ├── I2CMutex.h/.cpp             # Thread-safe I2C bus access
 ├── TaskManager.h/.cpp          # FreeRTOS task management
+├── Logger.h/.cpp               # Structured logging with NVS persistence
 ├── SettingsManager.h/.cpp      # Flash storage (Preferences)
+├── CredentialsManager.h/.cpp   # Secure credential storage
 ├── TemperatureSensors.h/.cpp   # DS18B20 sensor handling
 ├── CurrentMonitor.h/.cpp       # ADS1115 + SCT-013 current monitoring
 ├── LCDDisplay.h/.cpp           # 20x4 I2C LCD control
@@ -26,7 +28,7 @@ PoolController/
 
 **Note:** Blynk cloud connectivity is implemented directly in PoolController.ino
 
-**Architecture:** This system uses FreeRTOS multitasking with 6 concurrent tasks, each with its own watchdog timer. All I2C and state access is protected by mutexes for thread safety.
+**Architecture:** This system uses FreeRTOS multitasking with 6 concurrent tasks, each with its own watchdog timer. All I2C and state access is protected by mutexes for thread safety. The system features comprehensive structured logging with NVS persistence and remote control capabilities.
 ```
 
 ## Quick Start Guide
@@ -422,6 +424,20 @@ For issues or questions:
 5. Test each subsystem independently
 
 ## Version History
+
+**v1.2** - NVS Persistent Logging (December 2025)
+- Configurable circular log buffer in NVS flash (12-100 entries)
+- Remote log level control via Blynk (V15)
+- Remote buffer size control via Blynk (V16)
+- Log settings persist across reboots
+- Flash wear protection (INFO+ only stored)
+
+**v1.1** - Structured Logging Framework (December 2025)
+- Complete migration to structured logging framework
+- Module-based logging with severity levels (DEBUG/INFO/WARN/ERROR)
+- Thread-safe logging across all FreeRTOS tasks
+- All 11 modules integrated with consistent logging
+- Replaced all Serial.println() calls with LOG_* macros
 
 **v1.0** - Initial multi-file implementation
 - Modular architecture
