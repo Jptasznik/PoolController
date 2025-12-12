@@ -66,23 +66,20 @@ unsigned long lastWiFiRuntimeCheck = 0;
 
 BLYNK_WRITE(VPIN_TARGET_TEMP) {
   float temp = param.asFloat();
-  Serial.print("Blynk: Target temp ");
-  Serial.println(temp);
+  LOG_INFOF("Blynk: Target temp %.1f", temp);
   setTargetTemperature(temp);
 }
 
 BLYNK_WRITE(VPIN_HEATER_ENABLE) {
   bool enabled = param.asInt();
-  Serial.print("Blynk: Heater ");
-  Serial.println(enabled ? "ENABLED" : "DISABLED");
+  LOG_INFOF("Blynk: Heater %s", enabled ? "ENABLED" : "DISABLED");
   setHeaterEnabledState(enabled);
 }
 
 BLYNK_WRITE(VPIN_PUMP_ENABLE) {
   bool enabled = param.asInt();
-  Serial.print("Blynk: Pump ");
-  Serial.println(enabled ? "ON" : "OFF");
-  
+  LOG_INFOF("Blynk: Pump %s", enabled ? "ON" : "OFF");
+
   if (enabled) {
     if (state.pumpState == PUMP_OFF) {
       setPumpState(PUMP_LOW);
@@ -91,7 +88,7 @@ BLYNK_WRITE(VPIN_PUMP_ENABLE) {
     if (canPumpTurnOff()) {
       setPumpState(PUMP_OFF);
     } else {
-      Serial.println("Cannot turn pump OFF (safety interlock)");
+      LOG_WARN("Cannot turn pump OFF (safety interlock)");
       syncPumpToBlynk();  // Revert in Blynk
     }
   }
@@ -99,9 +96,8 @@ BLYNK_WRITE(VPIN_PUMP_ENABLE) {
 
 BLYNK_WRITE(VPIN_PUMP_SPEED) {
   bool high = param.asInt();
-  Serial.print("Blynk: Pump speed ");
-  Serial.println(high ? "HIGH" : "LOW");
-  
+  LOG_INFOF("Blynk: Pump speed %s", high ? "HIGH" : "LOW");
+
   if (state.pumpState != PUMP_OFF) {
     setPumpState(high ? PUMP_HIGH : PUMP_LOW);
   }
@@ -109,36 +105,31 @@ BLYNK_WRITE(VPIN_PUMP_SPEED) {
 
 BLYNK_WRITE(VPIN_MAX_RUNTIME) {
   float hours = param.asFloat();
-  Serial.print("Blynk: Max runtime ");
-  Serial.println(hours);
+  LOG_INFOF("Blynk: Max runtime %.1f", hours);
   setMaxRuntimeHours(hours);
 }
 
 BLYNK_WRITE(VPIN_HEATER_START_HOUR) {
   int hour = param.asInt();
-  Serial.print("Blynk: Heater start hour ");
-  Serial.println(hour);
+  LOG_INFOF("Blynk: Heater start hour %d", hour);
   setHeaterStartHour(hour);
 }
 
 BLYNK_WRITE(VPIN_HEATER_END_HOUR) {
   int hour = param.asInt();
-  Serial.print("Blynk: Heater end hour ");
-  Serial.println(hour);
+  LOG_INFOF("Blynk: Heater end hour %d", hour);
   setHeaterEndHour(hour);
 }
 
 BLYNK_WRITE(VPIN_MIN_HEATER_TEMP) {
   float temp = param.asFloat();
-  Serial.print("Blynk: Min heater temp ");
-  Serial.println(temp);
+  LOG_INFOF("Blynk: Min heater temp %.1f", temp);
   setMinHeaterTemp(temp);
 }
 
 BLYNK_WRITE(VPIN_MAX_HEATER_TEMP) {
   float temp = param.asFloat();
-  Serial.print("Blynk: Max heater temp ");
-  Serial.println(temp);
+  LOG_INFOF("Blynk: Max heater temp %.1f", temp);
   setMaxHeaterTemp(temp);
 }
 
@@ -147,13 +138,13 @@ BLYNK_WRITE(VPIN_MAX_HEATER_TEMP) {
 // ============================================
 
 BLYNK_CONNECTED() {
-  Serial.println("Blynk connected!");
+  LOG_INFO("Blynk connected!");
   state.blynkConnected = true;
   syncAllToBlynk();
 }
 
 BLYNK_DISCONNECTED() {
-  Serial.println("Blynk disconnected");
+  LOG_INFO("Blynk disconnected");
   state.blynkConnected = false;
 }
 
@@ -163,11 +154,11 @@ BLYNK_DISCONNECTED() {
 
 void initBlynk() {
   if (!hasBlynkCredentials()) {
-    Serial.println("WARNING: Blynk credentials not configured, skipping Blynk initialization");
+    LOG_WARN("Blynk credentials not configured, skipping Blynk initialization");
     return;
   }
 
-  Serial.println("Connecting to Blynk...");
+  LOG_INFO("Connecting to Blynk...");
   Blynk.config(getBlynkAuthToken());
 }
 
@@ -188,7 +179,7 @@ void syncAllToBlynk() {
   Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);
   Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);
 
-  Serial.println("Synced all values to Blynk");
+  LOG_INFO("Synced all values to Blynk");
 }
 
 void syncHeaterToBlynk() {
@@ -246,11 +237,10 @@ void syncPumpAlertsToBlynk() {
 // ============================================
 
 void handleWiFiRuntimeFailure(const char* reason) {
-  Serial.println("========================================");
-  Serial.print("WiFi Runtime Failure: ");
-  Serial.println(reason);
-  Serial.println("Clearing WiFi credentials and resetting...");
-  Serial.println("========================================");
+  LOG_ERROR("========================================");
+  LOG_ERRORF("WiFi Runtime Failure: %s", reason);
+  LOG_ERROR("Clearing WiFi credentials and resetting...");
+  LOG_ERROR("========================================");
 
   // Display message on LCD
   displayWiFiReset();
@@ -278,36 +268,35 @@ void handleWiFiRuntimeFailure(const char* reason) {
 void SysProvEvent(arduino_event_t *sys_event) {
   switch (sys_event->event_id) {
     case ARDUINO_EVENT_PROV_START:
-      Serial.println("WiFi Provisioning started");
+      LOG_INFO("WiFi Provisioning started");
       state.provisioningActive = true;
       state.provisioningStartTime = millis();
       displayWiFiProvisioning();
       break;
 
     case ARDUINO_EVENT_PROV_CRED_RECV:
-      Serial.println("WiFi credentials received");
+      LOG_INFO("WiFi credentials received");
       break;
 
     case ARDUINO_EVENT_PROV_CRED_SUCCESS:
-      Serial.println("WiFi credentials accepted");
+      LOG_INFO("WiFi credentials accepted");
       break;
 
     case ARDUINO_EVENT_PROV_END:
-      Serial.println("WiFi Provisioning ended");
+      LOG_INFO("WiFi Provisioning ended");
       state.provisioningActive = false;
       state.provisioningStartTime = 0;
       break;
 
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-      Serial.print("WiFi connected - IP: ");
-      Serial.println(WiFi.localIP());
+      LOG_INFOF("WiFi connected - IP: %s", WiFi.localIP().toString().c_str());
       state.wifiConnected = true;
       clearWiFiRuntimeTracking();  // Clear disconnect tracking on successful connection
       updateLCDDisplay();
       break;
 
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-      Serial.println("WiFi disconnected");
+      LOG_WARN("WiFi disconnected");
       state.wifiConnected = false;
       state.blynkConnected = false;
       recordWiFiDisconnect();  // Track disconnect for runtime failure detection
@@ -324,12 +313,16 @@ void setup() {
   // Initialize serial
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n\n========================================");
-  Serial.println("ESP32 Pool Controller");
-  Serial.println("========================================\n");
+
+  // Initialize logging system (must be after Serial.begin)
+  initLogger();
+
+  LOG_INFO("\n\n========================================");
+  LOG_INFO("ESP32 Pool Controller");
+  LOG_INFO("========================================\n");
 
   // Initialize mutexes for thread-safe access
-  Serial.println("Initializing mutexes...");
+  LOG_INFO("Initializing mutexes...");
   initI2CMutex();
   initStateMutex();
 
@@ -338,10 +331,10 @@ void setup() {
 
   // Initialize I2C bus
   Wire.begin(I2C_SDA, I2C_SCL);
-  Serial.println("I2C bus initialized");
+  LOG_INFO("I2C bus initialized");
 
   // Initialize hardware
-  Serial.println("Initializing hardware...");
+  LOG_INFO("Initializing hardware...");
   initLCD();
   initTemperatureSensors();
   initCurrentMonitor();
@@ -366,15 +359,14 @@ void setup() {
 
   // Load WiFi failure count from flash
   int wifiFailureCount = loadWiFiFailureCount();
-  Serial.print("WiFi failure count: ");
-  Serial.println(wifiFailureCount);
+  LOG_INFOF("WiFi failure count: %d", wifiFailureCount);
 
   // Check if we've exceeded the failure threshold
   if (wifiFailureCount >= WIFI_MAX_BOOT_FAILURES) {
-    Serial.println("========================================");
-    Serial.println("WARNING: WiFi failure threshold exceeded!");
-    Serial.println("Clearing WiFi credentials and resetting...");
-    Serial.println("========================================");
+    LOG_WARN("========================================");
+    LOG_WARN("WiFi failure threshold exceeded!");
+    LOG_WARN("Clearing WiFi credentials and resetting...");
+    LOG_WARN("========================================");
 
     // Clear WiFi credentials
     WiFi.disconnect(true, true);  // disconnect and erase stored credentials
@@ -396,12 +388,12 @@ void setup() {
   // WIFI PROVISIONING
   // ============================================
 
-  Serial.println("Starting WiFi provisioning...");
+  LOG_INFO("Starting WiFi provisioning...");
   WiFi.onEvent(SysProvEvent);
 
   // Check if already provisioned
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Already provisioned, connecting to WiFi...");
+    LOG_INFO("Already provisioned, connecting to WiFi...");
   } else {
     WiFiProv.beginProvision(
       NETWORK_PROV_SCHEME_BLE,
@@ -413,23 +405,23 @@ void setup() {
   }
 
   // Wait for WiFi
-  Serial.println("Waiting for WiFi connection...");
+  LOG_INFO("Waiting for WiFi connection...");
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < WIFI_CONNECTION_TIMEOUT) {
     delay(1000);
-    Serial.print(".");
+    Serial.print(".");  // Keep dots on one line
     attempts++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi connected!");
+    LOG_INFO("\nWiFi connected!");
     state.wifiConnected = true;
 
     // Reset failure counter on successful connection
     resetWiFiFailureCount();
-    
+
     // Initialize NTP time sync
-    Serial.println("Syncing time with NTP...");
+    LOG_INFO("Syncing time with NTP...");
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER1, NTP_SERVER2);
     
     // Initialize cloud services
@@ -448,39 +440,36 @@ void setup() {
       syncTargetTempToSinric();
     });
   } else {
-    Serial.println("\nWiFi not connected - continuing in offline mode");
-    Serial.println("WiFi will auto-connect in background when available");
-    Serial.println("Local controls (buttons, LCD) are fully functional");
+    LOG_WARN("\nWiFi not connected - continuing in offline mode");
+    LOG_INFO("WiFi will auto-connect in background when available");
+    LOG_INFO("Local controls (buttons, LCD) are fully functional");
 
     // Increment failure counter
     incrementWiFiFailureCount();
-    Serial.print("WiFi failures incremented to: ");
-    Serial.println(loadWiFiFailureCount());
-    Serial.print("Will reset credentials after ");
-    Serial.print(WIFI_MAX_BOOT_FAILURES);
-    Serial.println(" consecutive boot failures");
+    LOG_INFOF("WiFi failures incremented to: %d", loadWiFiFailureCount());
+    LOG_INFOF("Will reset credentials after %d consecutive boot failures", WIFI_MAX_BOOT_FAILURES);
   }
 
   updateLCDDisplay();
 
   // Initialize watchdog timer (main task: 30 second timeout)
-  Serial.println("Initializing main task watchdog timer...");
+  LOG_INFO("Initializing main task watchdog timer...");
   esp_task_wdt_config_t wdt_config = {
     .timeout_ms = 30000,      // 30 seconds in milliseconds
     .trigger_panic = true      // Panic on timeout
   };
   esp_task_wdt_init(&wdt_config);  // Initialize with config struct
   esp_task_wdt_add(NULL);          // Add main task to watchdog
-  Serial.println("Main task watchdog timer enabled (30s timeout)");
+  LOG_INFO("Main task watchdog timer enabled (30s timeout)");
 
   // Start FreeRTOS tasks (each task has its own watchdog)
   initTasks();
 
-  Serial.println("\n========================================");
-  Serial.println("System initialized - entering main loop");
-  Serial.println("Main loop handles network services");
-  Serial.println("All other functions run in FreeRTOS tasks");
-  Serial.println("========================================\n");
+  LOG_INFO("\n========================================");
+  LOG_INFO("System initialized - entering main loop");
+  LOG_INFO("Main loop handles network services");
+  LOG_INFO("All other functions run in FreeRTOS tasks");
+  LOG_INFO("========================================\n");
 }
 
 // ============================================
