@@ -1,4 +1,7 @@
+#define LOG_MODULE "LCD"
+
 #include "LCDDisplay.h"
+#include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
 #include "I2CMutex.h"
@@ -16,12 +19,12 @@ static bool lcdNeedsClear = true;
 // ============================================
 
 void initLCD() {
-  Serial.println("Initializing LCD display...");
+  LOG_INFO("Initializing LCD display...");
 
   // Lock I2C bus for LCD initialization
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
-    Serial.println("ERROR: Failed to lock I2C for LCD init!");
+    LOG_ERROR("Failed to lock I2C for LCD init!");
     return;
   }
 
@@ -37,7 +40,7 @@ void initLCD() {
   lcd.setCursor(0, 3);
   lcd.print("    Please Wait");
 
-  Serial.println("LCD display initialized");
+  LOG_INFO("LCD display initialized");
 }
 
 // ============================================
