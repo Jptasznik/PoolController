@@ -61,6 +61,10 @@
 #define BUTTON_SHORT_PRESS_TIME 1000        // 1 second - max duration for short press
 #define WIFI_CONNECTION_TIMEOUT 10          // 10 seconds - reduced from 60
 
+// Millis overflow detection threshold (millis() wraps at ~49.7 days)
+// Used to detect invalid timestamp arithmetic when millis() overflows
+#define MILLIS_OVERFLOW_THRESHOLD 0xF0000000  // ~46.6 days in milliseconds
+
 // ============================================
 // TEMPERATURE LIMITS
 // ============================================
