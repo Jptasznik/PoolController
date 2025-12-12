@@ -376,20 +376,29 @@ bool isCooldownComplete() {
 void updatePumpRuntime() {
   unsigned long now = millis();
   unsigned long elapsed = now - state.lastRuntimeUpdate;
-  
+
+  // Sanity check: if elapsed time is impossibly large (> 1 hour),
+  // assume millis() overflow or system suspension occurred
+  // In this case, don't accumulate runtime to avoid corruption
+  if (elapsed > 3600000) {  // 1 hour
+    Serial.println("WARNING: Runtime tracking anomaly detected, skipping accumulation");
+    state.lastRuntimeUpdate = now;
+    return;
+  }
+
   // Only count runtime if pump is actually running
   if (state.pumpState != PUMP_OFF) {
     state.pumpRuntimeToday += elapsed;
   }
-  
+
   state.lastRuntimeUpdate = now;
-  
+
   // Check if we need to reset daily runtime
   time_t now_t;
   struct tm timeinfo;
   time(&now_t);
   localtime_r(&now_t, &timeinfo);
-  
+
   if (state.lastResetDay != timeinfo.tm_mday) {
     resetDailyRuntime();
     state.lastResetDay = timeinfo.tm_mday;

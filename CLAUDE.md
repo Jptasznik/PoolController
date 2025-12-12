@@ -567,6 +567,70 @@ void myTask(void* parameter) {
 - **Main loop** handles network services and should avoid blocking operations
 - **Each task is independent** and runs according to its own schedule
 
+#### Millis() Overflow Handling
+
+The ESP32 `millis()` function returns milliseconds since boot and **overflows after ~49.7 days** (2^32 milliseconds). The codebase uses several strategies to handle this:
+
+**1. Unsigned Arithmetic (Safe by Design)**
+
+Most timing code uses the standard pattern which is **overflow-safe**:
+```cpp
+unsigned long now = millis();
+unsigned long elapsed = now - previousTime;
+if (elapsed >= interval) {
+  // Do something
+  previousTime = now;
+}
+```
+
+This works correctly even when overflow occurs because unsigned arithmetic wraps around:
+- If `previousTime = 0xFFFFFF00` (just before overflow)
+- And `now = 0x00000200` (just after overflow)
+- Then `elapsed = 0x00000200 - 0xFFFFFF00 = 0x00000300` (correctly calculates 768ms)
+
+**2. Sanity Checks (Critical Paths)**
+
+For critical operations that accumulate time or make decisions based on elapsed time, sanity checks are used:
+
+```cpp
+unsigned long elapsed = now - startTime;
+
+// Detect impossible elapsed times (indicates overflow or system suspension)
+if (elapsed > SANITY_THRESHOLD) {
+  // Handle anomaly - log warning, reset tracking, or return safe value
+  Serial.println("WARNING: Time tracking anomaly detected");
+  return safe_value;
+}
+```
+
+**Examples in codebase:**
+- `isCooldownComplete()` - Uses 1 hour sanity check (`COOLDOWN_SANITY_CHECK`)
+- `updatePumpRuntime()` - Uses 1 hour sanity check (prevents runtime corruption)
+- `getRecentDisconnectCount()` - Uses `MILLIS_OVERFLOW_THRESHOLD` to detect invalid timestamps
+- `isProvisioningHung()` - Uses `MILLIS_OVERFLOW_THRESHOLD` to detect overflow
+
+**3. Overflow Detection Constant**
+
+The constant `MILLIS_OVERFLOW_THRESHOLD` (0xF0000000 = ~46.6 days) is defined in Config.h:
+```cpp
+#define MILLIS_OVERFLOW_THRESHOLD 0xF0000000
+```
+
+This is used to detect when elapsed time calculations produce impossible values due to overflow.
+
+**Best Practices:**
+- ✅ Always use `unsigned long` for millis() values
+- ✅ Use subtraction pattern for intervals: `(now - previous) >= interval`
+- ✅ Add sanity checks for long-running timers (>1 hour intervals)
+- ✅ Don't compare absolute millis() values (e.g., `now > target` is unsafe)
+- ✅ For critical accumulation (runtime tracking), verify elapsed < reasonable maximum
+- ❌ Never use signed arithmetic with millis()
+- ❌ Don't assume millis() never decreases
+
+**Intervals Safe from Overflow:**
+- All intervals < 24.8 days (2^31 ms) are inherently safe with unsigned arithmetic
+- All task intervals in this project are < 60 seconds, well within safe range
+
 ### 14. WiFi and Network
 
 #### WiFi Provisioning
