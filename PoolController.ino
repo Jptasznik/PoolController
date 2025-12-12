@@ -21,10 +21,10 @@
 // ============================================
 
 #include "Config.h"
-#include "blynk_auth.h"
 #include "StateManager.h"
 #include "StateMutex.h"
 #include "I2CMutex.h"
+#include "CredentialsManager.h"
 #include "SettingsManager.h"
 #include "TemperatureSensors.h"
 #include "LCDDisplay.h"
@@ -155,8 +155,13 @@ BLYNK_DISCONNECTED() {
 // ============================================
 
 void initBlynk() {
+  if (!hasBlynkCredentials()) {
+    Serial.println("WARNING: Blynk credentials not configured, skipping Blynk initialization");
+    return;
+  }
+
   Serial.println("Connecting to Blynk...");
-  Blynk.config(auth);
+  Blynk.config(getBlynkAuthToken());
 }
 
 void syncAllToBlynk() {
@@ -337,10 +342,13 @@ void setup() {
   initPumpControl();
   initHeaterControl();
   
+  // Initialize credentials from flash
+  initCredentials();
+
   // Initialize settings and load from flash
   initSettings();
   loadAllSettings();
-  
+
   // Apply loaded states to hardware
   applyPumpState();
   applyHeaterState();

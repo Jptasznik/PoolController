@@ -1,7 +1,7 @@
 #include "SinricIntegration.h"
 #include "Config.h"
 #include "StateManager.h"
-#include "sinric_config.h"
+#include "CredentialsManager.h"
 #include <SinricPro.h>
 #include <SinricProThermostat.h>
 #include <SinricProDimSwitch.h>
@@ -110,24 +110,29 @@ bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
 // ============================================
 
 void initSinric() {
+  if (!hasSinricCredentials()) {
+    Serial.println("WARNING: Sinric Pro credentials not configured, skipping Sinric initialization");
+    return;
+  }
+
   Serial.println("Initializing Sinric Pro...");
-  
+
   // Setup thermostat device
-  SinricProThermostat &thermostat = SinricPro[SINRIC_THERMOSTAT_ID];
+  SinricProThermostat &thermostat = SinricPro[getSinricThermostatId()];
   thermostat.onPowerState(onPowerStateThermostat);
   thermostat.onTargetTemperature(onTargetTemperature);
   thermostat.onAdjustTargetTemperature(onAdjustTargetTemperature);
   thermostat.onThermostatMode(onThermostatMode);
-  
+
   // Setup pump device (dimmer switch)
-  SinricProDimSwitch &pump = SinricPro[SINRIC_PUMP_ID];
+  SinricProDimSwitch &pump = SinricPro[getSinricPumpId()];
   pump.onPowerState(onPowerStatePump);
   pump.onPowerLevel(onPowerLevelPump);
   pump.onAdjustPowerLevel(onAdjustPowerLevelPump);
-  
+
   // Connect to Sinric Pro
-  SinricPro.begin(SINRIC_APP_KEY, SINRIC_APP_SECRET);
-  
+  SinricPro.begin(getSinricAppKey(), getSinricAppSecret());
+
   Serial.println("Sinric Pro initialized");
 }
 

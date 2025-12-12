@@ -32,6 +32,7 @@ StateManager.h/cpp           # Centralized state management
 StateMutex.h/cpp             # Thread-safe state access
 I2CMutex.h/cpp               # Thread-safe I2C bus access
 TaskManager.h/cpp            # FreeRTOS task management
+CredentialsManager.h/cpp     # Secure credential storage in flash
 SettingsManager.h/cpp        # Flash storage persistence
 TemperatureSensors.h/cpp     # DS18B20 sensor handling
 CurrentMonitor.h/cpp         # ADS1115 + SCT-013 current monitoring
@@ -42,10 +43,15 @@ HeaterControl.h/cpp          # Heater control with safety
 SinricIntegration.h/cpp      # Alexa voice control
 ```
 
-**Configuration Files (User must edit):**
+**Configuration Files:**
 ```
-blynk_auth.h                 # Blynk authentication token
-sinric_config.h              # Sinric Pro credentials
+blynk_auth.h.template        # Blynk credential configuration template
+sinric_config.h.template     # Sinric Pro credential configuration template
+.gitignore                   # Prevents credential files from being committed
+
+IMPORTANT: Actual credentials (blynk_auth.h and sinric_config.h) are no longer used.
+All credentials are now stored securely in ESP32 flash memory via CredentialsManager.
+See "Credential Management" section below for configuration instructions.
 ```
 
 **Documentation Files:**
@@ -100,7 +106,70 @@ void initModuleName() {
 }
 ```
 
-### 4. FreeRTOS Multitasking Architecture
+### 4. Credential Management
+
+All cloud service credentials are **securely stored in ESP32 flash memory** using the `CredentialsManager` module. This approach provides several benefits:
+
+- **Security**: Credentials never stored in source code
+- **No Version Control Leaks**: Credentials can't be accidentally committed to Git
+- **Persistence**: Credentials survive code updates and reboots
+- **Encryption**: ESP32 Preferences library provides encrypted storage
+
+#### Supported Credentials
+
+1. **Blynk Authentication Token** - For cloud dashboard access
+2. **Sinric Pro Credentials** - For Alexa voice control (App Key, App Secret, Device IDs)
+
+#### Configuration Methods
+
+**Method 1: Serial Monitor (Recommended)**
+```cpp
+// Send via Serial Monitor at 115200 baud:
+BLYNK:your_auth_token_here
+SINRIC:app_key:app_secret:thermostat_id:pump_id
+```
+
+**Method 2: One-Time Hardcode**
+```cpp
+// In setup(), add ONE TIME:
+setBlynkAuthToken("your_token");
+setSinricCredentials("app_key", "app_secret", "thermo_id", "pump_id");
+// Then remove the hardcoded values and re-upload
+```
+
+#### Key Functions
+
+```cpp
+// Initialization
+initCredentials();  // Load from flash
+
+// Blynk
+const char* getBlynkAuthToken();
+bool setBlynkAuthToken(const char* token);
+bool hasBlynkCredentials();
+
+// Sinric Pro
+const char* getSinricAppKey();
+const char* getSinricAppSecret();
+const char* getSinricThermostatId();
+const char* getSinricPumpId();
+bool setSinricCredentials(const char* appKey, const char* appSecret,
+                          const char* thermostatId, const char* pumpId);
+bool hasSinricCredentials();
+
+// Management
+clearAllCredentials();  // Factory reset credentials
+printCredentialStatus();  // Debug output
+```
+
+#### Important Notes
+
+- Template files (`blynk_auth.h.template`, `sinric_config.h.template`) show configuration instructions
+- Actual credential files (`blynk_auth.h`, `sinric_config.h`) are in `.gitignore` and should never be committed
+- Cloud services are automatically disabled if credentials are not configured
+- Credentials are thread-safe (protected by mutex)
+
+### 5. FreeRTOS Multitasking Architecture
 
 This system uses **FreeRTOS multitasking** to efficiently manage multiple concurrent operations. Each subsystem runs in its own task with proper synchronization.
 

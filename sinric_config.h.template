@@ -1,0 +1,62 @@
+#ifndef SINRIC_CONFIG_H
+#define SINRIC_CONFIG_H
+
+// ============================================
+// SINRIC PRO CONFIGURATION - TEMPLATE FILE
+// ============================================
+//
+// **IMPORTANT: Credentials are now stored in ESP32 flash memory**
+//
+// This file is no longer used for storing credentials. It exists
+// as a template to show you how to configure your Sinric Pro credentials.
+//
+// To configure Sinric Pro for your pool controller:
+//
+// METHOD 1: Using Serial Monitor (Recommended)
+// --------------------------------------------
+// Upload the code and open Serial Monitor. When prompted, send:
+//   SINRIC:app_key:app_secret:thermostat_id:pump_id
+//
+// METHOD 2: Hardcode and Upload Once
+// -----------------------------------
+// 1. Uncomment the lines below and replace with your credentials:
+//    // #define SINRIC_APP_KEY "your_app_key_here"
+//    // #define SINRIC_APP_SECRET "your_app_secret_here"
+//    // #define SINRIC_THERMOSTAT_ID "your_thermostat_id_here"
+//    // #define SINRIC_PUMP_ID "your_pump_id_here"
+//
+// 2. In setup(), add this ONE-TIME initialization:
+//    #if defined(SINRIC_APP_KEY) && defined(SINRIC_APP_SECRET)
+//      setSinricCredentials(SINRIC_APP_KEY, SINRIC_APP_SECRET,
+//                          SINRIC_THERMOSTAT_ID, SINRIC_PUMP_ID);
+//    #endif
+//
+// 3. Upload to ESP32
+// 4. Delete your credentials from this file
+// 5. Upload again (credentials are now stored in flash)
+//
+// ============================================
+// HOW TO GET YOUR SINRIC PRO CREDENTIALS
+// ============================================
+// 1. Create account at https://sinric.pro
+// 2. Link your account to Amazon Alexa
+// 3. Create device 1: "Pool Heater" - Type: Thermostat
+// 4. Create device 2: "Pool Pump" - Type: Dimmer Switch
+// 5. Copy your App Key, App Secret, and Device IDs
+// 6. Use one of the methods above to configure
+//
+// ============================================
+// SECURITY NOTES
+// ============================================
+// - Credentials are encrypted in ESP32 flash memory
+// - They persist across reboots
+// - Never commit actual credentials to version control
+// - The .gitignore file prevents accidental commits
+
+// Uncomment to set credentials on first upload (then delete and re-upload)
+// #define SINRIC_APP_KEY "your_app_key_here"
+// #define SINRIC_APP_SECRET "your_app_secret_here"
+// #define SINRIC_THERMOSTAT_ID "your_thermostat_id_here"
+// #define SINRIC_PUMP_ID "your_pump_id_here"
+
+#endif // SINRIC_CONFIG_H
