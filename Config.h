@@ -112,6 +112,7 @@
 #define VPIN_MIN_HEATER_TEMP V13 // Minimum water temp to allow heater ON
 #define VPIN_MAX_HEATER_TEMP V14 // Maximum water temp to allow heater ON
 #define VPIN_LOG_LEVEL V15       // Log level control (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR)
+#define VPIN_LOG_BUFFER_SIZE V16 // Log buffer size (12-100 entries)
 
 // ============================================
 // WIFI PROVISIONING
@@ -146,5 +147,12 @@
 #define DEFAULT_HEATER_END_HOUR 22
 #define DEFAULT_MIN_HEATER_TEMP 50.0  // Minimum water temp to allow heater (°F)
 #define DEFAULT_MAX_HEATER_TEMP 95.0  // Maximum water temp cutoff (°F)
+
+// ============================================
+// LOGGING BUFFER SIZE
+// ============================================
+#define MIN_LOG_BUFFER_SIZE 12    // Minimum log entries in NVS
+#define MAX_LOG_BUFFER_SIZE 100   // Maximum log entries in NVS
+#define DEFAULT_LOG_BUFFER_SIZE 12  // Default buffer size
 
 #endif // CONFIG_H
