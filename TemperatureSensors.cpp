@@ -1,6 +1,7 @@
 #include "TemperatureSensors.h"
 #include "Config.h"
 #include "StateManager.h"
+#include "StateMutex.h"
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
@@ -47,77 +48,91 @@ void initTemperatureSensors() {
 // ============================================
 
 void readTemperatures() {
-  // Request temperatures from all sensors
+  // Request temperatures from all sensors (no mutex needed - hardware access)
   inletSensor.requestTemperatures();
   heaterSensor.requestTemperatures();
   ambientSensor.requestTemperatures();
-  
+
+  // Read and convert temperatures to local variables
+  float inletTemp = 0.0, heaterTemp = 0.0, ambientTemp = 0.0;
+  bool inletValid = false, heaterValid = false, ambientValid = false;
+
   // Read inlet temperature
   float inletC = inletSensor.getTempCByIndex(0);
   if (inletC != DEVICE_DISCONNECTED_C) {
-    state.inletTemp = celsiusToFahrenheit(inletC);
-    state.inletTempValid = isValidTemperature(state.inletTemp);
-    
-    if (!state.inletTempValid) {
+    inletTemp = celsiusToFahrenheit(inletC);
+    inletValid = isValidTemperature(inletTemp);
+
+    if (!inletValid) {
       Serial.print("WARNING: Inlet temp out of range: ");
-      Serial.println(state.inletTemp, 1);
+      Serial.println(inletTemp, 1);
     }
   } else {
-    state.inletTemp = 0.0;
-    state.inletTempValid = false;
     Serial.println("WARNING: Inlet sensor disconnected");
   }
-  
+
   // Read heater temperature
   float heaterC = heaterSensor.getTempCByIndex(0);
   if (heaterC != DEVICE_DISCONNECTED_C) {
-    state.heaterTemp = celsiusToFahrenheit(heaterC);
-    state.heaterTempValid = isValidTemperature(state.heaterTemp);
-    
-    if (!state.heaterTempValid) {
+    heaterTemp = celsiusToFahrenheit(heaterC);
+    heaterValid = isValidTemperature(heaterTemp);
+
+    if (!heaterValid) {
       Serial.print("WARNING: Heater temp out of range: ");
-      Serial.println(state.heaterTemp, 1);
+      Serial.println(heaterTemp, 1);
     }
   } else {
-    state.heaterTemp = 0.0;
-    state.heaterTempValid = false;
     Serial.println("WARNING: Heater sensor disconnected");
   }
-  
+
   // Read ambient temperature (3rd sensor)
   float ambientC = ambientSensor.getTempCByIndex(0);
   if (ambientC != DEVICE_DISCONNECTED_C) {
-    state.ambientTemp = celsiusToFahrenheit(ambientC);
-    state.ambientTempValid = isValidTemperature(state.ambientTemp);
-    
-    if (!state.ambientTempValid) {
+    ambientTemp = celsiusToFahrenheit(ambientC);
+    ambientValid = isValidTemperature(ambientTemp);
+
+    if (!ambientValid) {
       Serial.print("WARNING: Ambient temp out of range: ");
-      Serial.println(state.ambientTemp, 1);
+      Serial.println(ambientTemp, 1);
     }
   } else {
-    state.ambientTemp = 0.0;
-    state.ambientTempValid = false;
     Serial.println("WARNING: Ambient sensor disconnected");
   }
-  
-  // Log valid temperatures
-  if (state.inletTempValid) {
+
+  // Update state with mutex protection
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      state.inletTemp = inletTemp;
+      state.inletTempValid = inletValid;
+      state.heaterTemp = heaterTemp;
+      state.heaterTempValid = heaterValid;
+      state.ambientTemp = ambientTemp;
+      state.ambientTempValid = ambientValid;
+    } else {
+      Serial.println("ERROR: Failed to update temperature state (mutex timeout)");
+      return;
+    }
+  }
+
+  // Log valid temperatures (using local copies)
+  if (inletValid) {
     Serial.print("Inlet: ");
-    Serial.print(state.inletTemp, 1);
+    Serial.print(inletTemp, 1);
     Serial.print("°F  ");
   }
-  
-  if (state.heaterTempValid) {
+
+  if (heaterValid) {
     Serial.print("Heater: ");
-    Serial.print(state.heaterTemp, 1);
+    Serial.print(heaterTemp, 1);
     Serial.print("°F  ");
   }
-  
-  if (state.ambientTempValid) {
+
+  if (ambientValid) {
     Serial.print("Ambient: ");
-    Serial.print(state.ambientTemp, 1);
+    Serial.print(ambientTemp, 1);
     Serial.println("°F");
-  } else if (state.inletTempValid || state.heaterTempValid) {
+  } else if (inletValid || heaterValid) {
     Serial.println();
   }
 }

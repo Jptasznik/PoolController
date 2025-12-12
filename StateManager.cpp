@@ -1,5 +1,6 @@
 #include "StateManager.h"
 #include "Config.h"
+#include "StateMutex.h"
 #include "SettingsManager.h"
 #include "LCDDisplay.h"
 #include "SinricIntegration.h"
@@ -202,22 +203,35 @@ void setMaxHeaterTemp(float temp) {
 
 void triggerEmergencyShutdown() {
   Serial.println("!!! EMERGENCY SHUTDOWN TRIGGERED !!!");
-  
-  state.emergencyShutdown = true;
-  
-  // Immediately disable both heater and pump
+
+  // CRITICAL: Immediately disable hardware FIRST (no mutex delay for safety)
   digitalWrite(HEATER_PIN, LOW);
   digitalWrite(PUMP_ENABLE_PIN, LOW);
-  
-  state.heaterEnabled = false;
-  state.heaterStatus = HEATER_OFF;
-  state.pumpState = PUMP_OFF;
-  state.inCooldown = false;
-  
+
+  // Now update state with mutex protection
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      state.emergencyShutdown = true;
+      state.heaterEnabled = false;
+      state.heaterStatus = HEATER_OFF;
+      state.pumpState = PUMP_OFF;
+      state.inCooldown = false;
+    } else {
+      // If we can't get the lock, still set these directly for safety
+      // This is an emergency - hardware is already off
+      state.emergencyShutdown = true;
+      state.heaterEnabled = false;
+      state.heaterStatus = HEATER_OFF;
+      state.pumpState = PUMP_OFF;
+      state.inCooldown = false;
+    }
+  }
+
   // Save disabled states
   saveHeaterEnabled(false);
   savePumpState(PUMP_OFF);
-  
+
   // Update all interfaces
   displayEmergencyShutdown();
   syncHeaterToBlynk();
@@ -227,7 +241,12 @@ void triggerEmergencyShutdown() {
 }
 
 void clearEmergencyShutdown() {
-  state.emergencyShutdown = false;
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      state.emergencyShutdown = false;
+    }
+  }
   Serial.println("Emergency shutdown cleared");
   updateLCDDisplay();
 }
@@ -237,16 +256,35 @@ void clearEmergencyShutdown() {
 // ============================================
 
 void startCooldown() {
-  if (!state.inCooldown) {
+  bool inCooldown;
+  PumpState currentPumpState;
+
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      Serial.println("ERROR: Failed to lock state for cooldown start");
+      return;
+    }
+
+    inCooldown = state.inCooldown;
+    currentPumpState = state.pumpState;
+  }
+
+  if (!inCooldown) {
     Serial.println("Starting 15-minute cooldown period");
-    state.inCooldown = true;
-    state.cooldownStartTime = millis();
-    state.pumpStateBeforeCooldown = state.pumpState;
+
+    {
+      StateScopedLock stateLock;
+      if (stateLock.isLocked()) {
+        state.inCooldown = true;
+        state.cooldownStartTime = millis();
+        state.pumpStateBeforeCooldown = currentPumpState;
+      }
+    }
 
     // Ensure pump runs at minimum LOW speed
-    if (state.pumpState == PUMP_OFF) {
-      state.pumpState = PUMP_LOW;
-      applyPumpState();  // Use centralized pump control
+    if (currentPumpState == PUMP_OFF) {
+      setPumpState(PUMP_LOW);  // Use centralized pump control (handles mutex)
     }
 
     updateLCDDisplay();
@@ -254,20 +292,59 @@ void startCooldown() {
 }
 
 void endCooldown() {
-  if (state.inCooldown) {
+  bool inCooldown;
+  PumpState pumpStateBeforeCooldown;
+
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      Serial.println("ERROR: Failed to lock state for cooldown end");
+      return;
+    }
+
+    inCooldown = state.inCooldown;
+    pumpStateBeforeCooldown = state.pumpStateBeforeCooldown;
+  }
+
+  if (inCooldown) {
     Serial.println("Cooldown period ended");
-    state.inCooldown = false;
-    
+
+    {
+      StateScopedLock stateLock;
+      if (stateLock.isLocked()) {
+        state.inCooldown = false;
+      }
+    }
+
     // Return pump to user's preferred setting
-    setPumpState(state.pumpStateBeforeCooldown);
+    setPumpState(pumpStateBeforeCooldown);  // Handles mutex internally
   }
 }
 
 bool isCooldownComplete() {
-  if (!state.inCooldown) return true;
+  bool inCooldown, inletTempValid, heaterTempValid;
+  unsigned long cooldownStartTime;
+  float inletTemp, heaterTemp;
+
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      // If we can't get the lock, assume cooldown is not complete (fail safe)
+      return false;
+    }
+
+    inCooldown = state.inCooldown;
+    if (!inCooldown) return true;
+
+    cooldownStartTime = state.cooldownStartTime;
+    inletTempValid = state.inletTempValid;
+    heaterTempValid = state.heaterTempValid;
+    inletTemp = state.inletTemp;
+    heaterTemp = state.heaterTemp;
+  }
 
   unsigned long currentTime = millis();
-  unsigned long elapsed = currentTime - state.cooldownStartTime;
+  unsigned long elapsed = currentTime - cooldownStartTime;
 
   // Sanity check: if elapsed time is impossibly large (> 1 hour),
   // assume overflow or error and end cooldown safely
@@ -282,8 +359,8 @@ bool isCooldownComplete() {
   }
 
   // Check if temperatures equalized (within 2°F)
-  if (state.inletTempValid && state.heaterTempValid) {
-    float tempDiff = abs(state.heaterTemp - state.inletTemp);
+  if (inletTempValid && heaterTempValid) {
+    float tempDiff = abs(heaterTemp - inletTemp);
     if (tempDiff <= TEMP_DIFFERENTIAL_THRESHOLD) {
       return true;
     }

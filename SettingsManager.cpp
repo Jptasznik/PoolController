@@ -1,14 +1,27 @@
 #include "SettingsManager.h"
 #include "Config.h"
 #include <Preferences.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 Preferences preferences;
+
+// Preferences mutex for thread-safe flash access
+static SemaphoreHandle_t preferencesMutex = NULL;
 
 // ============================================
 // INITIALIZATION
 // ============================================
 
 void initSettings() {
+  // Create preferences mutex for thread-safe flash access
+  preferencesMutex = xSemaphoreCreateMutex();
+  if (preferencesMutex == NULL) {
+    Serial.println("ERROR: Failed to create preferences mutex!");
+  } else {
+    Serial.println("Preferences mutex created successfully");
+  }
+
   // Settings manager ready - preferences opened/closed per transaction
   Serial.println("Settings manager initialized");
 }
@@ -56,67 +69,107 @@ void loadAllSettings() {
 // ============================================
 
 void saveTargetTemp(float temp) {
-  preferences.begin("pool", false);
-  preferences.putFloat("targetTemp", temp);
-  preferences.end();
-  Serial.print("Saved target temp: ");
-  Serial.println(temp, 1);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putFloat("targetTemp", temp);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved target temp: ");
+    Serial.println(temp, 1);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveTargetTemp");
+  }
 }
 
 void saveHeaterEnabled(bool enabled) {
-  preferences.begin("pool", false);
-  preferences.putBool("heaterEn", enabled);
-  preferences.end();
-  Serial.print("Saved heater enabled: ");
-  Serial.println(enabled);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putBool("heaterEn", enabled);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved heater enabled: ");
+    Serial.println(enabled);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveHeaterEnabled");
+  }
 }
 
 void savePumpState(PumpState state) {
-  preferences.begin("pool", false);
-  preferences.putUChar("pumpState", (uint8_t)state);
-  preferences.end();
-  Serial.print("Saved pump state: ");
-  Serial.println((int)state);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putUChar("pumpState", (uint8_t)state);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved pump state: ");
+    Serial.println((int)state);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in savePumpState");
+  }
 }
 
 void saveMaxRuntimeHours(float hours) {
-  preferences.begin("pool", false);
-  preferences.putFloat("maxRuntime", hours);
-  preferences.end();
-  Serial.print("Saved max runtime: ");
-  Serial.println(hours, 1);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putFloat("maxRuntime", hours);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved max runtime: ");
+    Serial.println(hours, 1);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveMaxRuntimeHours");
+  }
 }
 
 void saveHeaterStartHour(int hour) {
-  preferences.begin("pool", false);
-  preferences.putInt("heatStart", hour);
-  preferences.end();
-  Serial.print("Saved heater start hour: ");
-  Serial.println(hour);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putInt("heatStart", hour);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved heater start hour: ");
+    Serial.println(hour);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveHeaterStartHour");
+  }
 }
 
 void saveHeaterEndHour(int hour) {
-  preferences.begin("pool", false);
-  preferences.putInt("heatEnd", hour);
-  preferences.end();
-  Serial.print("Saved heater end hour: ");
-  Serial.println(hour);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putInt("heatEnd", hour);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved heater end hour: ");
+    Serial.println(hour);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveHeaterEndHour");
+  }
 }
 
 void saveMinHeaterTemp(float temp) {
-  preferences.begin("pool", false);
-  preferences.putFloat("minHeatTemp", temp);
-  preferences.end();
-  Serial.print("Saved minimum heater temp: ");
-  Serial.println(temp, 1);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putFloat("minHeatTemp", temp);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved minimum heater temp: ");
+    Serial.println(temp, 1);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveMinHeaterTemp");
+  }
 }
 
 void saveMaxHeaterTemp(float temp) {
-  preferences.begin("pool", false);
-  preferences.putFloat("maxHeatTemp", temp);
-  preferences.end();
-  Serial.print("Saved maximum heater temp: ");
-  Serial.println(temp, 1);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putFloat("maxHeatTemp", temp);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved maximum heater temp: ");
+    Serial.println(temp, 1);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveMaxHeaterTemp");
+  }
 }
 
 // ============================================
@@ -124,59 +177,107 @@ void saveMaxHeaterTemp(float temp) {
 // ============================================
 
 float loadTargetTemp() {
-  preferences.begin("pool", true);  // Read-only
-  float value = preferences.getFloat("targetTemp", DEFAULT_TARGET_TEMP);
-  preferences.end();
-  return value;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    float value = preferences.getFloat("targetTemp", DEFAULT_TARGET_TEMP);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return value;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadTargetTemp");
+    return DEFAULT_TARGET_TEMP;
+  }
 }
 
 bool loadHeaterEnabled() {
-  preferences.begin("pool", true);  // Read-only
-  bool value = preferences.getBool("heaterEn", false);
-  preferences.end();
-  return value;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    bool value = preferences.getBool("heaterEn", false);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return value;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadHeaterEnabled");
+    return false;
+  }
 }
 
 PumpState loadPumpState() {
-  preferences.begin("pool", true);  // Read-only
-  uint8_t val = preferences.getUChar("pumpState", (uint8_t)PUMP_OFF);
-  preferences.end();
-  return (PumpState)val;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    uint8_t val = preferences.getUChar("pumpState", (uint8_t)PUMP_OFF);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return (PumpState)val;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadPumpState");
+    return PUMP_OFF;
+  }
 }
 
 float loadMaxRuntimeHours() {
-  preferences.begin("pool", true);  // Read-only
-  float value = preferences.getFloat("maxRuntime", DEFAULT_MAX_RUNTIME_HOURS);
-  preferences.end();
-  return value;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    float value = preferences.getFloat("maxRuntime", DEFAULT_MAX_RUNTIME_HOURS);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return value;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadMaxRuntimeHours");
+    return DEFAULT_MAX_RUNTIME_HOURS;
+  }
 }
 
 int loadHeaterStartHour() {
-  preferences.begin("pool", true);  // Read-only
-  int value = preferences.getInt("heatStart", DEFAULT_HEATER_START_HOUR);
-  preferences.end();
-  return value;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    int value = preferences.getInt("heatStart", DEFAULT_HEATER_START_HOUR);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return value;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadHeaterStartHour");
+    return DEFAULT_HEATER_START_HOUR;
+  }
 }
 
 int loadHeaterEndHour() {
-  preferences.begin("pool", true);  // Read-only
-  int value = preferences.getInt("heatEnd", DEFAULT_HEATER_END_HOUR);
-  preferences.end();
-  return value;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    int value = preferences.getInt("heatEnd", DEFAULT_HEATER_END_HOUR);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return value;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadHeaterEndHour");
+    return DEFAULT_HEATER_END_HOUR;
+  }
 }
 
 float loadMinHeaterTemp() {
-  preferences.begin("pool", true);  // Read-only
-  float value = preferences.getFloat("minHeatTemp", DEFAULT_MIN_HEATER_TEMP);
-  preferences.end();
-  return value;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    float value = preferences.getFloat("minHeatTemp", DEFAULT_MIN_HEATER_TEMP);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return value;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadMinHeaterTemp");
+    return DEFAULT_MIN_HEATER_TEMP;
+  }
 }
 
 float loadMaxHeaterTemp() {
-  preferences.begin("pool", true);  // Read-only
-  float value = preferences.getFloat("maxHeatTemp", DEFAULT_MAX_HEATER_TEMP);
-  preferences.end();
-  return value;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    float value = preferences.getFloat("maxHeatTemp", DEFAULT_MAX_HEATER_TEMP);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return value;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadMaxHeaterTemp");
+    return DEFAULT_MAX_HEATER_TEMP;
+  }
 }
 
 // ============================================
@@ -186,9 +287,14 @@ float loadMaxHeaterTemp() {
 void factoryResetSettings() {
   Serial.println("Performing factory reset...");
 
-  preferences.begin("pool", false);
-  preferences.clear();  // Clear all preferences
-  preferences.end();
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.clear();  // Clear all preferences
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in factoryResetSettings");
+  }
 
   // Reset to defaults
   state.targetTemp = DEFAULT_TARGET_TEMP;
@@ -208,18 +314,29 @@ void factoryResetSettings() {
 // ============================================
 
 int loadWiFiFailureCount() {
-  preferences.begin("pool", true);  // Read-only
-  int count = preferences.getInt("wifiFailCnt", 0);
-  preferences.end();
-  return count;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    int count = preferences.getInt("wifiFailCnt", 0);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return count;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadWiFiFailureCount");
+    return 0;
+  }
 }
 
 void saveWiFiFailureCount(int count) {
-  preferences.begin("pool", false);
-  preferences.putInt("wifiFailCnt", count);
-  preferences.end();
-  Serial.print("Saved WiFi failure count: ");
-  Serial.println(count);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putInt("wifiFailCnt", count);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved WiFi failure count: ");
+    Serial.println(count);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveWiFiFailureCount");
+  }
 }
 
 void incrementWiFiFailureCount() {
@@ -237,16 +354,27 @@ void resetWiFiFailureCount() {
 // ============================================
 
 float loadCurrentCalibration() {
-  preferences.begin("pool", true);  // Read-only
-  float offset = preferences.getFloat("currentCal", 0.0);
-  preferences.end();
-  return offset;
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", true);  // Read-only
+    float offset = preferences.getFloat("currentCal", 0.0);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    return offset;
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in loadCurrentCalibration");
+    return 0.0;
+  }
 }
 
 void saveCurrentCalibration(float offset) {
-  preferences.begin("pool", false);
-  preferences.putFloat("currentCal", offset);
-  preferences.end();
-  Serial.print("Saved current calibration: ");
-  Serial.println(offset, 3);
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+    preferences.begin("pool", false);
+    preferences.putFloat("currentCal", offset);
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+    Serial.print("Saved current calibration: ");
+    Serial.println(offset, 3);
+  } else {
+    Serial.println("ERROR: Preferences mutex timeout in saveCurrentCalibration");
+  }
 }
