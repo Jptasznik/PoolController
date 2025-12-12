@@ -1,0 +1,29 @@
+# ============================================
+# ESP32 Pool Controller .gitignore
+# ============================================
+
+# Credential files (actual secrets - NEVER commit these!)
+blynk_auth.h
+sinric_config.h
+
+# Build artifacts
+*.bin
+*.elf
+*.hex
+
+# IDE specific files
+.vscode/
+.idea/
+*.code-workspace
+
+# MacOS files
+.DS_Store
+
+# Temporary files
+*~
+*.swp
+*.bak
+*.tmp
+
+# Logs
+*.log

@@ -1,0 +1,53 @@
+#ifndef BLYNK_AUTH_H
+#define BLYNK_AUTH_H
+
+// ============================================
+// BLYNK AUTHENTICATION - TEMPLATE FILE
+// ============================================
+//
+// **IMPORTANT: Credentials are now stored in ESP32 flash memory**
+//
+// This file is no longer used for storing credentials. It exists
+// as a template to show you how to configure your Blynk credentials.
+//
+// To configure Blynk for your pool controller:
+//
+// METHOD 1: Using Serial Monitor (Recommended)
+// --------------------------------------------
+// Upload the code and open Serial Monitor. When prompted, send:
+//   BLYNK:your_auth_token_here
+//
+// METHOD 2: Hardcode and Upload Once
+// -----------------------------------
+// 1. Uncomment the line below and replace with your token:
+//    // #define BLYNK_AUTH_TOKEN "your_auth_token_here"
+//
+// 2. In setup(), add this ONE-TIME initialization:
+//    #ifdef BLYNK_AUTH_TOKEN
+//      setBlynkAuthToken(BLYNK_AUTH_TOKEN);
+//    #endif
+//
+// 3. Upload to ESP32
+// 4. Delete your token from this file
+// 5. Upload again (credentials are now stored in flash)
+//
+// ============================================
+// HOW TO GET YOUR BLYNK AUTH TOKEN
+// ============================================
+// 1. Go to https://blynk.cloud
+// 2. Create a new template with ID: TMPL2oQXCsxt1
+// 3. Create a device from this template
+// 4. Copy the auth token and use one of the methods above
+//
+// ============================================
+// SECURITY NOTES
+// ============================================
+// - Credentials are encrypted in ESP32 flash memory
+// - They persist across reboots
+// - Never commit actual credentials to version control
+// - The .gitignore file prevents accidental commits
+
+// Uncomment to set credentials on first upload (then delete and re-upload)
+// #define BLYNK_AUTH_TOKEN "your_auth_token_here"
+
+#endif // BLYNK_AUTH_H
