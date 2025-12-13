@@ -527,8 +527,6 @@ void setup() {
   } 
   #endif
 
-  #endif
-
   // Wait for WiFi
   LOG_INFO("Waiting for WiFi connection...");
   int attempts = 0;
