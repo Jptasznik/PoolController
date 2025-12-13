@@ -5,6 +5,7 @@
 #include "Config.h"
 #include "StateManager.h"
 #include "StateMutex.h"
+#include "SettingsManager.h"
 #include "PumpControl.h"
 
 // ============================================
