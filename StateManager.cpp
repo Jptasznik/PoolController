@@ -83,6 +83,11 @@ void initSystemState() {
   state.bootCount = 0;
   state.crashCount = 0;
   state.totalPumpRuntime = 0;
+
+  // Initialize OTA update state
+  state.otaInProgress = false;
+  state.otaStartTime = 0;
+  state.otaVersion[0] = '\0';
 }
 
 // ============================================

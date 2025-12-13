@@ -90,6 +90,11 @@ struct SystemState {
   uint32_t bootCount;
   uint32_t crashCount;
   unsigned long totalPumpRuntime;  // Total lifetime runtime in milliseconds
+
+  // OTA update state
+  bool otaInProgress;
+  unsigned long otaStartTime;
+  char otaVersion[32];
 };
 
 // ============================================

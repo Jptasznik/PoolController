@@ -155,4 +155,11 @@
 #define MAX_LOG_BUFFER_SIZE 100   // Maximum log entries in NVS
 #define DEFAULT_LOG_BUFFER_SIZE 12  // Default buffer size
 
+// ============================================
+// OTA (OVER-THE-AIR) UPDATE CONFIGURATION
+// ============================================
+#define ENABLE_SINRIC_OTA 1                    // Enable SinricPro OTA updates
+#define OTA_UPDATE_TIMEOUT 300000              // 5 minutes - max time for OTA update
+#define OTA_SAFETY_SHUTDOWN_DELAY 2000         // 2 seconds - delay before starting OTA
+
 #endif // CONFIG_H

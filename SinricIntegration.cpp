@@ -5,9 +5,15 @@
 #include "Config.h"
 #include "StateManager.h"
 #include "CredentialsManager.h"
+#include "SettingsManager.h"
+#include "LCDDisplay.h"
 #include <SinricPro.h>
 #include <SinricProThermostat.h>
 #include <SinricProDimSwitch.h>
+
+#if ENABLE_SINRIC_OTA
+#include <Update.h>
+#endif
 
 // ============================================
 // ALEXA THERMOSTAT CALLBACKS
@@ -102,6 +108,110 @@ bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
 }
 
 // ============================================
+// OTA UPDATE CALLBACKS
+// ============================================
+
+#if ENABLE_SINRIC_OTA
+
+// OTA Start callback - called when OTA update begins
+void onOTAStart() {
+  LOG_INFO("========================================");
+  LOG_INFO("OTA UPDATE STARTING");
+  LOG_INFO("========================================");
+
+  // Set OTA in progress flag
+  state.otaInProgress = true;
+  state.otaStartTime = millis();
+
+  // CRITICAL SAFETY: Disable heater immediately
+  LOG_WARN("SAFETY: Disabling heater for OTA update");
+  setHeaterEnabledState(false);
+  digitalWrite(HEATER_PIN, LOW);
+
+  // Save heater disabled state
+  saveHeaterEnabled(false);
+
+  // Force pump to OFF if safe (OTA should be quick)
+  if (canPumpTurnOff()) {
+    LOG_INFO("SAFETY: Turning pump OFF for OTA update");
+    setPumpState(PUMP_OFF);
+  } else {
+    LOG_WARN("Pump remains ON during OTA (safety interlock)");
+  }
+
+  // Display OTA update on LCD
+  displayOTAUpdate();
+
+  // Small delay for hardware to stabilize
+  delay(OTA_SAFETY_SHUTDOWN_DELAY);
+
+  LOG_INFO("Hardware secured - ready for OTA update");
+}
+
+// OTA Progress callback - called periodically during update
+void onOTAProgress(unsigned int progress, unsigned int total) {
+  static unsigned int lastPercent = 0;
+  unsigned int percent = (progress * 100) / total;
+
+  // Only log every 10%
+  if (percent != lastPercent && percent % 10 == 0) {
+    LOG_INFOF("OTA Progress: %u%%", percent);
+    lastPercent = percent;
+  }
+
+  // Check for timeout
+  unsigned long elapsed = millis() - state.otaStartTime;
+  if (elapsed > OTA_UPDATE_TIMEOUT) {
+    LOG_ERROR("OTA update timeout - aborting");
+    Update.abort();
+  }
+}
+
+// OTA End callback - called when OTA update completes
+void onOTAEnd(bool success) {
+  state.otaInProgress = false;
+
+  if (success) {
+    LOG_INFO("========================================");
+    LOG_INFO("OTA UPDATE SUCCESSFUL!");
+    LOG_INFO("System will restart in 3 seconds...");
+    LOG_INFO("========================================");
+
+    // Save runtime state before restart
+    saveRuntimeState();
+
+    // Wait for user to see message
+    delay(3000);
+
+    // Restart ESP32
+    ESP.restart();
+  } else {
+    LOG_ERROR("========================================");
+    LOG_ERROR("OTA UPDATE FAILED!");
+    LOG_ERRORF("Error: %s", Update.errorString());
+    LOG_ERROR("System returning to normal operation");
+    LOG_ERROR("========================================");
+
+    // Update LCD to show failure
+    updateLCDDisplay();
+
+    // System will continue with old firmware
+    // User can retry OTA update
+  }
+}
+
+// OTA Error callback - called if OTA update encounters an error
+void onOTAError(int error) {
+  LOG_ERRORF("OTA Error Code: %d", error);
+  LOG_ERRORF("Error Description: %s", Update.errorString());
+
+  state.otaInProgress = false;
+  updateLCDDisplay();
+}
+
+#endif // ENABLE_SINRIC_OTA
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -125,6 +235,18 @@ void initSinric() {
   pump.onPowerState(onPowerStatePump);
   pump.onPowerLevel(onPowerLevelPump);
   pump.onAdjustPowerLevel(onAdjustPowerLevelPump);
+
+#if ENABLE_SINRIC_OTA
+  // Setup OTA update callbacks
+  LOG_INFO("Enabling SinricPro OTA updates");
+  SinricPro.onOTAStart(onOTAStart);
+  SinricPro.onOTAProgress(onOTAProgress);
+  SinricPro.onOTAEnd(onOTAEnd);
+  SinricPro.onOTAError(onOTAError);
+  LOG_INFO("OTA callbacks registered");
+#else
+  LOG_WARN("SinricPro OTA updates disabled (ENABLE_SINRIC_OTA=0)");
+#endif
 
   // Connect to Sinric Pro
   SinricPro.begin(getSinricAppKey(), getSinricAppSecret());

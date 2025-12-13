@@ -18,5 +18,6 @@ void displayEmergencyShutdown();
 void displayFactoryReset();
 void displayWiFiProvisioning();
 void displayWiFiReset();
+void displayOTAUpdate();
 
 #endif // LCD_DISPLAY_H
