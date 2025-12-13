@@ -37,7 +37,9 @@
 #include "TaskManager.h"
 
 #include <WiFi.h>
-#include <WiFiProv.h>
+#if ENABLE_WIFI_PROV
+#include "WiFiProvLite.h"
+#endif
 #include <BlynkSimpleEsp32.h>
 #include <time.h>
 #include <esp_task_wdt.h>
@@ -417,6 +419,7 @@ void setup() {
   // ============================================
   // WIFI PROVISIONING
   // ============================================
+#if ENABLE_WIFI_PROV
 
   LOG_INFO("Starting WiFi provisioning...");
   WiFi.onEvent(SysProvEvent);
@@ -425,14 +428,17 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     LOG_INFO("Already provisioned, connecting to WiFi...");
   } else {
-    WiFiProv.beginProvision(
-      NETWORK_PROV_SCHEME_BLE,
-      NETWORK_PROV_SCHEME_HANDLER_FREE_BTDM,
+    WiFiProvLite.beginProvision(
+      NETWORK_PROV_SCHEME_SOFTAP, 
+      NETWORK_PROV_SCHEME_HANDLER_NONE,
+      // NETWORK_PROV_SCHEME_BLE,
+      // NETWORK_PROV_SCHEME_HANDLER_FREE_BTDM,
       NETWORK_PROV_SECURITY_1,
       WIFI_PROV_POP,
       WIFI_PROV_SERVICE_NAME
     );
   }
+#endif
 
   // Wait for WiFi
   LOG_INFO("Waiting for WiFi connection...");
