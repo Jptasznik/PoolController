@@ -727,13 +727,13 @@ V16 - Log buffer size (read/write) - 12-100 entries
 
 ### 8. Over-The-Air (OTA) Updates
 
-The system supports **remote firmware updates** via Arduino OTA. This allows you to update the ESP32 firmware over WiFi without physical access to the device.
+The system supports **remote firmware updates** via SinricPro OTA. This allows you to update the ESP32 firmware remotely via the SinricPro dashboard without physical access to the device.
 
 #### OTA Configuration
 
 **Enable/Disable OTA** in Config.h:
 ```cpp
-#define ENABLE_SINRIC_OTA 1                    // 1=enabled, 0=disabled (name kept for compatibility)
+#define ENABLE_SINRIC_OTA 1                    // 1=enabled, 0=disabled
 #define OTA_UPDATE_TIMEOUT 300000              // 5 minutes max
 #define OTA_SAFETY_SHUTDOWN_DELAY 2000         // 2 second delay before OTA
 ```
@@ -744,97 +744,95 @@ The OTA implementation includes **critical safety measures**:
 
 1. **Heater Shutdown** - Heater is immediately disabled before OTA starts
 2. **Pump Control** - Pump is turned OFF if safe (no cooldown active)
-3. **State Persistence** - Runtime state saved before restart
-4. **Timeout Protection** - OTA aborts after 5 minutes if stuck
-5. **LCD Warning** - Display shows "DO NOT POWER OFF" during update
-6. **Auto-Recovery** - System continues with old firmware if OTA fails
+3. **State Persistence** - Runtime state saved before OTA
+4. **LCD Warning** - Display shows "DO NOT POWER OFF" during update
+5. **Auto-Recovery** - System continues with old firmware if OTA fails
 
 #### OTA Process Flow
 
 ```cpp
-1. Arduino IDE or PlatformIO sends OTA update command over WiFi
-2. ArduinoOTA.onStart() callback triggered:
+1. SinricPro sends OTA update command from dashboard
+2. onOTAUpdate() callback triggered:
+   - Set OTA in progress flag
    - Heater disabled and saved to NVS
    - Pump turned OFF (if safe)
    - LCD shows "OTA UPDATE - DO NOT POWER OFF"
    - 2-second delay for hardware stabilization
-3. Firmware download begins
-4. ArduinoOTA.onProgress() called periodically:
-   - Logs progress every 10%
-   - Checks for timeout (5 minutes)
-5. ArduinoOTA.onEnd() callback:
-   - Save runtime state, display message
-   - System automatically restarts
-6. System reboots with new firmware (if successful)
-7. If OTA fails, ArduinoOTA.onError() callback:
-   - Log error, return to normal operation
+   - Runtime state saved to NVS
+3. SinricPro library handles firmware download and installation
+4. System reboots with new firmware (if successful)
+5. If OTA fails, system returns to normal operation with old firmware
 ```
 
 #### OTA Callbacks (SinricIntegration.cpp)
 
 ```cpp
-void setupOTA();                // Initialize Arduino OTA service
 void handleOTA();               // Handle OTA in loop (call from main loop)
 
-// Arduino OTA Callbacks (configured in setupOTA):
-ArduinoOTA.onStart()           // Prepare system for OTA
-ArduinoOTA.onProgress()        // Track progress
-ArduinoOTA.onEnd()             // Handle completion
-ArduinoOTA.onError()           // Handle errors
+// SinricPro OTA Callback (registered in initSinric):
+void onOTAUpdate();            // Prepare system for OTA update
 ```
 
 #### Using OTA Updates
 
-**From Arduino IDE:**
-1. Ensure ESP32 is connected to same WiFi network
-2. Select Tools → Port → "pool-controller at <IP address>"
-3. Click Upload button
-4. Monitor progress via Serial Monitor
+**From SinricPro Dashboard:**
+1. Log into SinricPro portal at https://sinric.pro
+2. Navigate to your Pool Controller device
+3. Click "OTA Update" or "Firmware Update" option
+4. Upload compiled .bin firmware file
+5. Monitor progress on device LCD and serial logs
 
-**From PlatformIO:**
-1. Configure OTA in platformio.ini:
-   ```ini
-   upload_protocol = espota
-   upload_port = pool-controller.local  ; or IP address
-   ```
-2. Run "Upload" task
-3. Monitor progress in terminal
+**Preparing Firmware Binary:**
+
+*Arduino IDE:*
+1. Sketch → Export compiled Binary
+2. Find .bin file in sketch folder/build directory
+3. Upload to SinricPro dashboard
+
+*PlatformIO:*
+1. Run "Build" task
+2. Find .bin file in .pio/build/<environment>/ directory
+3. Upload to SinricPro dashboard
 
 **Important Notes:**
 - **Never power off** during OTA update
-- **Wait for completion** - takes 30-60 seconds typically
+- **Wait for completion** - takes 1-3 minutes typically depending on firmware size and network speed
 - **Stable WiFi required** - OTA will fail on poor connection
 - **Heater disabled** - Will not automatically re-enable after OTA
 - **Manual verification** - Check system status after OTA completes
+- **SinricPro connection required** - Device must be connected to SinricPro to receive OTA updates
 
 #### Troubleshooting OTA
 
-**OTA Port Not Showing in Arduino IDE:**
-- Verify WiFi is connected: `state.wifiConnected`
-- Verify ENABLE_SINRIC_OTA is set to 1
-- Check that ESP32 is on same network as computer
-- Try rebooting ESP32 and waiting 30 seconds
+**OTA Fails to Start:**
+- Check SinricPro connection: `state.sinricConnected` should be true
+- Verify ENABLE_SINRIC_OTA is set to 1 in Config.h
+- Verify WiFi is connected and stable
+- Check SinricPro credentials are configured correctly
+- Try rebooting ESP32 and waiting for SinricPro connection
 
-**OTA Upload Fails:**
-- Check WiFi signal strength (RSSI > -70 dBm is good)
-- Ensure firewall allows port 3232 (ESP32 OTA port)
-- Try uploading smaller firmware (disable unused features)
-- Upload during off-peak network hours
+**OTA Update Not Available in Dashboard:**
+- Verify your SinricPro account has OTA update feature enabled
+- Check that the device is online in SinricPro dashboard
+- Ensure firmware binary is valid ESP32 .bin file
 
 **OTA Timeout:**
-- Improve WiFi signal (move ESP32 closer to router)
-- Check for network congestion
-- Increase OTA_UPDATE_TIMEOUT in Config.h
+- Improve WiFi signal strength (move ESP32 closer to router or use WiFi extender)
+- Upload smaller firmware (disable unused features in Config.h)
+- Try during off-peak network hours
+- Check internet connection speed (upload and download)
 
-**System Doesn't Restart After OTA:**
+**System Doesn't Restart:**
 - Check serial logs for error messages
 - Manually restart via reset button
 - System will boot with old firmware if OTA failed
+- Check SinricPro dashboard for OTA status/error messages
 
 **Heater Won't Re-Enable After OTA:**
 - This is intentional - verify system is working correctly first
 - Manually enable heater via Blynk, Alexa, or physical button
 - Check for any safety lockouts (failsafe, overheat)
+- Verify all sensors are reading valid temperatures
 
 ### 9. Common Development Tasks
 

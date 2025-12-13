@@ -12,7 +12,7 @@
 #include <SinricProDimSwitch.h>
 
 #if ENABLE_SINRIC_OTA
-#include <ArduinoOTA.h>
+// OTA support is provided by SinricPro library
 #endif
 
 // ============================================
@@ -108,126 +108,48 @@ bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
 }
 
 // ============================================
-// OTA UPDATE SETUP AND CALLBACKS
+// OTA UPDATE CALLBACK
 // ============================================
 
 #if ENABLE_SINRIC_OTA
 
-void setupOTA() {
-  LOG_INFO("Initializing Arduino OTA updates...");
+// OTA Update callback - called when SinricPro sends OTA command
+void onOTAUpdate() {
+  LOG_INFO("========================================");
+  LOG_INFO("OTA UPDATE STARTING");
+  LOG_INFO("========================================");
 
-  // Set OTA hostname
-  ArduinoOTA.setHostname("pool-controller");
+  // Set OTA in progress flag
+  state.otaInProgress = true;
+  state.otaStartTime = millis();
 
-  // OTA Start callback - called when OTA update begins
-  ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
-    } else { // U_SPIFFS
-      type = "filesystem";
-    }
+  // CRITICAL SAFETY: Disable heater immediately
+  LOG_WARN("SAFETY: Disabling heater for OTA update");
+  setHeaterEnabledState(false);
+  digitalWrite(HEATER_PIN, LOW);
 
-    LOG_INFO("========================================");
-    LOG_INFOF("OTA UPDATE STARTING (%s)", type.c_str());
-    LOG_INFO("========================================");
+  // Save heater disabled state
+  saveHeaterEnabled(false);
 
-    // Set OTA in progress flag
-    state.otaInProgress = true;
-    state.otaStartTime = millis();
+  // Force pump to OFF if safe (OTA should be quick)
+  if (canPumpTurnOff()) {
+    LOG_INFO("SAFETY: Turning pump OFF for OTA update");
+    setPumpState(PUMP_OFF);
+  } else {
+    LOG_WARN("Pump remains ON during OTA (safety interlock)");
+  }
 
-    // CRITICAL SAFETY: Disable heater immediately
-    LOG_WARN("SAFETY: Disabling heater for OTA update");
-    setHeaterEnabledState(false);
-    digitalWrite(HEATER_PIN, LOW);
+  // Display OTA update on LCD
+  displayOTAUpdate();
 
-    // Save heater disabled state
-    saveHeaterEnabled(false);
+  // Small delay for hardware to stabilize
+  delay(OTA_SAFETY_SHUTDOWN_DELAY);
 
-    // Force pump to OFF if safe (OTA should be quick)
-    if (canPumpTurnOff()) {
-      LOG_INFO("SAFETY: Turning pump OFF for OTA update");
-      setPumpState(PUMP_OFF);
-    } else {
-      LOG_WARN("Pump remains ON during OTA (safety interlock)");
-    }
+  // Save runtime state before OTA
+  saveRuntimeState();
 
-    // Display OTA update on LCD
-    displayOTAUpdate();
-
-    // Small delay for hardware to stabilize
-    delay(OTA_SAFETY_SHUTDOWN_DELAY);
-
-    LOG_INFO("Hardware secured - ready for OTA update");
-  });
-
-  // OTA Progress callback - called periodically during update
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    static unsigned int lastPercent = 0;
-    unsigned int percent = (progress * 100) / total;
-
-    // Only log every 10%
-    if (percent != lastPercent && percent % 10 == 0) {
-      LOG_INFOF("OTA Progress: %u%%", percent);
-      lastPercent = percent;
-    }
-
-    // Check for timeout
-    unsigned long elapsed = millis() - state.otaStartTime;
-    if (elapsed > OTA_UPDATE_TIMEOUT) {
-      LOG_ERROR("OTA update timeout - aborting");
-      // Can't abort from callback, but log the issue
-    }
-  });
-
-  // OTA End callback - called when OTA update completes
-  ArduinoOTA.onEnd([]() {
-    state.otaInProgress = false;
-
-    LOG_INFO("========================================");
-    LOG_INFO("OTA UPDATE COMPLETE!");
-    LOG_INFO("System will restart...");
-    LOG_INFO("========================================");
-
-    // Save runtime state before restart
-    saveRuntimeState();
-
-    // Small delay for message
-    delay(1000);
-  });
-
-  // OTA Error callback - called if OTA update encounters an error
-  ArduinoOTA.onError([](ota_error_t error) {
-    state.otaInProgress = false;
-
-    LOG_ERROR("========================================");
-    LOG_ERROR("OTA UPDATE FAILED!");
-    LOG_ERRORF("Error[%u]: ", error);
-
-    if (error == OTA_AUTH_ERROR) {
-      LOG_ERROR("Auth Failed");
-    } else if (error == OTA_BEGIN_ERROR) {
-      LOG_ERROR("Begin Failed");
-    } else if (error == OTA_CONNECT_ERROR) {
-      LOG_ERROR("Connect Failed");
-    } else if (error == OTA_RECEIVE_ERROR) {
-      LOG_ERROR("Receive Failed");
-    } else if (error == OTA_END_ERROR) {
-      LOG_ERROR("End Failed");
-    }
-
-    LOG_ERROR("System returning to normal operation");
-    LOG_ERROR("========================================");
-
-    // Update LCD to show failure
-    updateLCDDisplay();
-
-    // System will continue with old firmware
-  });
-
-  // Start OTA service
-  ArduinoOTA.begin();
-  LOG_INFO("Arduino OTA update service enabled");
+  LOG_INFO("Hardware secured - ready for OTA update");
+  LOG_INFO("SinricPro will now handle the update process");
 }
 
 #endif // ENABLE_SINRIC_OTA
@@ -263,10 +185,11 @@ void initSinric() {
   LOG_INFO("Sinric Pro initialized");
 
 #if ENABLE_SINRIC_OTA
-  // Setup Arduino OTA updates (must be called after WiFi connection)
-  setupOTA();
+  // Register OTA update callback with SinricPro
+  SinricPro.onOTAUpdate(onOTAUpdate);
+  LOG_INFO("SinricPro OTA update callback registered");
 #else
-  LOG_WARN("Arduino OTA updates disabled (ENABLE_SINRIC_OTA=0)");
+  LOG_WARN("SinricPro OTA updates disabled (ENABLE_SINRIC_OTA=0)");
 #endif
 }
 
@@ -283,7 +206,8 @@ void handleSinricEvents() {
 
 void handleOTA() {
 #if ENABLE_SINRIC_OTA
-  ArduinoOTA.handle();
+  // SinricPro handles OTA internally after onOTAUpdate callback
+  // No additional handling needed in loop - SinricPro.handle() manages OTA
 #endif
 }
 
