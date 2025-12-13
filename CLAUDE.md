@@ -738,12 +738,12 @@ The system supports **remote firmware updates** via SinricPro OTA. This allows y
 #define OTA_SAFETY_SHUTDOWN_DELAY 2000         // 2 second delay before OTA
 ```
 
-**Firmware Version** in PoolController.ino (MUST be defined BEFORE any includes):
+**Firmware Version** in Config.h (at the top of the file):
 ```cpp
 #define FIRMWARE_VERSION "1.0.0"  // Format: "major.minor.patch"
 ```
 
-Increment the version number when creating new firmware for OTA distribution.
+Increment the version number in Config.h when creating new firmware for OTA distribution.
 
 #### Required Files
 
@@ -784,6 +784,11 @@ The OTA implementation includes **critical safety measures**:
 4. startOtaUpdate(url) performs the actual update:
    - Download firmware via HTTPS (SSL/TLS)
    - Write to flash using ESP32 Update library
+   - Update.onProgress() callback updates LCD display in real-time:
+     * Shows percentage progress (0-100%)
+     * Shows bytes downloaded (KB format)
+     * Updates every 5% or every 50KB
+   - All progress logged via LOG_INFO
    - Automatically restart device on success
 5. Device reboots with new firmware
 6. If OTA fails at any step:
@@ -791,6 +796,24 @@ The OTA implementation includes **critical safety measures**:
    - OTA in progress flag cleared
    - System returns to normal operation with old firmware
 ```
+
+#### LCD Display During OTA
+
+The 20x4 LCD shows real-time OTA progress:
+
+```
+Line 0:   OTA UPDATE
+Line 1:   Progress:  XX%
+Line 2:   DO NOT POWER OFF
+Line 3:   XXX/YYY KB
+```
+
+**Example progression:**
+- Initial: "Progress:   0%    0/512 KB"
+- Midway:  "Progress:  47%  241/512 KB"
+- Final:   "Progress: 100%  512/512 KB"
+
+The display updates automatically as firmware downloads, providing visual feedback without requiring serial monitor access.
 
 #### OTA Callbacks (SinricIntegration.cpp)
 
@@ -821,19 +844,19 @@ bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool fo
 **Preparing Firmware Binary:**
 
 *Arduino IDE:*
-1. Update FIRMWARE_VERSION in PoolController.ino (e.g., "1.0.1")
+1. Update FIRMWARE_VERSION in Config.h (e.g., "1.0.1")
 2. Sketch → Export compiled Binary
 3. Find .bin file in sketch folder/build directory
 4. Upload to SinricPro dashboard with matching version number
 
 *PlatformIO:*
-1. Update FIRMWARE_VERSION in PoolController.ino (e.g., "1.0.1")
+1. Update FIRMWARE_VERSION in Config.h (e.g., "1.0.1")
 2. Run "Build" task
 3. Find .bin file in .pio/build/<environment>/ directory
 4. Upload to SinricPro dashboard with matching version number
 
 **Important Notes:**
-- **Increment version** - Always increment FIRMWARE_VERSION when creating new builds
+- **Increment version** - Always increment FIRMWARE_VERSION in Config.h when creating new builds
 - **Never power off** during OTA update
 - **Wait for completion** - takes 1-3 minutes typically depending on firmware size and network speed
 - **Stable WiFi required** - OTA will fail on poor connection
