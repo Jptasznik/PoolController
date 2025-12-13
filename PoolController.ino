@@ -506,8 +506,8 @@ void setup() {
   // ============================================
   // WIFI PROVISIONING
   // ============================================
-  #if ENABLE_WIFI_PROV
   
+  #if ENABLE_WIFI_PROV
   LOG_INFO("Starting WiFi provisioning...");
   WiFi.onEvent(SysProvEvent);
 
@@ -524,7 +524,8 @@ void setup() {
       WIFI_PROV_POP,
       WIFI_PROV_SERVICE_NAME
     );
-  }
+  } 
+  #endif
 
   #endif
 

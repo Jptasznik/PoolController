@@ -127,6 +127,9 @@
 
 #define ENABLE_WIFI_PROV            1
 
+
+// These enable BlueTooth Provisioning, but will likely create a binary too big for a 4 MB chip with OTA enabled
+//
 // #define CONFIG_BLUEDROID_ENABLED_1  1
 // #define CONFIG_NIMBLE_ENABLED_1    1
 
