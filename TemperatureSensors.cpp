@@ -94,6 +94,39 @@ void readTemperatures() {
     LOG_WARN("Ambient sensor disconnected");
   }
 
+  // Check for critical sensor failure (both primary sensors failed)
+  if (!inletValid && !heaterValid) {
+    LOG_ERROR("CRITICAL: Both inlet and heater sensors failed!");
+
+    // Update state first
+    {
+      StateScopedLock stateLock;
+      if (stateLock.isLocked()) {
+        state.inletTemp = inletTemp;
+        state.inletTempValid = inletValid;
+        state.heaterTemp = heaterTemp;
+        state.heaterTempValid = heaterValid;
+        state.ambientTemp = ambientTemp;
+        state.ambientTempValid = ambientValid;
+      }
+    }
+
+    // Enter failsafe mode if not already in it
+    if (!state.inFailsafeMode) {
+      enterFailsafeMode("CRITICAL_SENSOR_FAILURE");
+    }
+    return;
+  }
+
+  // Check for single critical sensor failure
+  if (!inletValid) {
+    LOG_ERROR("CRITICAL: Inlet temperature sensor failure!");
+    // Enter failsafe if not already in it
+    if (!state.inFailsafeMode) {
+      enterFailsafeMode("INLET_SENSOR_FAILURE");
+    }
+  }
+
   // Update state with mutex protection
   {
     StateScopedLock stateLock;

@@ -76,6 +76,20 @@ struct SystemState {
 
   // Emergency state
   bool emergencyShutdown;
+
+  // Failsafe mode (critical sensor failure protection)
+  bool inFailsafeMode;
+  unsigned long failsafeEnterTime;
+  char failsafeReason[32];
+
+  // Overheat protection
+  bool overheatLockout;
+  unsigned long overheatDetectedTime;
+
+  // Runtime state tracking (for crash recovery)
+  uint32_t bootCount;
+  uint32_t crashCount;
+  unsigned long totalPumpRuntime;  // Total lifetime runtime in milliseconds
 };
 
 // ============================================
@@ -103,6 +117,13 @@ void setMaxHeaterTemp(float temp);
 // Emergency controls
 void triggerEmergencyShutdown();
 void clearEmergencyShutdown();
+
+// Failsafe mode
+void enterFailsafeMode(const char* reason);
+void clearFailsafeMode();
+
+// Overheat protection
+void clearOverheatLockout();
 
 // Cooldown management
 void startCooldown();

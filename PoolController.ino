@@ -66,6 +66,22 @@ unsigned long lastWiFiRuntimeCheck = 0;
 
 BLYNK_WRITE(VPIN_TARGET_TEMP) {
   float temp = param.asFloat();
+
+  // Validate for NaN/Inf
+  if (isnan(temp) || isinf(temp)) {
+    LOG_ERROR("Rejected invalid temp from Blynk: NaN/Inf");
+    Blynk.virtualWrite(VPIN_TARGET_TEMP, state.targetTemp);  // Revert
+    return;
+  }
+
+  // Validate range
+  if (temp < MIN_TARGET_TEMP || temp > MAX_TARGET_TEMP) {
+    LOG_WARNF("Rejected invalid temp from Blynk: %.1f (range: %.1f-%.1f)",
+              temp, MIN_TARGET_TEMP, MAX_TARGET_TEMP);
+    Blynk.virtualWrite(VPIN_TARGET_TEMP, state.targetTemp);  // Revert
+    return;
+  }
+
   LOG_INFOF("Blynk: Target temp %.1f", temp);
   setTargetTemperature(temp);
 }
@@ -105,30 +121,93 @@ BLYNK_WRITE(VPIN_PUMP_SPEED) {
 
 BLYNK_WRITE(VPIN_MAX_RUNTIME) {
   float hours = param.asFloat();
+
+  // Validate for NaN/Inf
+  if (isnan(hours) || isinf(hours)) {
+    LOG_ERROR("Rejected invalid max runtime from Blynk: NaN/Inf");
+    Blynk.virtualWrite(VPIN_MAX_RUNTIME, state.maxRuntimeHours);  // Revert
+    return;
+  }
+
+  // Validate range (0-24 hours)
+  if (hours < 0 || hours > 24) {
+    LOG_WARNF("Rejected invalid max runtime from Blynk: %.1f (range: 0-24)", hours);
+    Blynk.virtualWrite(VPIN_MAX_RUNTIME, state.maxRuntimeHours);  // Revert
+    return;
+  }
+
   LOG_INFOF("Blynk: Max runtime %.1f", hours);
   setMaxRuntimeHours(hours);
 }
 
 BLYNK_WRITE(VPIN_HEATER_START_HOUR) {
   int hour = param.asInt();
+
+  // Validate range (0-23)
+  if (hour < 0 || hour > 23) {
+    LOG_WARNF("Rejected invalid start hour from Blynk: %d (range: 0-23)", hour);
+    Blynk.virtualWrite(VPIN_HEATER_START_HOUR, state.heaterStartHour);  // Revert
+    return;
+  }
+
   LOG_INFOF("Blynk: Heater start hour %d", hour);
   setHeaterStartHour(hour);
 }
 
 BLYNK_WRITE(VPIN_HEATER_END_HOUR) {
   int hour = param.asInt();
+
+  // Validate range (0-23)
+  if (hour < 0 || hour > 23) {
+    LOG_WARNF("Rejected invalid end hour from Blynk: %d (range: 0-23)", hour);
+    Blynk.virtualWrite(VPIN_HEATER_END_HOUR, state.heaterEndHour);  // Revert
+    return;
+  }
+
   LOG_INFOF("Blynk: Heater end hour %d", hour);
   setHeaterEndHour(hour);
 }
 
 BLYNK_WRITE(VPIN_MIN_HEATER_TEMP) {
   float temp = param.asFloat();
+
+  // Validate for NaN/Inf
+  if (isnan(temp) || isinf(temp)) {
+    LOG_ERROR("Rejected invalid min heater temp from Blynk: NaN/Inf");
+    Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);  // Revert
+    return;
+  }
+
+  // Validate range (32-104°F - physical water temperature range)
+  if (temp < INVALID_TEMP_LOW || temp > MAX_TARGET_TEMP) {
+    LOG_WARNF("Rejected invalid min heater temp from Blynk: %.1f (range: %.1f-%.1f)",
+              temp, INVALID_TEMP_LOW, MAX_TARGET_TEMP);
+    Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);  // Revert
+    return;
+  }
+
   LOG_INFOF("Blynk: Min heater temp %.1f", temp);
   setMinHeaterTemp(temp);
 }
 
 BLYNK_WRITE(VPIN_MAX_HEATER_TEMP) {
   float temp = param.asFloat();
+
+  // Validate for NaN/Inf
+  if (isnan(temp) || isinf(temp)) {
+    LOG_ERROR("Rejected invalid max heater temp from Blynk: NaN/Inf");
+    Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);  // Revert
+    return;
+  }
+
+  // Validate range (40-110°F - safety limits)
+  if (temp < MIN_TARGET_TEMP || temp > MAX_HEATER_TEMP) {
+    LOG_WARNF("Rejected invalid max heater temp from Blynk: %.1f (range: %.1f-%.1f)",
+              temp, MIN_TARGET_TEMP, MAX_HEATER_TEMP);
+    Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);  // Revert
+    return;
+  }
+
   LOG_INFOF("Blynk: Max heater temp %.1f", temp);
   setMaxHeaterTemp(temp);
 }
@@ -378,6 +457,9 @@ void setup() {
   // Initialize settings and load from flash
   initSettings();
   loadAllSettings();
+
+  // Load runtime state (boot count, crash detection, cooldown recovery)
+  loadRuntimeState();
 
   // Apply loaded states to hardware
   applyPumpState();
