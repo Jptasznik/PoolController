@@ -2,6 +2,13 @@
 #define CONFIG_H
 
 // ============================================
+// FIRMWARE VERSION (MUST BE FIRST - REQUIRED BY SINRICPRO)
+// ============================================
+// Format: "major.minor.patch" (semantic versioning)
+// Increment this when creating new firmware for OTA updates
+#define FIRMWARE_VERSION "1.0.0"
+
+// ============================================
 // PIN DEFINITIONS
 // ============================================
 
@@ -117,6 +124,12 @@
 // ============================================
 // WIFI PROVISIONING
 // ============================================
+
+#define ENABLE_WIFI_PROV            1
+
+// #define CONFIG_BLUEDROID_ENABLED_1  1
+// #define CONFIG_NIMBLE_ENABLED_1    1
+
 #define WIFI_PROV_SERVICE_NAME "POOL_CTRL"
 #define WIFI_PROV_POP "pool1234"
 
@@ -129,6 +142,7 @@
 #define WIFI_DISCONNECT_WINDOW 600000         // 10 minutes - time window for disconnect tracking
 #define WIFI_MAX_DISCONNECTS 10               // Max disconnects in time window before reset
 #define WIFI_RUNTIME_CHECK_INTERVAL 10000     // 10 seconds - how often to check runtime failures
+
 
 // ============================================
 // NTP CONFIGURATION
@@ -154,5 +168,12 @@
 #define MIN_LOG_BUFFER_SIZE 12    // Minimum log entries in NVS
 #define MAX_LOG_BUFFER_SIZE 100   // Maximum log entries in NVS
 #define DEFAULT_LOG_BUFFER_SIZE 12  // Default buffer size
+
+// ============================================
+// OTA (OVER-THE-AIR) UPDATE CONFIGURATION
+// ============================================
+#define ENABLE_SINRIC_OTA 1                   // Enable SinricPro OTA updates
+#define OTA_UPDATE_TIMEOUT 300000              // 5 minutes - max time for OTA update
+#define OTA_SAFETY_SHUTDOWN_DELAY 2000         // 2 seconds - delay before starting OTA
 
 #endif // CONFIG_H
