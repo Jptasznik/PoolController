@@ -1181,28 +1181,245 @@ This is used to detect when elapsed time calculations produce impossible values 
 - All intervals < 24.8 days (2^31 ms) are inherently safe with unsigned arithmetic
 - All task intervals in this project are < 60 seconds, well within safe range
 
-### 14. WiFi and Network
+### 14. WiFi Provisioning and Failure Detection
 
-#### WiFi Provisioning
-- Uses **BLE provisioning** via ESP BLE Provisioning app
-- Credentials stored in flash, persist across reboots
-- Service name: `POOL_CTRL`
-- Proof of possession: `pool1234`
+The system includes a **comprehensive WiFi management system** with BLE provisioning and automatic failure detection/recovery. This ensures the system remains operational even with WiFi issues.
 
-#### Connectivity Handling
+#### WiFi Provisioning (BLE)
+
+**Configuration** (Config.h):
 ```cpp
-state.wifiConnected   // WiFi status
-state.blynkConnected  // Blynk status
-state.sinricConnected // Sinric status
+#define WIFI_PROV_SERVICE_NAME "POOL_CTRL"      // BLE service name
+#define WIFI_PROV_POP "pool1234"                // Proof of possession
+#define WIFI_CONNECTION_TIMEOUT 10               // 10 seconds
 ```
 
-Code should handle **offline mode gracefully** - local controls always work.
+**Implementation** (PoolController.ino):
+- Uses ESP32's **built-in BLE provisioning** via WiFiProv library
+- Credentials stored in ESP32 flash memory (persist across reboots)
+- User provisions via **ESP BLE Provisioning** mobile app (iOS/Android)
+- Provisioning service name: `POOL_CTRL`
+- Proof of possession (password): `pool1234`
+
+**Provisioning Process:**
+1. On first boot (no credentials), ESP32 starts BLE provisioning
+2. User opens ESP BLE Provisioning app on phone
+3. App discovers device "POOL_CTRL"
+4. User enters proof of possession: "pool1234"
+5. App sends WiFi SSID and password to ESP32
+6. ESP32 stores credentials in flash
+7. ESP32 connects to WiFi
+8. Future boots auto-connect using stored credentials
+
+**Event Callbacks** (PoolController.ino):
+```cpp
+void SysProvEvent(arduino_event_t *sys_event) {
+  switch (sys_event->event_id) {
+    case ARDUINO_EVENT_PROV_START:           // Provisioning started
+    case ARDUINO_EVENT_PROV_CRED_RECV:       // Credentials received
+    case ARDUINO_EVENT_PROV_CRED_SUCCESS:    // Credentials accepted
+    case ARDUINO_EVENT_PROV_END:             // Provisioning complete
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:      // WiFi connected
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: // WiFi disconnected
+  }
+}
+```
+
+#### Boot Failure Detection and Auto-Recovery
+
+**Problem:** If WiFi credentials become invalid (router changed, network issues), device cannot connect at boot.
+
+**Solution:** Track consecutive boot failures and auto-reset credentials after threshold exceeded.
+
+**Configuration** (Config.h):
+```cpp
+#define WIFI_MAX_BOOT_FAILURES 5        // Clear credentials after 5 consecutive failures
+#define WIFI_FAILURE_RESET_DELAY 3000   // Display message for 3 seconds before reset
+```
+
+**Implementation** (PoolController.ino + SettingsManager.cpp):
+```cpp
+// On boot:
+int wifiFailureCount = loadWiFiFailureCount();  // Load from NVS flash
+
+if (wifiFailureCount >= WIFI_MAX_BOOT_FAILURES) {
+  LOG_WARN("WiFi failure threshold exceeded!");
+  WiFi.disconnect(true, true);  // Clear stored credentials
+  resetWiFiFailureCount();       // Reset counter
+  displayWiFiReset();            // Show message on LCD
+  ESP.restart();                 // Reboot to start provisioning
+}
+
+// After WiFi connection attempt:
+if (WiFi.status() == WL_CONNECTED) {
+  resetWiFiFailureCount();       // Success - reset counter
+} else {
+  incrementWiFiFailureCount();   // Failure - increment counter
+}
+```
+
+**Failure Count Functions** (SettingsManager.cpp):
+```cpp
+int loadWiFiFailureCount();        // Load from NVS
+void saveWiFiFailureCount(int);    // Save to NVS
+void incrementWiFiFailureCount();  // Increment and save
+void resetWiFiFailureCount();      // Set to 0 and save
+```
+
+**Result:** After 5 consecutive boot failures, device auto-clears credentials and enters provisioning mode, allowing user to reconfigure WiFi.
+
+#### Runtime Failure Detection
+
+**Problem:** WiFi may fail after successful boot (provisioning hangs, excessive disconnects).
+
+**Solution:** Monitor WiFi health at runtime and auto-recover if issues detected.
+
+**Configuration** (Config.h):
+```cpp
+#define WIFI_PROVISIONING_TIMEOUT 300000      // 5 minutes max for provisioning
+#define WIFI_DISCONNECT_WINDOW 600000         // 10 minutes time window
+#define WIFI_MAX_DISCONNECTS 10               // Max disconnects in time window
+#define WIFI_RUNTIME_CHECK_INTERVAL 10000     // Check every 10 seconds
+```
+
+**Failure Scenarios Detected:**
+
+1. **Provisioning Hang** - Provisioning started but no connection after 5 minutes
+2. **Excessive Disconnects** - More than 10 disconnects within 10 minutes
+
+**Implementation** (PoolController.ino main loop):
+```cpp
+// Check every 10 seconds
+if (now - lastWiFiRuntimeCheck >= WIFI_RUNTIME_CHECK_INTERVAL) {
+  lastWiFiRuntimeCheck = now;
+
+  // Check for provisioning hang
+  if (isProvisioningHung()) {
+    handleWiFiRuntimeFailure("Provisioning timeout - no response for 5 minutes");
+  }
+
+  // Check for excessive disconnections
+  int recentDisconnects = getRecentDisconnectCount();
+  if (recentDisconnects >= WIFI_MAX_DISCONNECTS) {
+    handleWiFiRuntimeFailure("Excessive disconnects (10 in 10 minutes)");
+  }
+}
+```
+
+**Runtime Tracking Functions** (StateManager.cpp):
+```cpp
+void recordWiFiDisconnect();           // Called on WiFi disconnect event
+int getRecentDisconnectCount();        // Count disconnects in time window
+bool isProvisioningHung();             // Check if provisioning timed out
+void clearWiFiRuntimeTracking();       // Clear tracking on successful connection
+```
+
+**Disconnect Tracking Algorithm:**
+- Circular buffer stores last 10 disconnect timestamps
+- `getRecentDisconnectCount()` counts how many are within WIFI_DISCONNECT_WINDOW
+- Handles millis() overflow (uses MILLIS_OVERFLOW_THRESHOLD)
+
+**Recovery Handler** (PoolController.ino):
+```cpp
+void handleWiFiRuntimeFailure(const char* reason) {
+  LOG_ERRORF("WiFi Runtime Failure: %s", reason);
+  WiFi.disconnect(true, true);       // Clear credentials
+  resetWiFiFailureCount();           // Reset boot counter
+  clearWiFiRuntimeTracking();        // Clear runtime tracking
+  displayWiFiReset();                // Show message on LCD
+  delay(WIFI_FAILURE_RESET_DELAY);   // Let user read message
+  ESP.restart();                     // Reboot to provisioning mode
+}
+```
+
+#### State Variables
+
+**WiFi Connection State:**
+```cpp
+state.wifiConnected      // Current WiFi connection status
+state.blynkConnected     // Blynk cloud connection status
+state.sinricConnected    // SinricPro connection status
+```
+
+**Provisioning State:**
+```cpp
+state.provisioningActive      // Currently in provisioning mode
+state.provisioningStartTime   // When provisioning started (for timeout detection)
+```
+
+**Runtime Tracking State:**
+```cpp
+state.disconnectCount                      // Total disconnect count
+state.disconnectTimestamps[10]             // Last 10 disconnect times (circular buffer)
+```
+
+#### Offline Mode
+
+**Important:** The system is designed to work **fully offline** if WiFi fails:
+- Local controls (buttons) always work
+- LCD display always works
+- Pump and heater can be controlled manually
+- Safety interlocks remain active
+- Only cloud features (Blynk, Alexa) are unavailable
+
+**Graceful Degradation:**
+```cpp
+// In main loop - only run cloud services if connected
+if (wifiConnected) {
+  Blynk.run();
+  blynkTimer.run();
+  handleSinricEvents();
+  handleOTA();
+}
+```
+
+#### Connectivity Handling
+
+**WiFi Event Handling:**
+```cpp
+case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+  state.wifiConnected = true;
+  clearWiFiRuntimeTracking();   // Clear disconnect tracking
+  updateLCDDisplay();
+  break;
+
+case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+  state.wifiConnected = false;
+  state.blynkConnected = false;
+  recordWiFiDisconnect();       // Track for runtime failure detection
+  updateLCDDisplay();
+  break;
+```
 
 #### NTP Time Sync
+
+**Configuration** (Config.h):
+```cpp
+#define NTP_SERVER1 "pool.ntp.org"
+#define NTP_SERVER2 "time.nist.gov"
+#define GMT_OFFSET_SEC -18000      // EST: -5 hours
+#define DAYLIGHT_OFFSET_SEC 3600   // DST: +1 hour
+```
+
+**Initialization** (PoolController.ino setup):
 ```cpp
 configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER1, NTP_SERVER2);
 ```
-Used for operating hours enforcement.
+
+Used for operating hours enforcement in HeaterControl.cpp.
+
+#### Summary
+
+The WiFi management system provides:
+- ✅ **Easy provisioning** via BLE and mobile app
+- ✅ **Automatic recovery** from boot failures (5 consecutive failures → reset credentials)
+- ✅ **Runtime monitoring** (provisioning hangs, excessive disconnects)
+- ✅ **Persistent credentials** stored in ESP32 flash
+- ✅ **Graceful offline mode** - local controls always work
+- ✅ **Millis() overflow handling** in disconnect tracking
+- ✅ **User feedback** via LCD display during failures
+
+This ensures the pool controller remains operational and automatically recovers from WiFi issues without manual intervention.
 
 ### 15. Version Control and Git
 
