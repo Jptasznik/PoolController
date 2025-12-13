@@ -3,6 +3,8 @@
 #define LOG_MODULE "OTA"
 
 #include "ESP32OTAHelper.h"
+#include <WiFi.h>
+#include <WiFiClient.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Update.h>
