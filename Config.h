@@ -120,6 +120,8 @@
 
 #define ENABLE_WIFI_PROV            1
 
+// These enable BlueTooth Provisioning, but will likely create a binary too big for a 4 MB chip with OTA enabled
+//
 // #define CONFIG_BLUEDROID_ENABLED_1  1
 // #define CONFIG_NIMBLE_ENABLED_1    1
 
@@ -161,12 +163,5 @@
 #define MIN_LOG_BUFFER_SIZE 12    // Minimum log entries in NVS
 #define MAX_LOG_BUFFER_SIZE 100   // Maximum log entries in NVS
 #define DEFAULT_LOG_BUFFER_SIZE 12  // Default buffer size
-
-// ============================================
-// OTA (OVER-THE-AIR) UPDATE CONFIGURATION
-// ============================================
-#define ENABLE_SINRIC_OTA 1                   // Enable SinricPro OTA updates
-#define OTA_UPDATE_TIMEOUT 300000              // 5 minutes - max time for OTA update
-#define OTA_SAFETY_SHUTDOWN_DELAY 2000         // 2 seconds - delay before starting OTA
 
 #endif // CONFIG_H
