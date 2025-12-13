@@ -32,6 +32,7 @@ StateManager.h/cpp           # Centralized state management
 StateMutex.h/cpp             # Thread-safe state access
 I2CMutex.h/cpp               # Thread-safe I2C bus access
 TaskManager.h/cpp            # FreeRTOS task management
+MessageQueue.h/cpp           # FreeRTOS message queues for inter-task communication
 Logger.h/cpp                 # Structured logging framework
 CredentialsManager.h/cpp     # Secure credential storage in flash
 SettingsManager.h/cpp        # Flash storage persistence
@@ -488,13 +489,98 @@ Each task has its own watchdog timer configured with appropriate timeouts:
 
 #### Task Synchronization
 
-Tasks coordinate through the shared `SystemState` structure:
+Tasks coordinate through two mechanisms:
 
-1. **Sensor Tasks** → Write sensor readings to state (with mutex)
-2. **Control Task** → Read state, make decisions, write commands (with mutex)
-3. **Output Tasks** → Read state, update displays/relays (with mutex)
+**1. Shared State (Legacy)**
+- Tasks access shared `SystemState` structure with mutexes
+- Centralized state management functions in `StateManager.cpp`
+- Thread-safe via `StateMutex` protection
 
-The centralized state management functions in `StateManager.cpp` are thread-safe and can be called from any task.
+**2. Message Queues (Recommended)**
+- Tasks communicate via FreeRTOS message queues
+- Decouples tasks from direct state modification
+- Clear data flow and event handling
+- Defined in `MessageQueue.h/cpp`
+
+#### Message Queue System
+
+The system provides **three message queues** for inter-task communication:
+
+**Control Queue** (`controlQueue`)
+- **Purpose**: Sensor data and control commands
+- **Size**: 10 messages
+- **Producers**: Temperature task, current monitor task, button task
+- **Consumers**: Control system task
+- **Messages**: Temperature updates, current readings, button presses, pump/heater commands
+
+**Display Queue** (`displayQueue`)
+- **Purpose**: Display update requests
+- **Size**: 5 messages (can drop if full)
+- **Producers**: Control task, button task, network handlers
+- **Consumers**: LCD update task
+- **Messages**: Display update requests, refresh commands
+
+**Event Queue** (`eventQueue`)
+- **Purpose**: System events for logging and monitoring
+- **Size**: 20 messages
+- **Producers**: All tasks
+- **Consumers**: Main loop (for logging/telemetry)
+- **Messages**: Cooldown events, connection status changes, runtime updates
+
+**Message Queue Usage Example:**
+
+```cpp
+// Sending a temperature update (in TemperatureSensorTask)
+Message msg = createTemperatureMessage(inlet, heater, ambient, valid);
+if (!sendToControlQueue(&msg)) {
+  LOG_WARN("Control queue full!");
+}
+
+// Receiving messages (in ControlSystemTask)
+Message msg;
+if (receiveFromControlQueue(&msg, QUEUE_RECEIVE_TIMEOUT_MS)) {
+  switch (msg.type) {
+    case MSG_TEMPERATURE_UPDATE:
+      float inletTemp = msg.payload.temperature.inletTemp;
+      // Process temperature data
+      break;
+
+    case MSG_BUTTON_PRESS:
+      uint8_t button = msg.payload.button.buttonNumber;
+      // Handle button press
+      break;
+  }
+}
+```
+
+**Available Message Types:**
+- `MSG_TEMPERATURE_UPDATE` - Sensor readings
+- `MSG_CURRENT_UPDATE` - Current measurement
+- `MSG_BUTTON_PRESS` - Button event
+- `MSG_PUMP_COMMAND` - Pump control
+- `MSG_HEATER_COMMAND` - Heater control
+- `MSG_TARGET_TEMP_CHANGE` - Temperature setpoint
+- `MSG_DISPLAY_UPDATE_REQUEST` - Display refresh
+- `MSG_COOLDOWN_START/END` - Cooldown events
+- `MSG_WIFI_STATUS_CHANGE` - Network events
+
+**Helper Functions:**
+```cpp
+// Queue status
+uint32_t waiting = getControlQueueWaiting();
+
+// Message creation helpers
+Message msg1 = createTemperatureMessage(72.5, 75.0, 68.0, true);
+Message msg2 = createButtonMessage(BUTTON_TEMP_UP, false);
+Message msg3 = createPumpCommandMessage(PUMP_HIGH, false);
+```
+
+**Benefits:**
+- **Decoupling**: Tasks don't need direct access to each other
+- **Thread Safety**: Built-in synchronization
+- **Event-Driven**: React to events rather than polling
+- **Debugging**: Trace message flow easily
+- **Reliability**: Messages queued even if consumer is busy
 
 #### Adding New Tasks
 
@@ -637,8 +723,181 @@ V16 - Log buffer size (read/write) - 12-100 entries
 - Thermostat device: Pool Heater (temperature control)
 - Dimmer Switch device: Pool Pump (speed control via percentage)
 - Credentials in `sinric_config.h`
+- **OTA Update Support** - Remote firmware updates via SinricPro
 
-### 8. Common Development Tasks
+### 8. Over-The-Air (OTA) Updates
+
+The system supports **remote firmware updates** via SinricPro OTA. This allows you to update the ESP32 firmware remotely via the SinricPro dashboard without physical access to the device.
+
+#### OTA Configuration
+
+**Enable/Disable OTA** in Config.h:
+```cpp
+#define ENABLE_SINRIC_OTA 1                    // 1=enabled, 0=disabled
+#define OTA_UPDATE_TIMEOUT 300000              // 5 minutes max (not currently enforced)
+#define OTA_SAFETY_SHUTDOWN_DELAY 2000         // 2 second delay before OTA
+```
+
+**Firmware Version** in Config.h (at the top of the file):
+```cpp
+#define FIRMWARE_VERSION "1.0.0"  // Format: "major.minor.patch"
+```
+
+Increment the version number in Config.h when creating new firmware for OTA distribution.
+
+#### Required Files
+
+The OTA implementation requires these helper files (from SinricPro SDK):
+
+- **ESP32OTAHelper.h** - Handles HTTPS download and firmware installation
+- **SemVer.h** - Semantic version comparison class
+
+These files are included in the project and based on the official SinricPro example at:
+https://github.com/sinricpro/esp8266-esp32-sdk/tree/master/examples/OTAUpdate
+
+#### Safety Features
+
+The OTA implementation includes **critical safety measures**:
+
+1. **Version Comparison** - Only installs newer firmware (unless forced)
+2. **Heater Shutdown** - Heater is immediately disabled before OTA starts
+3. **Pump Control** - Pump is turned OFF if safe (respects cooldown interlock)
+4. **State Persistence** - Runtime state saved before OTA
+5. **LCD Warning** - Display shows "DO NOT POWER OFF" during update
+6. **Error Reporting** - Errors sent back to SinricPro dashboard
+7. **Auto-Recovery** - System continues with old firmware if OTA fails
+
+#### OTA Process Flow
+
+```cpp
+1. User uploads .bin firmware to SinricPro dashboard with version number
+2. SinricPro sends OTA update command to device
+3. handleOTAUpdate() callback triggered with URL and version info:
+   - Compare current version vs new version (semantic versioning)
+   - Return false if already up-to-date (unless force update flag set)
+   - Set OTA in progress flag
+   - Disable heater and save to NVS
+   - Turn pump OFF (if safe, respects cooldown interlock)
+   - Display "OTA UPDATE - DO NOT POWER OFF" on LCD
+   - 2-second hardware stabilization delay
+   - Save runtime state to NVS
+4. startOtaUpdate(url) performs the actual update:
+   - Download firmware via HTTPS (SSL/TLS)
+   - Write to flash using ESP32 Update library
+   - Update.onProgress() callback updates LCD display in real-time:
+     * Shows percentage progress (0-100%)
+     * Shows bytes downloaded (KB format)
+     * Updates every 5% or every 50KB
+   - All progress logged via LOG_INFO
+   - Automatically restart device on success
+5. Device reboots with new firmware
+6. If OTA fails at any step:
+   - Error message sent to SinricPro dashboard
+   - OTA in progress flag cleared
+   - System returns to normal operation with old firmware
+```
+
+#### LCD Display During OTA
+
+The 20x4 LCD shows real-time OTA progress:
+
+```
+Line 0:   OTA UPDATE
+Line 1:   Progress:  XX%
+Line 2:   DO NOT POWER OFF
+Line 3:   XXX/YYY KB
+```
+
+**Example progression:**
+- Initial: "Progress:   0%    0/512 KB"
+- Midway:  "Progress:  47%  241/512 KB"
+- Final:   "Progress: 100%  512/512 KB"
+
+The display updates automatically as firmware downloads, providing visual feedback without requiring serial monitor access.
+
+#### OTA Callbacks (SinricIntegration.cpp)
+
+```cpp
+// SinricPro OTA Callback (registered in initSinric):
+bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool forceUpdate);
+```
+
+**Parameters:**
+- `url` - HTTPS URL to firmware binary
+- `major, minor, patch` - New firmware version numbers
+- `forceUpdate` - If true, install regardless of version comparison
+
+**Returns:**
+- `true` - Update initiated successfully (device will restart)
+- `false` - Update rejected or failed (error message set via SinricPro.setResponseMessage())
+
+#### Using OTA Updates
+
+**From SinricPro Dashboard:**
+1. Log into SinricPro portal at https://sinric.pro
+2. Navigate to your Pool Controller device
+3. Click "OTA Update" or "Firmware Update" option
+4. Upload compiled .bin firmware file and specify version number
+5. SinricPro will send the update to the device
+6. Monitor progress on device LCD and serial logs
+
+**Preparing Firmware Binary:**
+
+*Arduino IDE:*
+1. Update FIRMWARE_VERSION in Config.h (e.g., "1.0.1")
+2. Sketch → Export compiled Binary
+3. Find .bin file in sketch folder/build directory
+4. Upload to SinricPro dashboard with matching version number
+
+*PlatformIO:*
+1. Update FIRMWARE_VERSION in Config.h (e.g., "1.0.1")
+2. Run "Build" task
+3. Find .bin file in .pio/build/<environment>/ directory
+4. Upload to SinricPro dashboard with matching version number
+
+**Important Notes:**
+- **Increment version** - Always increment FIRMWARE_VERSION in Config.h when creating new builds
+- **Never power off** during OTA update
+- **Wait for completion** - takes 1-3 minutes typically depending on firmware size and network speed
+- **Stable WiFi required** - OTA will fail on poor connection
+- **Heater disabled** - Will not automatically re-enable after OTA
+- **Manual verification** - Check system status after OTA completes
+- **SinricPro connection required** - Device must be connected to SinricPro to receive OTA updates
+- **Version check** - Device will reject updates to same or older version (unless forced)
+
+#### Troubleshooting OTA
+
+**OTA Fails to Start:**
+- Check SinricPro connection: `state.sinricConnected` should be true
+- Verify ENABLE_SINRIC_OTA is set to 1 in Config.h
+- Verify WiFi is connected and stable
+- Check SinricPro credentials are configured correctly
+- Try rebooting ESP32 and waiting for SinricPro connection
+
+**OTA Update Not Available in Dashboard:**
+- Verify your SinricPro account has OTA update feature enabled
+- Check that the device is online in SinricPro dashboard
+- Ensure firmware binary is valid ESP32 .bin file
+
+**OTA Timeout:**
+- Improve WiFi signal strength (move ESP32 closer to router or use WiFi extender)
+- Upload smaller firmware (disable unused features in Config.h)
+- Try during off-peak network hours
+- Check internet connection speed (upload and download)
+
+**System Doesn't Restart:**
+- Check serial logs for error messages
+- Manually restart via reset button
+- System will boot with old firmware if OTA failed
+- Check SinricPro dashboard for OTA status/error messages
+
+**Heater Won't Re-Enable After OTA:**
+- This is intentional - verify system is working correctly first
+- Manually enable heater via Blynk, Alexa, or physical button
+- Check for any safety lockouts (failsafe, overheat)
+- Verify all sensors are reading valid temperatures
+
+### 9. Common Development Tasks
 
 #### Adding a New Virtual Pin to Blynk
 

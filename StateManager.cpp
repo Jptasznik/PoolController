@@ -69,6 +69,25 @@ void initSystemState() {
   }
 
   state.emergencyShutdown = false;
+
+  // Initialize failsafe mode
+  state.inFailsafeMode = false;
+  state.failsafeEnterTime = 0;
+  state.failsafeReason[0] = '\0';
+
+  // Initialize overheat protection
+  state.overheatLockout = false;
+  state.overheatDetectedTime = 0;
+
+  // Initialize runtime state tracking
+  state.bootCount = 0;
+  state.crashCount = 0;
+  state.totalPumpRuntime = 0;
+
+  // Initialize OTA update state
+  state.otaInProgress = false;
+  state.otaStartTime = 0;
+  state.otaVersion[0] = '\0';
 }
 
 // ============================================
@@ -78,6 +97,17 @@ void initSystemState() {
 void setHeaterEnabledState(bool enabled) {
   if (state.emergencyShutdown && enabled) {
     LOG_WARN("Cannot enable heater during emergency shutdown");
+    return;
+  }
+
+  if (state.inFailsafeMode && enabled) {
+    LOG_ERROR("Cannot enable heater while in FAILSAFE MODE");
+    return;
+  }
+
+  if (state.overheatLockout && enabled) {
+    LOG_ERROR("Cannot enable heater - OVERHEAT LOCKOUT active");
+    LOG_ERROR("Clear lockout manually after verifying system safety");
     return;
   }
 
@@ -241,6 +271,113 @@ void clearEmergencyShutdown() {
   }
   LOG_INFO("Emergency shutdown cleared");
   updateLCDDisplay();
+}
+
+// ============================================
+// FAILSAFE MODE
+// ============================================
+
+void enterFailsafeMode(const char* reason) {
+  LOG_ERROR("!!! ENTERING FAILSAFE MODE !!!");
+  LOG_ERRORF("Reason: %s", reason);
+
+  // CRITICAL: Immediately disable heater hardware FIRST (no mutex delay for safety)
+  digitalWrite(HEATER_PIN, LOW);
+
+  // Force pump to LOW speed for water circulation (safety)
+  digitalWrite(PUMP_ENABLE_PIN, HIGH);
+  digitalWrite(PUMP_SPEED_PIN, LOW);
+
+  // Update state with mutex protection
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      state.inFailsafeMode = true;
+      state.failsafeEnterTime = millis();
+      strncpy(state.failsafeReason, reason, sizeof(state.failsafeReason) - 1);
+      state.failsafeReason[sizeof(state.failsafeReason) - 1] = '\0';  // Ensure null termination
+
+      // Force heater OFF
+      state.heaterEnabled = false;
+      state.heaterStatus = HEATER_OFF;
+
+      // Force pump to LOW speed (minimum circulation)
+      state.pumpState = PUMP_LOW;
+
+      // End any cooldown (failsafe takes priority)
+      state.inCooldown = false;
+    } else {
+      // If we can't get the lock, still set these directly for safety
+      state.inFailsafeMode = true;
+      state.failsafeEnterTime = millis();
+      strncpy(state.failsafeReason, reason, sizeof(state.failsafeReason) - 1);
+      state.failsafeReason[sizeof(state.failsafeReason) - 1] = '\0';
+      state.heaterEnabled = false;
+      state.heaterStatus = HEATER_OFF;
+      state.pumpState = PUMP_LOW;
+      state.inCooldown = false;
+    }
+  }
+
+  // Save disabled heater state to NVS
+  saveHeaterEnabled(false);
+
+  // Log to NVS for post-mortem analysis
+  LOG_ERROR("Failsafe event logged to NVS");
+
+  // Update all interfaces
+  updateLCDDisplay();
+  syncHeaterToBlynk();
+  syncPumpToBlynk();
+  syncHeaterToSinric();
+  syncPumpToSinric();
+
+  LOG_WARN("System in FAILSAFE MODE - manual intervention required");
+}
+
+void clearFailsafeMode() {
+  bool wasInFailsafe;
+
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      wasInFailsafe = state.inFailsafeMode;
+      state.inFailsafeMode = false;
+      state.failsafeEnterTime = 0;
+      state.failsafeReason[0] = '\0';
+    } else {
+      return;
+    }
+  }
+
+  if (wasInFailsafe) {
+    LOG_INFO("Failsafe mode cleared - system ready for operation");
+    updateLCDDisplay();
+  }
+}
+
+// ============================================
+// OVERHEAT PROTECTION
+// ============================================
+
+void clearOverheatLockout() {
+  bool wasInLockout;
+
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      wasInLockout = state.overheatLockout;
+      state.overheatLockout = false;
+      state.overheatDetectedTime = 0;
+    } else {
+      return;
+    }
+  }
+
+  if (wasInLockout) {
+    LOG_INFO("Overheat lockout cleared - heater may be enabled");
+    updateLCDDisplay();
+  }
 }
 
 // ============================================

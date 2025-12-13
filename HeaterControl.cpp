@@ -5,6 +5,7 @@
 #include "Config.h"
 #include "StateManager.h"
 #include "StateMutex.h"
+#include "SettingsManager.h"
 #include "PumpControl.h"
 
 // ============================================
@@ -25,6 +26,9 @@ void initHeaterControl() {
 // ============================================
 
 void runControlSystem() {
+  // CRITICAL SAFETY: Check for overheat condition FIRST
+  checkEmergencyOverheat();
+
   // Check if heater should be on (this function handles mutex internally)
   bool shouldBeOn = shouldHeaterBeOn();
 
@@ -197,4 +201,59 @@ bool shouldHeaterBeOn() {
 
   // All conditions met - heater should be ON
   return true;
+}
+
+// ============================================
+// EMERGENCY OVERHEAT PROTECTION
+// ============================================
+
+void checkEmergencyOverheat() {
+  bool heaterTempValid, inFailsafeMode, overheatLockout;
+  float heaterTemp;
+
+  // Read critical state with mutex
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to check overheat (mutex timeout)");
+      return;
+    }
+
+    heaterTempValid = state.heaterTempValid;
+    heaterTemp = state.heaterTemp;
+    inFailsafeMode = state.inFailsafeMode;
+    overheatLockout = state.overheatLockout;
+  }
+
+  // Only check if we have valid temperature and not already in failsafe/lockout
+  if (!heaterTempValid || inFailsafeMode || overheatLockout) {
+    return;
+  }
+
+  // CRITICAL: Check for overheat condition
+  if (heaterTemp > MAX_HEATER_TEMP) {
+    LOG_ERROR("!!! EMERGENCY: HEATER OVERHEAT DETECTED !!!");
+    LOG_ERRORF("Heater temp: %.1f°F (max: %.1f°F)", heaterTemp, MAX_HEATER_TEMP);
+
+    // Immediate hardware shutdown (critical safety)
+    digitalWrite(HEATER_PIN, LOW);
+
+    // Set overheat lockout state
+    {
+      StateScopedLock stateLock;
+      if (stateLock.isLocked()) {
+        state.overheatLockout = true;
+        state.overheatDetectedTime = millis();
+      }
+    }
+
+    // Enter failsafe mode
+    enterFailsafeMode("HEATER_OVERHEAT");
+
+    // Disable heater in settings (requires manual re-enable)
+    saveHeaterEnabled(false);
+
+    LOG_ERROR("OVERHEAT LOCKOUT active - manual intervention required!");
+    LOG_ERROR("System will NOT automatically recover");
+  }
 }

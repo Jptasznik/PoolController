@@ -15,6 +15,7 @@ PoolController/
 ├── StateMutex.h/.cpp           # Thread-safe state access
 ├── I2CMutex.h/.cpp             # Thread-safe I2C bus access
 ├── TaskManager.h/.cpp          # FreeRTOS task management
+├── MessageQueue.h/.cpp         # FreeRTOS message queues for inter-task communication
 ├── Logger.h/.cpp               # Structured logging with NVS persistence
 ├── SettingsManager.h/.cpp      # Flash storage (Preferences)
 ├── CredentialsManager.h/.cpp   # Secure credential storage
@@ -28,7 +29,7 @@ PoolController/
 
 **Note:** Blynk cloud connectivity is implemented directly in PoolController.ino
 
-**Architecture:** This system uses FreeRTOS multitasking with 6 concurrent tasks, each with its own watchdog timer. All I2C and state access is protected by mutexes for thread safety. The system features comprehensive structured logging with NVS persistence and remote control capabilities.
+**Architecture:** This system uses FreeRTOS multitasking with 6 concurrent tasks communicating via message queues, each with its own watchdog timer. All I2C and state access is protected by mutexes for thread safety. The system features comprehensive structured logging with NVS persistence, event-driven inter-task communication, and remote control capabilities.
 ```
 
 ## Quick Start Guide

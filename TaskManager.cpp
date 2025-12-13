@@ -5,6 +5,7 @@
 #include "Config.h"
 #include "StateManager.h"
 #include "StateMutex.h"
+#include "MessageQueue.h"
 #include "TemperatureSensors.h"
 #include "CurrentMonitor.h"
 #include "LCDDisplay.h"
@@ -221,6 +222,9 @@ void initTasks() {
   LOG_INFO("========================================");
   LOG_INFO("Initializing FreeRTOS Tasks");
   LOG_INFO("========================================");
+
+  // Initialize message queues first (tasks need them)
+  initMessageQueues();
 
   BaseType_t result;
 

@@ -5,9 +5,16 @@
 #include "Config.h"
 #include "StateManager.h"
 #include "CredentialsManager.h"
+#include "SettingsManager.h"
+#include "LCDDisplay.h"
 #include <SinricPro.h>
 #include <SinricProThermostat.h>
 #include <SinricProDimSwitch.h>
+
+#if ENABLE_SINRIC_OTA
+#include "ESP32OTAHelper.h"
+#include "SemVer.h"
+#endif
 
 // ============================================
 // ALEXA THERMOSTAT CALLBACKS
@@ -102,6 +109,94 @@ bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
 }
 
 // ============================================
+// OTA UPDATE CALLBACK
+// ============================================
+
+#if ENABLE_SINRIC_OTA
+
+// OTA Update callback - called when SinricPro sends OTA command
+// Returns: true if update initiated successfully, false otherwise
+bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool forceUpdate) {
+  LOG_INFO("========================================");
+  LOG_INFO("OTA UPDATE REQUEST RECEIVED");
+  LOG_INFO("========================================");
+
+  // Version comparison
+  Version currentVersion = Version(FIRMWARE_VERSION);
+  Version newVersion = Version(String(major) + "." + String(minor) + "." + String(patch));
+  bool updateAvailable = newVersion > currentVersion;
+
+  LOG_INFOF("URL: %s", url.c_str());
+  LOG_INFOF("Current version: %s", currentVersion.toString().c_str());
+  LOG_INFOF("New version: %s", newVersion.toString().c_str());
+  if (forceUpdate) LOG_INFO("Force update flag is SET");
+
+  // Check if update should proceed
+  if (!forceUpdate && !updateAvailable) {
+    String result = "Current version is up to date";
+    SinricPro.setResponseMessage(std::move(result));
+    LOG_INFO(result.c_str());
+    return false;
+  }
+
+  if (updateAvailable) {
+    LOG_INFO("Update available - proceeding with OTA");
+  } else {
+    LOG_INFO("Forced update - proceeding with OTA");
+  }
+
+  // Set OTA in progress flag
+  state.otaInProgress = true;
+  state.otaStartTime = millis();
+  snprintf(state.otaVersion, sizeof(state.otaVersion), "%d.%d.%d", major, minor, patch);
+
+  // CRITICAL SAFETY: Disable heater immediately
+  LOG_WARN("SAFETY: Disabling heater for OTA update");
+  setHeaterEnabledState(false);
+  digitalWrite(HEATER_PIN, LOW);
+  saveHeaterEnabled(false);
+
+  // Force pump to OFF if safe
+  if (canPumpTurnOff()) {
+    LOG_INFO("SAFETY: Turning pump OFF for OTA update");
+    setPumpState(PUMP_OFF);
+  } else {
+    LOG_WARN("Pump remains ON during OTA (safety interlock)");
+  }
+
+  // Display OTA update on LCD
+  displayOTAUpdate();
+
+  // Small delay for hardware to stabilize
+  delay(OTA_SAFETY_SHUTDOWN_DELAY);
+
+  // Save runtime state before OTA
+  saveRuntimeState();
+
+  LOG_INFO("Hardware secured - starting OTA download");
+
+  // Perform the OTA update
+  String result = startOtaUpdate(url);
+
+  if (!result.isEmpty()) {
+    // Update failed
+    LOG_ERRORF("OTA update failed: %s", result.c_str());
+    SinricPro.setResponseMessage(std::move(result));
+
+    // Clear OTA in progress flag
+    state.otaInProgress = false;
+
+    return false;
+  }
+
+  // If we reach here, update succeeded and device will restart
+  // This line should never be reached because startOtaUpdate calls ESP.restart()
+  return true;
+}
+
+#endif // ENABLE_SINRIC_OTA
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -130,6 +225,14 @@ void initSinric() {
   SinricPro.begin(getSinricAppKey(), getSinricAppSecret());
 
   LOG_INFO("Sinric Pro initialized");
+
+#if ENABLE_SINRIC_OTA
+  // Register OTA update callback with SinricPro
+  SinricPro.onOTAUpdate(handleOTAUpdate);
+  LOG_INFOF("SinricPro OTA update callback registered (version: %s)", FIRMWARE_VERSION);
+#else
+  LOG_WARN("SinricPro OTA updates disabled (ENABLE_SINRIC_OTA=0)");
+#endif
 }
 
 // ============================================
@@ -138,9 +241,16 @@ void initSinric() {
 
 void handleSinricEvents() {
   SinricPro.handle();
-  
+
   // Update connection status
   state.sinricConnected = SinricPro.isConnected();
+}
+
+void handleOTA() {
+#if ENABLE_SINRIC_OTA
+  // SinricPro handles OTA internally after onOTAUpdate callback
+  // No additional handling needed in loop - SinricPro.handle() manages OTA
+#endif
 }
 
 // ============================================

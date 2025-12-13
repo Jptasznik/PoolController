@@ -47,4 +47,8 @@ void resetWiFiFailureCount();
 float loadCurrentCalibration();
 void saveCurrentCalibration(float offset);
 
+// Runtime state persistence (for crash recovery)
+void saveRuntimeState();
+void loadRuntimeState();
+
 #endif // SETTINGS_MANAGER_H

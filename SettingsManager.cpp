@@ -365,3 +365,111 @@ void saveCurrentCalibration(float offset) {
     LOG_ERROR("Preferences mutex timeout in saveCurrentCalibration");
   }
 }
+
+// ============================================
+// RUNTIME STATE PERSISTENCE (CRASH RECOVERY)
+// ============================================
+
+void saveRuntimeState() {
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, false);
+
+    // Save boot and crash counts
+    preferences.putUInt("bootCount", state.bootCount);
+    preferences.putUInt("crashCount", state.crashCount);
+
+    // Save cooldown state
+    preferences.putBool("inCooldown", state.inCooldown);
+    preferences.putULong("cooldownStart", state.cooldownStartTime);
+
+    // Save total runtime
+    preferences.putULong("totalRuntime", state.totalPumpRuntime);
+
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+
+    LOG_DEBUG("Runtime state saved to NVS");
+  } else {
+    LOG_ERROR("Preferences mutex timeout in saveRuntimeState");
+  }
+}
+
+void loadRuntimeState() {
+  if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+    preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
+
+    // Load boot and crash counts
+    state.bootCount = preferences.getUInt("bootCount", 0);
+    state.crashCount = preferences.getUInt("crashCount", 0);
+
+    // Load cooldown state
+    state.inCooldown = preferences.getBool("inCooldown", false);
+    state.cooldownStartTime = preferences.getULong("cooldownStart", 0);
+
+    // Load total runtime
+    state.totalPumpRuntime = preferences.getULong("totalRuntime", 0);
+
+    preferences.end();
+    xSemaphoreGive(preferencesMutex);
+
+    LOG_INFO("Runtime state loaded from NVS:");
+    LOG_INFOF("  Boot count: %u", state.bootCount);
+    LOG_INFOF("  Crash count: %u", state.crashCount);
+    LOG_INFOF("  In cooldown: %d", state.inCooldown);
+    LOG_INFOF("  Total runtime: %lu ms", state.totalPumpRuntime);
+  } else {
+    LOG_ERROR("Preferences mutex timeout in loadRuntimeState");
+  }
+
+  // Increment boot count and save
+  state.bootCount++;
+
+  // Check ESP32 reset reason
+  esp_reset_reason_t reset_reason = esp_reset_reason();
+
+  switch (reset_reason) {
+    case ESP_RST_POWERON:
+      LOG_INFO("Boot reason: Power-on reset");
+      break;
+
+    case ESP_RST_SW:
+      LOG_INFO("Boot reason: Software reset (ESP.restart())");
+      break;
+
+    case ESP_RST_PANIC:
+      LOG_ERROR("Boot reason: Exception/panic (CRASH!)");
+      state.crashCount++;
+      LOG_ERRORF("Total crashes detected: %u", state.crashCount);
+      break;
+
+    case ESP_RST_INT_WDT:
+      LOG_ERROR("Boot reason: Interrupt watchdog timeout (CRASH!)");
+      state.crashCount++;
+      LOG_ERRORF("Total crashes detected: %u", state.crashCount);
+      break;
+
+    case ESP_RST_TASK_WDT:
+      LOG_ERROR("Boot reason: Task watchdog timeout (CRASH!)");
+      state.crashCount++;
+      LOG_ERRORF("Total crashes detected: %u", state.crashCount);
+      break;
+
+    case ESP_RST_WDT:
+      LOG_ERROR("Boot reason: Other watchdog reset (CRASH!)");
+      state.crashCount++;
+      LOG_ERRORF("Total crashes detected: %u", state.crashCount);
+      break;
+
+    case ESP_RST_BROWNOUT:
+      LOG_ERROR("Boot reason: Brownout detector reset (POWER ISSUE!)");
+      LOG_WARN("Check power supply - voltage may be insufficient");
+      break;
+
+    default:
+      LOG_WARNF("Boot reason: Unknown (%d)", reset_reason);
+      break;
+  }
+
+  // Save updated counts
+  saveRuntimeState();
+}

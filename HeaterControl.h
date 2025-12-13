@@ -19,4 +19,7 @@ void applyHeaterState();
 // Determine if heater should be on based on all conditions
 bool shouldHeaterBeOn();
 
+// Emergency overheat protection check
+void checkEmergencyOverheat();
+
 #endif // HEATER_CONTROL_H
