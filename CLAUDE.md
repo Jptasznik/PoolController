@@ -734,44 +734,79 @@ The system supports **remote firmware updates** via SinricPro OTA. This allows y
 **Enable/Disable OTA** in Config.h:
 ```cpp
 #define ENABLE_SINRIC_OTA 1                    // 1=enabled, 0=disabled
-#define OTA_UPDATE_TIMEOUT 300000              // 5 minutes max
+#define OTA_UPDATE_TIMEOUT 300000              // 5 minutes max (not currently enforced)
 #define OTA_SAFETY_SHUTDOWN_DELAY 2000         // 2 second delay before OTA
 ```
+
+**Firmware Version** in PoolController.ino (MUST be defined BEFORE any includes):
+```cpp
+#define FIRMWARE_VERSION "1.0.0"  // Format: "major.minor.patch"
+```
+
+Increment the version number when creating new firmware for OTA distribution.
+
+#### Required Files
+
+The OTA implementation requires these helper files (from SinricPro SDK):
+
+- **ESP32OTAHelper.h** - Handles HTTPS download and firmware installation
+- **SemVer.h** - Semantic version comparison class
+
+These files are included in the project and based on the official SinricPro example at:
+https://github.com/sinricpro/esp8266-esp32-sdk/tree/master/examples/OTAUpdate
 
 #### Safety Features
 
 The OTA implementation includes **critical safety measures**:
 
-1. **Heater Shutdown** - Heater is immediately disabled before OTA starts
-2. **Pump Control** - Pump is turned OFF if safe (no cooldown active)
-3. **State Persistence** - Runtime state saved before OTA
-4. **LCD Warning** - Display shows "DO NOT POWER OFF" during update
-5. **Auto-Recovery** - System continues with old firmware if OTA fails
+1. **Version Comparison** - Only installs newer firmware (unless forced)
+2. **Heater Shutdown** - Heater is immediately disabled before OTA starts
+3. **Pump Control** - Pump is turned OFF if safe (respects cooldown interlock)
+4. **State Persistence** - Runtime state saved before OTA
+5. **LCD Warning** - Display shows "DO NOT POWER OFF" during update
+6. **Error Reporting** - Errors sent back to SinricPro dashboard
+7. **Auto-Recovery** - System continues with old firmware if OTA fails
 
 #### OTA Process Flow
 
 ```cpp
-1. SinricPro sends OTA update command from dashboard
-2. onOTAUpdate() callback triggered:
+1. User uploads .bin firmware to SinricPro dashboard with version number
+2. SinricPro sends OTA update command to device
+3. handleOTAUpdate() callback triggered with URL and version info:
+   - Compare current version vs new version (semantic versioning)
+   - Return false if already up-to-date (unless force update flag set)
    - Set OTA in progress flag
-   - Heater disabled and saved to NVS
-   - Pump turned OFF (if safe)
-   - LCD shows "OTA UPDATE - DO NOT POWER OFF"
-   - 2-second delay for hardware stabilization
-   - Runtime state saved to NVS
-3. SinricPro library handles firmware download and installation
-4. System reboots with new firmware (if successful)
-5. If OTA fails, system returns to normal operation with old firmware
+   - Disable heater and save to NVS
+   - Turn pump OFF (if safe, respects cooldown interlock)
+   - Display "OTA UPDATE - DO NOT POWER OFF" on LCD
+   - 2-second hardware stabilization delay
+   - Save runtime state to NVS
+4. startOtaUpdate(url) performs the actual update:
+   - Download firmware via HTTPS (SSL/TLS)
+   - Write to flash using ESP32 Update library
+   - Automatically restart device on success
+5. Device reboots with new firmware
+6. If OTA fails at any step:
+   - Error message sent to SinricPro dashboard
+   - OTA in progress flag cleared
+   - System returns to normal operation with old firmware
 ```
 
 #### OTA Callbacks (SinricIntegration.cpp)
 
 ```cpp
-void handleOTA();               // Handle OTA in loop (call from main loop)
-
 // SinricPro OTA Callback (registered in initSinric):
-void onOTAUpdate();            // Prepare system for OTA update
+bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool forceUpdate);
 ```
+
+**Parameters:**
+- `url` - HTTPS URL to firmware binary
+- `major, minor, patch` - New firmware version numbers
+- `forceUpdate` - If true, install regardless of version comparison
+
+**Returns:**
+- `true` - Update initiated successfully (device will restart)
+- `false` - Update rejected or failed (error message set via SinricPro.setResponseMessage())
 
 #### Using OTA Updates
 
@@ -779,28 +814,33 @@ void onOTAUpdate();            // Prepare system for OTA update
 1. Log into SinricPro portal at https://sinric.pro
 2. Navigate to your Pool Controller device
 3. Click "OTA Update" or "Firmware Update" option
-4. Upload compiled .bin firmware file
-5. Monitor progress on device LCD and serial logs
+4. Upload compiled .bin firmware file and specify version number
+5. SinricPro will send the update to the device
+6. Monitor progress on device LCD and serial logs
 
 **Preparing Firmware Binary:**
 
 *Arduino IDE:*
-1. Sketch → Export compiled Binary
-2. Find .bin file in sketch folder/build directory
-3. Upload to SinricPro dashboard
+1. Update FIRMWARE_VERSION in PoolController.ino (e.g., "1.0.1")
+2. Sketch → Export compiled Binary
+3. Find .bin file in sketch folder/build directory
+4. Upload to SinricPro dashboard with matching version number
 
 *PlatformIO:*
-1. Run "Build" task
-2. Find .bin file in .pio/build/<environment>/ directory
-3. Upload to SinricPro dashboard
+1. Update FIRMWARE_VERSION in PoolController.ino (e.g., "1.0.1")
+2. Run "Build" task
+3. Find .bin file in .pio/build/<environment>/ directory
+4. Upload to SinricPro dashboard with matching version number
 
 **Important Notes:**
+- **Increment version** - Always increment FIRMWARE_VERSION when creating new builds
 - **Never power off** during OTA update
 - **Wait for completion** - takes 1-3 minutes typically depending on firmware size and network speed
 - **Stable WiFi required** - OTA will fail on poor connection
 - **Heater disabled** - Will not automatically re-enable after OTA
 - **Manual verification** - Check system status after OTA completes
 - **SinricPro connection required** - Device must be connected to SinricPro to receive OTA updates
+- **Version check** - Device will reject updates to same or older version (unless forced)
 
 #### Troubleshooting OTA
 

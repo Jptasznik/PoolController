@@ -12,7 +12,8 @@
 #include <SinricProDimSwitch.h>
 
 #if ENABLE_SINRIC_OTA
-// OTA support is provided by SinricPro library
+#include "ESP32OTAHelper.h"
+#include "SemVer.h"
 #endif
 
 // ============================================
@@ -114,24 +115,48 @@ bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
 #if ENABLE_SINRIC_OTA
 
 // OTA Update callback - called when SinricPro sends OTA command
-void onOTAUpdate() {
+// Returns: true if update initiated successfully, false otherwise
+bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool forceUpdate) {
   LOG_INFO("========================================");
-  LOG_INFO("OTA UPDATE STARTING");
+  LOG_INFO("OTA UPDATE REQUEST RECEIVED");
   LOG_INFO("========================================");
+
+  // Version comparison
+  Version currentVersion = Version(FIRMWARE_VERSION);
+  Version newVersion = Version(String(major) + "." + String(minor) + "." + String(patch));
+  bool updateAvailable = newVersion > currentVersion;
+
+  LOG_INFOF("URL: %s", url.c_str());
+  LOG_INFOF("Current version: %s", currentVersion.toString().c_str());
+  LOG_INFOF("New version: %s", newVersion.toString().c_str());
+  if (forceUpdate) LOG_INFO("Force update flag is SET");
+
+  // Check if update should proceed
+  if (!forceUpdate && !updateAvailable) {
+    String result = "Current version is up to date";
+    SinricPro.setResponseMessage(std::move(result));
+    LOG_INFO(result.c_str());
+    return false;
+  }
+
+  if (updateAvailable) {
+    LOG_INFO("Update available - proceeding with OTA");
+  } else {
+    LOG_INFO("Forced update - proceeding with OTA");
+  }
 
   // Set OTA in progress flag
   state.otaInProgress = true;
   state.otaStartTime = millis();
+  snprintf(state.otaVersion, sizeof(state.otaVersion), "%d.%d.%d", major, minor, patch);
 
   // CRITICAL SAFETY: Disable heater immediately
   LOG_WARN("SAFETY: Disabling heater for OTA update");
   setHeaterEnabledState(false);
   digitalWrite(HEATER_PIN, LOW);
-
-  // Save heater disabled state
   saveHeaterEnabled(false);
 
-  // Force pump to OFF if safe (OTA should be quick)
+  // Force pump to OFF if safe
   if (canPumpTurnOff()) {
     LOG_INFO("SAFETY: Turning pump OFF for OTA update");
     setPumpState(PUMP_OFF);
@@ -148,8 +173,25 @@ void onOTAUpdate() {
   // Save runtime state before OTA
   saveRuntimeState();
 
-  LOG_INFO("Hardware secured - ready for OTA update");
-  LOG_INFO("SinricPro will now handle the update process");
+  LOG_INFO("Hardware secured - starting OTA download");
+
+  // Perform the OTA update
+  String result = startOtaUpdate(url);
+
+  if (!result.isEmpty()) {
+    // Update failed
+    LOG_ERRORF("OTA update failed: %s", result.c_str());
+    SinricPro.setResponseMessage(std::move(result));
+
+    // Clear OTA in progress flag
+    state.otaInProgress = false;
+
+    return false;
+  }
+
+  // If we reach here, update succeeded and device will restart
+  // This line should never be reached because startOtaUpdate calls ESP.restart()
+  return true;
 }
 
 #endif // ENABLE_SINRIC_OTA
@@ -186,8 +228,8 @@ void initSinric() {
 
 #if ENABLE_SINRIC_OTA
   // Register OTA update callback with SinricPro
-  SinricPro.onOTAUpdate(onOTAUpdate);
-  LOG_INFO("SinricPro OTA update callback registered");
+  SinricPro.onOTAUpdate(handleOTAUpdate);
+  LOG_INFOF("SinricPro OTA update callback registered (version: %s)", FIRMWARE_VERSION);
 #else
   LOG_WARN("SinricPro OTA updates disabled (ENABLE_SINRIC_OTA=0)");
 #endif
