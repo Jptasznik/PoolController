@@ -19,5 +19,6 @@ void displayFactoryReset();
 void displayWiFiProvisioning();
 void displayWiFiReset();
 void displayOTAUpdate();
+void displayOTAProgress(unsigned int progress, unsigned int total);
 
 #endif // LCD_DISPLAY_H

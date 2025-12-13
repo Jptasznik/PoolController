@@ -2,6 +2,13 @@
 #define CONFIG_H
 
 // ============================================
+// FIRMWARE VERSION (MUST BE FIRST - REQUIRED BY SINRICPRO)
+// ============================================
+// Format: "major.minor.patch" (semantic versioning)
+// Increment this when creating new firmware for OTA updates
+#define FIRMWARE_VERSION "1.0.0"
+
+// ============================================
 // PIN DEFINITIONS
 // ============================================
 

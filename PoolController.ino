@@ -17,15 +17,9 @@
  */
 
 // ============================================
-// FIRMWARE VERSION (MUST BE DEFINED BEFORE SINRICPRO.H)
-// ============================================
-// Format: "major.minor.patch" (semantic versioning)
-// Increment this when creating new firmware for OTA updates
-#define FIRMWARE_VERSION "1.0.0"
-
-// ============================================
 // INCLUDES
 // ============================================
+// NOTE: FIRMWARE_VERSION is defined in Config.h
 
 #include "Config.h"
 #include "StateManager.h"
