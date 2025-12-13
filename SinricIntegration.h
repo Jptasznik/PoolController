@@ -13,6 +13,9 @@ void initSinric();
 // Handle Sinric Pro events (call in loop)
 void handleSinricEvents();
 
+// Handle OTA updates (call in loop)
+void handleOTA();
+
 // Sync current state to Alexa
 void syncHeaterToSinric();
 void syncPumpToSinric();

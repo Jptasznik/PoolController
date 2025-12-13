@@ -624,6 +624,7 @@ void loop() {
   // Run Sinric Pro (Alexa)
   if (wifiConnected) {
     handleSinricEvents();
+    handleOTA();  // Handle Arduino OTA updates
   }
 
   // Check for WiFi runtime failures periodically

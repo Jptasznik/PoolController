@@ -727,13 +727,13 @@ V16 - Log buffer size (read/write) - 12-100 entries
 
 ### 8. Over-The-Air (OTA) Updates
 
-The system supports **remote firmware updates** via SinricPro OTA capability. This allows you to update the ESP32 firmware without physical access to the device.
+The system supports **remote firmware updates** via Arduino OTA. This allows you to update the ESP32 firmware over WiFi without physical access to the device.
 
 #### OTA Configuration
 
 **Enable/Disable OTA** in Config.h:
 ```cpp
-#define ENABLE_SINRIC_OTA 1                    // 1=enabled, 0=disabled
+#define ENABLE_SINRIC_OTA 1                    // 1=enabled, 0=disabled (name kept for compatibility)
 #define OTA_UPDATE_TIMEOUT 300000              // 5 minutes max
 #define OTA_SAFETY_SHUTDOWN_DELAY 2000         // 2 second delay before OTA
 ```
@@ -752,39 +752,53 @@ The OTA implementation includes **critical safety measures**:
 #### OTA Process Flow
 
 ```cpp
-1. SinricPro sends OTA update command
-2. onOTAStart() callback triggered:
+1. Arduino IDE or PlatformIO sends OTA update command over WiFi
+2. ArduinoOTA.onStart() callback triggered:
    - Heater disabled and saved to NVS
    - Pump turned OFF (if safe)
    - LCD shows "OTA UPDATE - DO NOT POWER OFF"
    - 2-second delay for hardware stabilization
 3. Firmware download begins
-4. onOTAProgress() called periodically:
+4. ArduinoOTA.onProgress() called periodically:
    - Logs progress every 10%
    - Checks for timeout (5 minutes)
-5. onOTAEnd() callback:
-   - Success: Save runtime state, display message, restart in 3 seconds
-   - Failure: Log error, return to normal operation
+5. ArduinoOTA.onEnd() callback:
+   - Save runtime state, display message
+   - System automatically restarts
 6. System reboots with new firmware (if successful)
+7. If OTA fails, ArduinoOTA.onError() callback:
+   - Log error, return to normal operation
 ```
 
 #### OTA Callbacks (SinricIntegration.cpp)
 
 ```cpp
-void onOTAStart();              // Prepare system for OTA
-void onOTAProgress(unsigned int progress, unsigned int total);  // Track progress
-void onOTAEnd(bool success);    // Handle completion
-void onOTAError(int error);     // Handle errors
+void setupOTA();                // Initialize Arduino OTA service
+void handleOTA();               // Handle OTA in loop (call from main loop)
+
+// Arduino OTA Callbacks (configured in setupOTA):
+ArduinoOTA.onStart()           // Prepare system for OTA
+ArduinoOTA.onProgress()        // Track progress
+ArduinoOTA.onEnd()             // Handle completion
+ArduinoOTA.onError()           // Handle errors
 ```
 
 #### Using OTA Updates
 
-**From SinricPro Dashboard:**
-1. Log into SinricPro portal
-2. Navigate to your Pool Controller device
-3. Click "OTA Update"
-4. Upload compiled .bin firmware file
-5. Monitor progress on device LCD and serial logs
+**From Arduino IDE:**
+1. Ensure ESP32 is connected to same WiFi network
+2. Select Tools → Port → "pool-controller at <IP address>"
+3. Click Upload button
+4. Monitor progress via Serial Monitor
+
+**From PlatformIO:**
+1. Configure OTA in platformio.ini:
+   ```ini
+   upload_protocol = espota
+   upload_port = pool-controller.local  ; or IP address
+   ```
+2. Run "Upload" task
+3. Monitor progress in terminal
 
 **Important Notes:**
 - **Never power off** during OTA update
@@ -795,17 +809,24 @@ void onOTAError(int error);     // Handle errors
 
 #### Troubleshooting OTA
 
-**OTA Fails to Start:**
-- Check SinricPro connection: `state.sinricConnected`
+**OTA Port Not Showing in Arduino IDE:**
+- Verify WiFi is connected: `state.wifiConnected`
 - Verify ENABLE_SINRIC_OTA is set to 1
-- Check WiFi signal strength
+- Check that ESP32 is on same network as computer
+- Try rebooting ESP32 and waiting 30 seconds
+
+**OTA Upload Fails:**
+- Check WiFi signal strength (RSSI > -70 dBm is good)
+- Ensure firewall allows port 3232 (ESP32 OTA port)
+- Try uploading smaller firmware (disable unused features)
+- Upload during off-peak network hours
 
 **OTA Timeout:**
-- Improve WiFi signal
-- Upload smaller firmware (disable unused features)
-- Try during off-peak hours
+- Improve WiFi signal (move ESP32 closer to router)
+- Check for network congestion
+- Increase OTA_UPDATE_TIMEOUT in Config.h
 
-**System Doesn't Restart:**
+**System Doesn't Restart After OTA:**
 - Check serial logs for error messages
 - Manually restart via reset button
 - System will boot with old firmware if OTA failed
