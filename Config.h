@@ -11,6 +11,14 @@
 #define FIRMWARE_VERSION "1.0.0"
 
 // ============================================
+// HARDWARE TESTING MODE
+// ============================================
+// Uncomment to run without hardware connected (for testing/development)
+// Disables failsafe triggers and hardware-dependent safety reboots
+// WARNING: Only use for development - NOT for production
+// #define NO_HARDWARE
+
+// ============================================
 // PIN DEFINITIONS
 // ============================================
 

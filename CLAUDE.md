@@ -1028,6 +1028,75 @@ Always verify:
 3. Cooldown prevents pump OFF for 15 minutes
 4. Invalid temp reading disables heater
 
+#### NO_HARDWARE Testing Mode
+
+For development and testing **without physical hardware** connected, the system includes a `NO_HARDWARE` mode that disables safety code that would otherwise trigger reboots or failsafe modes.
+
+**Enable NO_HARDWARE mode** in Config.h:
+```cpp
+// HARDWARE TESTING MODE
+// Uncomment to run without hardware connected (for testing/development)
+// Disables failsafe triggers and hardware-dependent safety reboots
+// WARNING: Only use for development - NOT for production
+#define NO_HARDWARE
+```
+
+**What NO_HARDWARE mode does:**
+
+1. **Starts all FreeRTOS tasks normally** - All 5 concurrent tasks run (temperature, current, LCD, buttons, control)
+2. **Disables failsafe triggers** - Sensor failures log warnings instead of entering failsafe mode
+3. **Disables hardware safety reboots** - WiFi failures and validation timeouts don't restart ESP32
+4. **Logs warnings instead** - All skipped safety actions are logged as warnings for debugging
+
+**Safety code disabled in NO_HARDWARE mode:**
+
+| Location | Condition | Normal Behavior | NO_HARDWARE Behavior |
+|----------|-----------|-----------------|---------------------|
+| TemperatureSensors.cpp | Both sensors failed | `enterFailsafeMode("CRITICAL_SENSOR_FAILURE")` | Log warning only |
+| TemperatureSensors.cpp | Inlet sensor failed | `enterFailsafeMode("INLET_SENSOR_FAILURE")` | Log warning only |
+| HeaterControl.cpp | Heater overheat (>110°F) | Hardware shutdown + failsafe + lockout | Log warning only |
+| PoolController.ino | WiFi runtime failure | `ESP.restart()` (credential reset) | Log warning only |
+| PoolController.ino | WiFi boot failures (5+) | `ESP.restart()` (credential reset) | Log warning only |
+
+**What still works in NO_HARDWARE mode:**
+- ✅ All tasks execute normally
+- ✅ State management and logic
+- ✅ Control system decisions
+- ✅ Logging framework
+- ✅ Serial monitor output
+- ✅ User-initiated factory reset (Button 5 held)
+- ✅ OTA updates (if WiFi connected)
+
+**What won't work without hardware:**
+- ❌ Temperature sensor readings (will show invalid/NaN)
+- ❌ Current sensor readings (will show 0.0A)
+- ❌ LCD display updates (I2C device not found)
+- ❌ Physical button presses (I2C device not found)
+- ❌ Pump/heater relay control (GPIOs may not respond)
+- ❌ WiFi provisioning (may fail without proper hardware)
+
+**Use cases:**
+- **Code logic testing** - Verify control algorithms without hardware
+- **Development** - Work on features without physical setup
+- **Debugging** - Test state management and flow control
+- **Simulation** - Run system with mock data
+
+**Important warnings:**
+- ⚠️ **NEVER use NO_HARDWARE in production** - Safety interlocks are critical
+- ⚠️ **Always test on hardware** before deploying - simulator won't catch everything
+- ⚠️ **Re-enable safety** - Comment out `#define NO_HARDWARE` before production upload
+- ⚠️ **Monitor logs** - Watch for "NO_HARDWARE mode: Skipping..." warnings
+
+**Example log output in NO_HARDWARE mode:**
+```
+[12345] [ERR] [TEMP] CRITICAL: Both inlet and heater sensors failed!
+[12346] [WRN] [TEMP] NO_HARDWARE mode: Skipping failsafe trigger for sensor failure
+[23456] [ERR] [HEATER] !!! EMERGENCY: HEATER OVERHEAT DETECTED !!!
+[23457] [WRN] [HEATER] NO_HARDWARE mode: Skipping failsafe trigger for overheat
+[34567] [WRN] [MAIN] WiFi Runtime Failure: Credential validation timeout (1 minute)
+[34568] [WRN] [MAIN] NO_HARDWARE mode: Skipping restart for WiFi runtime failure
+```
+
 ### 10. Coding Conventions
 
 #### Naming Conventions

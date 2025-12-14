@@ -371,7 +371,11 @@ void handleWiFiRuntimeFailure(const char* reason) {
   delay(WIFI_FAILURE_RESET_DELAY);
 
   // Restart ESP32
+#ifndef NO_HARDWARE
   ESP.restart();
+#else
+  LOG_WARN("NO_HARDWARE mode: Skipping restart for WiFi runtime failure");
+#endif
 }
 
 // ============================================
@@ -506,7 +510,11 @@ void setup() {
     delay(WIFI_FAILURE_RESET_DELAY);
 
     // Restart ESP32
+#ifndef NO_HARDWARE
     ESP.restart();
+#else
+    LOG_WARN("NO_HARDWARE mode: Skipping restart for WiFi boot failure");
+#endif
   }
 
   // ============================================
