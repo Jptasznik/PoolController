@@ -487,6 +487,46 @@ Each task has its own watchdog timer configured with appropriate timeouts:
 
 **Important:** Each task calls `esp_task_wdt_reset()` at the start of every loop iteration. If a task hangs, the watchdog will trigger a system reset.
 
+**Disabling Watchdogs for Debugging:**
+
+For debugging task hangs or performance issues, watchdog timers can be disabled using the `DISABLE_WATCHDOG` define in Config.h:
+
+```cpp
+// WATCHDOG DEBUGGING MODE
+// Uncomment to disable all watchdog timers (for debugging/development)
+// Allows running tasks without watchdog resets (useful for debugging hangs)
+// WARNING: Only use for debugging - NOT for production
+#define DISABLE_WATCHDOG
+```
+
+When enabled:
+- All watchdog initialization code is skipped (`esp_task_wdt_init`, `esp_task_wdt_add`)
+- All watchdog reset calls are skipped (`esp_task_wdt_reset`)
+- Warning messages logged at startup indicating watchdogs are disabled
+- Tasks run normally but won't trigger system resets on hangs
+
+**Use cases for DISABLE_WATCHDOG:**
+- Debugging task hangs with breakpoints (watchdog would normally trigger during debugging)
+- Performance profiling (watchdog resets interfere with measurements)
+- Testing infinite loop recovery logic
+- Development without worrying about watchdog timeouts
+
+**Important warnings:**
+- ⚠️ **NEVER use in production** - Watchdogs are critical for system reliability
+- ⚠️ **Tasks can hang indefinitely** without watchdog protection
+- ⚠️ **Re-enable before deployment** - Comment out `#define DISABLE_WATCHDOG`
+- ⚠️ **Monitor for hangs** - Without watchdogs, you must manually detect task failures
+
+**Example log output with DISABLE_WATCHDOG:**
+```
+[1234] [WRN] [MAIN] DISABLE_WATCHDOG: Main task watchdog timer disabled
+[2345] [WRN] [TASKS] DISABLE_WATCHDOG: Temperature task watchdog disabled
+[2456] [WRN] [TASKS] DISABLE_WATCHDOG: Current monitor task watchdog disabled
+[2567] [WRN] [TASKS] DISABLE_WATCHDOG: LCD update task watchdog disabled
+[2678] [WRN] [TASKS] DISABLE_WATCHDOG: Button scan task watchdog disabled
+[2789] [WRN] [TASKS] DISABLE_WATCHDOG: Control system task watchdog disabled
+```
+
 #### Task Synchronization
 
 Tasks coordinate through two mechanisms:

@@ -578,6 +578,7 @@ void setup() {
   updateLCDDisplay();
 
   // Initialize watchdog timer (main task: 30 second timeout)
+#ifndef DISABLE_WATCHDOG
   LOG_INFO("Initializing main task watchdog timer...");
   esp_task_wdt_config_t wdt_config = {
     .timeout_ms = 30000,      // 30 seconds in milliseconds
@@ -586,6 +587,9 @@ void setup() {
   esp_task_wdt_init(&wdt_config);  // Initialize with config struct
   esp_task_wdt_add(NULL);          // Add main task to watchdog
   LOG_INFO("Main task watchdog timer enabled (30s timeout)");
+#else
+  LOG_WARN("DISABLE_WATCHDOG: Main task watchdog timer disabled");
+#endif
 
   // Start FreeRTOS tasks (each task has its own watchdog)
   initTasks();
@@ -603,7 +607,9 @@ void setup() {
 
 void loop() {
   // Reset watchdog timer at start of every loop iteration
+#ifndef DISABLE_WATCHDOG
   esp_task_wdt_reset();
+#endif
 
   unsigned long now = millis();
 

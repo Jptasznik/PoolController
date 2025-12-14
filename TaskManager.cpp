@@ -31,15 +31,21 @@ void temperatureSensorTask(void* parameter) {
   LOG_INFO("Temperature sensor task started");
 
   // Add this task to watchdog
+#ifndef DISABLE_WATCHDOG
   esp_task_wdt_add(NULL);
   LOG_DEBUG("Temperature task watchdog timer added");
+#else
+  LOG_WARN("DISABLE_WATCHDOG: Temperature task watchdog disabled");
+#endif
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(TEMP_READ_INTERVAL);
 
   for (;;) {
     // Reset watchdog
+#ifndef DISABLE_WATCHDOG
     esp_task_wdt_reset();
+#endif
 
     // Read all temperature sensors
     readTemperatures();
@@ -57,15 +63,21 @@ void currentMonitorTask(void* parameter) {
   LOG_INFO("Current monitor task started");
 
   // Add this task to watchdog
+#ifndef DISABLE_WATCHDOG
   esp_task_wdt_add(NULL);
   LOG_DEBUG("Current task watchdog timer added");
+#else
+  LOG_WARN("DISABLE_WATCHDOG: Current monitor task watchdog disabled");
+#endif
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(CURRENT_READ_INTERVAL);
 
   for (;;) {
     // Reset watchdog
+#ifndef DISABLE_WATCHDOG
     esp_task_wdt_reset();
+#endif
 
     // Read pump current
     readPumpCurrent();
@@ -83,15 +95,21 @@ void lcdUpdateTask(void* parameter) {
   LOG_INFO("LCD update task started");
 
   // Add this task to watchdog
+#ifndef DISABLE_WATCHDOG
   esp_task_wdt_add(NULL);
   LOG_DEBUG("LCD task watchdog timer added");
+#else
+  LOG_WARN("DISABLE_WATCHDOG: LCD update task watchdog disabled");
+#endif
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(LCD_UPDATE_INTERVAL);
 
   for (;;) {
     // Reset watchdog
+#ifndef DISABLE_WATCHDOG
     esp_task_wdt_reset();
+#endif
 
     // Update LCD display
     updateLCDDisplay();
@@ -109,15 +127,21 @@ void buttonScanTask(void* parameter) {
   LOG_INFO("Button scan task started");
 
   // Add this task to watchdog
+#ifndef DISABLE_WATCHDOG
   esp_task_wdt_add(NULL);
   LOG_DEBUG("Button task watchdog timer added");
+#else
+  LOG_WARN("DISABLE_WATCHDOG: Button scan task watchdog disabled");
+#endif
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(BUTTON_SCAN_INTERVAL);
 
   for (;;) {
     // Reset watchdog
+#ifndef DISABLE_WATCHDOG
     esp_task_wdt_reset();
+#endif
 
     // Scan buttons
     scanButtons();
@@ -135,15 +159,21 @@ void controlSystemTask(void* parameter) {
   LOG_INFO("Control system task started");
 
   // Add this task to watchdog
+#ifndef DISABLE_WATCHDOG
   esp_task_wdt_add(NULL);
   LOG_DEBUG("Control task watchdog timer added");
+#else
+  LOG_WARN("DISABLE_WATCHDOG: Control system task watchdog disabled");
+#endif
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(CONTROL_CYCLE_INTERVAL);
 
   for (;;) {
     // Reset watchdog
+#ifndef DISABLE_WATCHDOG
     esp_task_wdt_reset();
+#endif
 
     // Update pump runtime
     updatePumpRuntime();
