@@ -62,6 +62,7 @@ public:
     uint8_t *uuid = NULL, bool reset_provisioned = false
   );
   void endProvision();
+  bool resetProvision();
   bool disableAutoStop(uint32_t cleanup_delay);
   void printQR(const char *name, const char *pop, const char *transport, Print &out = Serial);
 };

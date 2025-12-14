@@ -602,7 +602,7 @@ void setup() {
   // Start FreeRTOS tasks (each task has its own watchdog)
   #if CREATE_TASKS
     initTasks();
-    LOG_INFO("Creating tasks, monitoring hardware.")
+    LOG_INFO("Creating tasks, monitoring hardware.");
   #else
     LOG_INFO("NOT Creating tasks, not monitoring hardware.");
   #endif
