@@ -596,7 +596,7 @@ void setup() {
 #endif
 
   // Start FreeRTOS tasks (each task has its own watchdog)
-  #if CREATE_TASKS
+  #ifndef DO_NOT_CREATE_TASKS
     initTasks();
     LOG_INFO("Creating tasks, monitoring hardware.");
   #else

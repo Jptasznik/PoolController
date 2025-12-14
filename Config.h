@@ -1,8 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define CREATE_TASKS 0
-
 // ============================================
 // FIRMWARE VERSION (MUST BE FIRST - REQUIRED BY SINRICPRO)
 // ============================================
@@ -10,13 +8,20 @@
 // Increment this when creating new firmware for OTA updates
 #define FIRMWARE_VERSION "1.0.0"
 
+
+// ============================================
+// NO TASK TESTING MODE
+// ============================================
+// Uncomment to run without creating any tasks - NOT for production
+// #define DO_NOT_CREATE_TASKS
+
 // ============================================
 // HARDWARE TESTING MODE
 // ============================================
 // Uncomment to run without hardware connected (for testing/development)
 // Disables failsafe triggers and hardware-dependent safety reboots
 // WARNING: Only use for development - NOT for production
-// #define NO_HARDWARE
+#define NO_HARDWARE
 
 // ============================================
 // WATCHDOG DEBUGGING MODE
