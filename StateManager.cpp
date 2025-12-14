@@ -8,12 +8,8 @@
 #include "LCDDisplay.h"
 #include "SinricIntegration.h"
 #include "PumpControl.h"
+#include "MessageQueue.h"
 #include <time.h>
-
-// Forward declarations for Blynk sync functions (implemented in PoolController3.ino)
-void syncHeaterToBlynk();
-void syncPumpToBlynk();
-void syncTargetTempToBlynk();
 
 // Global state instance
 SystemState state;
@@ -118,9 +114,9 @@ void setHeaterEnabledState(bool enabled) {
 
   LOG_INFOF("Heater enabled state: %s", enabled ? "ENABLED" : "DISABLED");
 
-  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
-  // Main loop will sync to Blynk/Sinric on next timer cycle
-  // LCD task will update display on next cycle
+  // Queue network sync message (non-blocking, handled by network tasks)
+  Message msg = createSyncHeaterMessage();
+  sendToNetworkSyncQueue(&msg);
 }
 
 void setPumpState(PumpState newState) {
@@ -146,9 +142,9 @@ void setPumpState(PumpState newState) {
 
   LOG_INFOF("Pump state: %s", getPumpStateString());
 
-  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
-  // Main loop will sync to Blynk/Sinric on next timer cycle
-  // LCD task will update display on next cycle
+  // Queue network sync message (non-blocking, handled by network tasks)
+  Message msg = createSyncPumpMessage();
+  sendToNetworkSyncQueue(&msg);
 }
 
 void setTargetTemperature(float newTemp) {
@@ -161,9 +157,9 @@ void setTargetTemperature(float newTemp) {
 
   LOG_INFOF("Target temperature: %.1f°F", newTemp);
 
-  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
-  // Main loop will sync to Blynk/Sinric on next timer cycle
-  // LCD task will update display on next cycle
+  // Queue network sync message (non-blocking, handled by network tasks)
+  Message msg = createSyncTargetTempMessage();
+  sendToNetworkSyncQueue(&msg);
 }
 
 void setMaxRuntimeHours(float hours) {
@@ -253,11 +249,14 @@ void triggerEmergencyShutdown() {
   saveHeaterEnabled(false);
   savePumpState(PUMP_OFF);
 
-  // Update all interfaces (display only - network sync deferred to main loop)
+  // Update all interfaces (display only - network sync via queue)
   displayEmergencyShutdown();
 
-  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
-  // Main loop will sync to Blynk/Sinric on next timer cycle
+  // Queue network sync messages for both heater and pump (non-blocking)
+  Message heaterMsg = createSyncHeaterMessage();
+  sendToNetworkSyncQueue(&heaterMsg);
+  Message pumpMsg = createSyncPumpMessage();
+  sendToNetworkSyncQueue(&pumpMsg);
 }
 
 void clearEmergencyShutdown() {
@@ -325,9 +324,11 @@ void enterFailsafeMode(const char* reason) {
   // Log to NVS for post-mortem analysis
   LOG_ERROR("Failsafe event logged to NVS");
 
-  // NOTE: LCD and network sync operations removed to prevent watchdog timeouts
-  // The main loop and respective tasks will handle interface updates automatically
-  // when they detect state.inFailsafeMode is true
+  // Queue network sync messages for heater and pump (non-blocking)
+  Message heaterMsg = createSyncHeaterMessage();
+  sendToNetworkSyncQueue(&heaterMsg);
+  Message pumpMsg = createSyncPumpMessage();
+  sendToNetworkSyncQueue(&pumpMsg);
 
   LOG_WARN("System in FAILSAFE MODE - manual intervention required");
 }

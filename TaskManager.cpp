@@ -12,6 +12,8 @@
 #include "ButtonHandler.h"
 #include "HeaterControl.h"
 #include "PumpControl.h"
+#include "BlynkTask.h"
+#include "SinricTask.h"
 
 // ============================================
 // TASK HANDLES
@@ -22,6 +24,8 @@ TaskHandle_t currentTaskHandle = NULL;
 TaskHandle_t lcdTaskHandle = NULL;
 TaskHandle_t buttonTaskHandle = NULL;
 TaskHandle_t controlTaskHandle = NULL;
+TaskHandle_t blynkSyncTaskHandle = NULL;
+TaskHandle_t sinricSyncTaskHandle = NULL;
 
 // ============================================
 // TEMPERATURE SENSOR TASK
@@ -352,6 +356,38 @@ void initTasks() {
     ESP.restart();
   }
   LOG_INFO("[INIT] Control system task created");
+
+  // Create Blynk sync task
+  result = xTaskCreatePinnedToCore(
+    blynkSyncTask,
+    "BlynkSyncTask",
+    BLYNK_SYNC_TASK_STACK_SIZE,
+    NULL,
+    BLYNK_SYNC_TASK_PRIORITY,
+    &blynkSyncTaskHandle,
+    TASK_CORE_1
+  );
+  if (result != pdPASS) {
+    LOG_WARN("Failed to create Blynk sync task - network sync will be degraded");
+  } else {
+    LOG_INFO("[INIT] Blynk sync task created");
+  }
+
+  // Create Sinric sync task
+  result = xTaskCreatePinnedToCore(
+    sinricSyncTask,
+    "SinricSyncTask",
+    SINRIC_SYNC_TASK_STACK_SIZE,
+    NULL,
+    SINRIC_SYNC_TASK_PRIORITY,
+    &sinricSyncTaskHandle,
+    TASK_CORE_1
+  );
+  if (result != pdPASS) {
+    LOG_WARN("Failed to create Sinric sync task - network sync will be degraded");
+  } else {
+    LOG_INFO("[INIT] Sinric sync task created");
+  }
 
   LOG_INFO("========================================");
   LOG_INFO("All FreeRTOS tasks started successfully");

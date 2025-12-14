@@ -2,6 +2,8 @@
 
 #include "MessageQueue.h"
 #include "Logger.h"
+#include "StateMutex.h"
+#include "StateManager.h"
 
 // ============================================
 // QUEUE HANDLES
@@ -10,6 +12,7 @@
 QueueHandle_t controlQueue = NULL;
 QueueHandle_t displayQueue = NULL;
 QueueHandle_t eventQueue = NULL;
+QueueHandle_t networkSyncQueue = NULL;
 
 // ============================================
 // INITIALIZATION
@@ -40,6 +43,14 @@ void initMessageQueues() {
     LOG_ERROR("Failed to create event queue!");
   } else {
     LOG_INFOF("Event queue created (size: %d)", EVENT_QUEUE_SIZE);
+  }
+
+  // Create network sync queue
+  networkSyncQueue = xQueueCreate(NETWORK_SYNC_QUEUE_SIZE, sizeof(Message));
+  if (networkSyncQueue == NULL) {
+    LOG_ERROR("Failed to create network sync queue!");
+  } else {
+    LOG_INFOF("Network sync queue created (size: %d)", NETWORK_SYNC_QUEUE_SIZE);
   }
 
   LOG_INFO("Message queue system initialized");
@@ -95,6 +106,22 @@ bool sendToEventQueue(const Message* msg) {
   return true;
 }
 
+bool sendToNetworkSyncQueue(const Message* msg) {
+  if (networkSyncQueue == NULL || msg == NULL) {
+    return false;
+  }
+
+  BaseType_t result = xQueueSend(networkSyncQueue, msg, pdMS_TO_TICKS(QUEUE_SEND_TIMEOUT_MS));
+
+  if (result != pdTRUE) {
+    // Network sync messages can be dropped - not critical (will sync on next timer)
+    LOG_DEBUGF("Network sync queue full, dropped message type %d", msg->type);
+    return false;
+  }
+
+  return true;
+}
+
 // ============================================
 // RECEIVE FUNCTIONS
 // ============================================
@@ -126,6 +153,15 @@ bool receiveFromEventQueue(Message* msg, uint32_t timeoutMs) {
   return (result == pdTRUE);
 }
 
+bool receiveFromNetworkSyncQueue(Message* msg, uint32_t timeoutMs) {
+  if (networkSyncQueue == NULL || msg == NULL) {
+    return false;
+  }
+
+  BaseType_t result = xQueueReceive(networkSyncQueue, msg, pdMS_TO_TICKS(timeoutMs));
+  return (result == pdTRUE);
+}
+
 // ============================================
 // QUEUE STATUS FUNCTIONS
 // ============================================
@@ -149,6 +185,13 @@ uint32_t getEventQueueWaiting() {
     return 0;
   }
   return uxQueueMessagesWaiting(eventQueue);
+}
+
+uint32_t getNetworkSyncQueueWaiting() {
+  if (networkSyncQueue == NULL) {
+    return 0;
+  }
+  return uxQueueMessagesWaiting(networkSyncQueue);
 }
 
 // ============================================
@@ -215,5 +258,89 @@ Message createDisplayUpdateMessage(bool forceRefresh) {
   msg.type = MSG_DISPLAY_UPDATE_REQUEST;
   msg.timestamp = millis();
   msg.payload.displayUpdate.forceRefresh = forceRefresh;
+  return msg;
+}
+
+// ============================================
+// NETWORK SYNC MESSAGE HELPERS
+// ============================================
+
+// Helper to copy current state into network sync payload
+static void copyStateToPayload(NetworkSyncData* payload) {
+  // Copy state values while holding mutex
+  StateScopedLock stateLock;
+  if (stateLock.isLocked()) {
+    payload->heaterEnabled = state.heaterEnabled;
+    payload->heaterOn = (state.heaterStatus == HEATER_ON);
+    payload->pumpState = state.pumpState;
+    payload->targetTemp = state.targetTemp;
+    payload->inletTemp = state.inletTemp;
+    payload->heaterTemp = state.heaterTemp;
+    payload->ambientTemp = state.ambientTemp;
+    payload->pumpCurrent = state.pumpCurrent;
+    payload->pumpRuntimeToday = state.pumpRuntimeToday;
+    payload->inletTempValid = state.inletTempValid;
+    payload->heaterTempValid = state.heaterTempValid;
+    payload->ambientTempValid = state.ambientTempValid;
+    payload->currentSensorValid = state.currentSensorValid;
+    payload->wifiConnected = state.wifiConnected;
+    payload->blynkConnected = state.blynkConnected;
+    payload->sinricConnected = state.sinricConnected;
+  }
+}
+
+Message createSyncHeaterMessage() {
+  Message msg;
+  msg.type = MSG_SYNC_HEATER_STATE;
+  msg.timestamp = millis();
+  copyStateToPayload(&msg.payload.networkSync);
+  return msg;
+}
+
+Message createSyncPumpMessage() {
+  Message msg;
+  msg.type = MSG_SYNC_PUMP_STATE;
+  msg.timestamp = millis();
+  copyStateToPayload(&msg.payload.networkSync);
+  return msg;
+}
+
+Message createSyncTargetTempMessage() {
+  Message msg;
+  msg.type = MSG_SYNC_TARGET_TEMP;
+  msg.timestamp = millis();
+  copyStateToPayload(&msg.payload.networkSync);
+  return msg;
+}
+
+Message createSyncAllMessage() {
+  Message msg;
+  msg.type = MSG_SYNC_ALL_STATE;
+  msg.timestamp = millis();
+  copyStateToPayload(&msg.payload.networkSync);
+  return msg;
+}
+
+Message createSyncTemperaturesMessage() {
+  Message msg;
+  msg.type = MSG_SYNC_TEMPERATURES;
+  msg.timestamp = millis();
+  copyStateToPayload(&msg.payload.networkSync);
+  return msg;
+}
+
+Message createSyncCurrentMessage() {
+  Message msg;
+  msg.type = MSG_SYNC_CURRENT;
+  msg.timestamp = millis();
+  copyStateToPayload(&msg.payload.networkSync);
+  return msg;
+}
+
+Message createSyncRuntimeMessage() {
+  Message msg;
+  msg.type = MSG_SYNC_RUNTIME;
+  msg.timestamp = millis();
+  copyStateToPayload(&msg.payload.networkSync);
   return msg;
 }

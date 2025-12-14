@@ -50,7 +50,16 @@ enum MessageType {
   MSG_LOG_EVENT,               // Log event for processing
 
   // Runtime tracking
-  MSG_RUNTIME_UPDATE           // Pump runtime update
+  MSG_RUNTIME_UPDATE,          // Pump runtime update
+
+  // Network synchronization (Blynk/Sinric)
+  MSG_SYNC_HEATER_STATE,       // Sync heater state to cloud
+  MSG_SYNC_PUMP_STATE,         // Sync pump state to cloud
+  MSG_SYNC_TARGET_TEMP,        // Sync target temperature to cloud
+  MSG_SYNC_ALL_STATE,          // Sync all state to cloud (periodic)
+  MSG_SYNC_TEMPERATURES,       // Sync temperature readings to cloud
+  MSG_SYNC_CURRENT,            // Sync current reading to cloud
+  MSG_SYNC_RUNTIME             // Sync runtime data to cloud
 };
 
 // ============================================
@@ -109,6 +118,27 @@ struct RuntimeUpdateData {
   unsigned long durationMs;
 };
 
+// Network sync data (for Blynk/Sinric tasks)
+struct NetworkSyncData {
+  // State values to sync (copied to avoid holding mutex)
+  bool heaterEnabled;
+  bool heaterOn;
+  PumpState pumpState;
+  float targetTemp;
+  float inletTemp;
+  float heaterTemp;
+  float ambientTemp;
+  float pumpCurrent;
+  float pumpRuntimeToday;
+  bool inletTempValid;
+  bool heaterTempValid;
+  bool ambientTempValid;
+  bool currentSensorValid;
+  bool wifiConnected;
+  bool blynkConnected;
+  bool sinricConnected;
+};
+
 // ============================================
 // UNIFIED MESSAGE STRUCTURE
 // ============================================
@@ -128,6 +158,7 @@ struct Message {
     ConnectionStatusData connectionStatus;
     DisplayUpdateData displayUpdate;
     RuntimeUpdateData runtime;
+    NetworkSyncData networkSync;
   } payload;
 };
 
@@ -144,6 +175,9 @@ extern QueueHandle_t displayQueue;
 // Event queue - receives system events for logging
 extern QueueHandle_t eventQueue;
 
+// Network sync queue - receives sync requests for Blynk/Sinric
+extern QueueHandle_t networkSyncQueue;
+
 // ============================================
 // QUEUE CONFIGURATION
 // ============================================
@@ -152,6 +186,7 @@ extern QueueHandle_t eventQueue;
 #define CONTROL_QUEUE_SIZE 10      // Control decisions, sensor data
 #define DISPLAY_QUEUE_SIZE 5       // Display updates (can be dropped if full)
 #define EVENT_QUEUE_SIZE 20        // System events for logging
+#define NETWORK_SYNC_QUEUE_SIZE 10 // Network sync requests (Blynk/Sinric)
 
 // Queue timeouts (milliseconds)
 #define QUEUE_SEND_TIMEOUT_MS 10   // Non-blocking send timeout
@@ -173,17 +208,20 @@ void initMessageQueues();
 bool sendToControlQueue(const Message* msg);
 bool sendToDisplayQueue(const Message* msg);
 bool sendToEventQueue(const Message* msg);
+bool sendToNetworkSyncQueue(const Message* msg);
 
 // Receive message from queue
 // Returns true if message was received, false if timeout
 bool receiveFromControlQueue(Message* msg, uint32_t timeoutMs);
 bool receiveFromDisplayQueue(Message* msg, uint32_t timeoutMs);
 bool receiveFromEventQueue(Message* msg, uint32_t timeoutMs);
+bool receiveFromNetworkSyncQueue(Message* msg, uint32_t timeoutMs);
 
 // Get queue status
 uint32_t getControlQueueWaiting();
 uint32_t getDisplayQueueWaiting();
 uint32_t getEventQueueWaiting();
+uint32_t getNetworkSyncQueueWaiting();
 
 // ============================================
 // MESSAGE HELPERS
@@ -197,5 +235,14 @@ Message createPumpCommandMessage(PumpState newState, bool forceOverride);
 Message createHeaterCommandMessage(bool enabled, bool forceOverride);
 Message createTargetTempMessage(float newTemp);
 Message createDisplayUpdateMessage(bool forceRefresh);
+
+// Network sync message helpers
+Message createSyncHeaterMessage();
+Message createSyncPumpMessage();
+Message createSyncTargetTempMessage();
+Message createSyncAllMessage();
+Message createSyncTemperaturesMessage();
+Message createSyncCurrentMessage();
+Message createSyncRuntimeMessage();
 
 #endif // MESSAGE_QUEUE_H
