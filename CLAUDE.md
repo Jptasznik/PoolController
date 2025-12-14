@@ -1215,12 +1215,40 @@ The system includes a **comprehensive WiFi management system** with BLE provisio
 ```cpp
 void SysProvEvent(arduino_event_t *sys_event) {
   switch (sys_event->event_id) {
-    case ARDUINO_EVENT_PROV_START:           // Provisioning started
-    case ARDUINO_EVENT_PROV_CRED_RECV:       // Credentials received
-    case ARDUINO_EVENT_PROV_CRED_SUCCESS:    // Credentials accepted
-    case ARDUINO_EVENT_PROV_END:             // Provisioning complete
-    case ARDUINO_EVENT_WIFI_STA_GOT_IP:      // WiFi connected
-    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: // WiFi disconnected
+    case ARDUINO_EVENT_PROV_START:
+      // Provisioning started
+      state.provisioningActive = true;
+      state.provisioningStartTime = millis();
+      break;
+
+    case ARDUINO_EVENT_PROV_CRED_RECV:
+      // Credentials received - start validation timeout tracking
+      state.credentialsReceived = true;
+      state.credReceivedTime = millis();
+      break;
+
+    case ARDUINO_EVENT_PROV_CRED_SUCCESS:
+      // Credentials accepted - clear validation timeout
+      state.credentialsReceived = false;
+      state.credReceivedTime = 0;
+      break;
+
+    case ARDUINO_EVENT_PROV_END:
+      // Provisioning complete
+      state.provisioningActive = false;
+      break;
+
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      // WiFi connected - clear all tracking
+      state.wifiConnected = true;
+      clearWiFiRuntimeTracking();
+      break;
+
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      // WiFi disconnected - record for failure detection
+      state.wifiConnected = false;
+      recordWiFiDisconnect();
+      break;
   }
 }
 ```
@@ -1276,6 +1304,7 @@ void resetWiFiFailureCount();      // Set to 0 and save
 
 **Configuration** (Config.h):
 ```cpp
+#define WIFI_CRED_VALIDATION_TIMEOUT 60000    // 1 minute - credential validation timeout
 #define WIFI_PROVISIONING_TIMEOUT 300000      // 5 minutes max for provisioning
 #define WIFI_DISCONNECT_WINDOW 600000         // 10 minutes time window
 #define WIFI_MAX_DISCONNECTS 10               // Max disconnects in time window
@@ -1285,7 +1314,8 @@ void resetWiFiFailureCount();      // Set to 0 and save
 **Failure Scenarios Detected:**
 
 1. **Provisioning Hang** - Provisioning started but no connection after 5 minutes
-2. **Excessive Disconnects** - More than 10 disconnects within 10 minutes
+2. **Credential Validation Timeout** - Credentials received but not validated within 1 minute
+3. **Excessive Disconnects** - More than 10 disconnects within 10 minutes
 
 **Implementation** (PoolController.ino main loop):
 ```cpp
@@ -1296,6 +1326,14 @@ if (now - lastWiFiRuntimeCheck >= WIFI_RUNTIME_CHECK_INTERVAL) {
   // Check for provisioning hang
   if (isProvisioningHung()) {
     handleWiFiRuntimeFailure("Provisioning timeout - no response for 5 minutes");
+  }
+
+  // Check for credential validation timeout
+  if (state.credentialsReceived) {
+    unsigned long elapsed = now - state.credReceivedTime;
+    if (elapsed >= WIFI_CRED_VALIDATION_TIMEOUT) {
+      handleWiFiRuntimeFailure("Credential validation timeout (1 minute)");
+    }
   }
 
   // Check for excessive disconnections
@@ -1345,6 +1383,8 @@ state.sinricConnected    // SinricPro connection status
 ```cpp
 state.provisioningActive      // Currently in provisioning mode
 state.provisioningStartTime   // When provisioning started (for timeout detection)
+state.credentialsReceived     // Credentials received, waiting for validation
+state.credReceivedTime        // When credentials were received
 ```
 
 **Runtime Tracking State:**

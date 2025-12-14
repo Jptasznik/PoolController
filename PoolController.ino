@@ -388,11 +388,15 @@ void SysProvEvent(arduino_event_t *sys_event) {
       break;
 
     case ARDUINO_EVENT_PROV_CRED_RECV:
-      LOG_INFO("WiFi credentials received");
+      LOG_INFO("WiFi credentials received - waiting for validation");
+      state.credentialsReceived = true;
+      state.credReceivedTime = millis();
       break;
 
     case ARDUINO_EVENT_PROV_CRED_SUCCESS:
       LOG_INFO("WiFi credentials accepted");
+      state.credentialsReceived = false;  // Clear flag - validation successful
+      state.credReceivedTime = 0;
       break;
 
     case ARDUINO_EVENT_PROV_END:
@@ -645,6 +649,21 @@ void loop() {
     // Check for provisioning hang
     if (isProvisioningHung()) {
       handleWiFiRuntimeFailure("Provisioning timeout - no response for 5 minutes");
+    }
+
+    // Check for credential validation timeout
+    if (state.credentialsReceived) {
+      unsigned long elapsed = now - state.credReceivedTime;
+
+      // Handle millis() overflow
+      if (elapsed > MILLIS_OVERFLOW_THRESHOLD) {
+        // Overflow detected, reset tracking
+        state.credentialsReceived = false;
+        state.credReceivedTime = 0;
+      } else if (elapsed >= WIFI_CRED_VALIDATION_TIMEOUT) {
+        LOG_WARN("Credential validation timeout - credentials received but not validated");
+        handleWiFiRuntimeFailure("Credential validation timeout (1 minute)");
+      }
     }
 
     // Check for excessive disconnections

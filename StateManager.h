@@ -71,6 +71,8 @@ struct SystemState {
   // WiFi runtime failure tracking
   bool provisioningActive;
   unsigned long provisioningStartTime;
+  bool credentialsReceived;           // Credentials received, waiting for validation
+  unsigned long credReceivedTime;     // When credentials were received
   unsigned long disconnectTimestamps[WIFI_MAX_DISCONNECTS];
   int disconnectCount;
 
