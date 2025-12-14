@@ -118,10 +118,9 @@ void setHeaterEnabledState(bool enabled) {
 
   LOG_INFOF("Heater enabled state: %s", enabled ? "ENABLED" : "DISABLED");
 
-  // Update all interfaces
-  updateLCDDisplay();
-  syncHeaterToBlynk();
-  syncHeaterToSinric();
+  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
+  // Main loop will sync to Blynk/Sinric on next timer cycle
+  // LCD task will update display on next cycle
 }
 
 void setPumpState(PumpState newState) {
@@ -147,10 +146,9 @@ void setPumpState(PumpState newState) {
 
   LOG_INFOF("Pump state: %s", getPumpStateString());
 
-  // Update all interfaces
-  updateLCDDisplay();
-  syncPumpToBlynk();
-  syncPumpToSinric();
+  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
+  // Main loop will sync to Blynk/Sinric on next timer cycle
+  // LCD task will update display on next cycle
 }
 
 void setTargetTemperature(float newTemp) {
@@ -163,10 +161,9 @@ void setTargetTemperature(float newTemp) {
 
   LOG_INFOF("Target temperature: %.1f°F", newTemp);
 
-  // Update all interfaces
-  updateLCDDisplay();
-  syncTargetTempToBlynk();
-  syncTargetTempToSinric();
+  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
+  // Main loop will sync to Blynk/Sinric on next timer cycle
+  // LCD task will update display on next cycle
 }
 
 void setMaxRuntimeHours(float hours) {
@@ -256,12 +253,11 @@ void triggerEmergencyShutdown() {
   saveHeaterEnabled(false);
   savePumpState(PUMP_OFF);
 
-  // Update all interfaces
+  // Update all interfaces (display only - network sync deferred to main loop)
   displayEmergencyShutdown();
-  syncHeaterToBlynk();
-  syncPumpToBlynk();
-  syncHeaterToSinric();
-  syncPumpToSinric();
+
+  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
+  // Main loop will sync to Blynk/Sinric on next timer cycle
 }
 
 void clearEmergencyShutdown() {
@@ -272,7 +268,9 @@ void clearEmergencyShutdown() {
     }
   }
   LOG_INFO("Emergency shutdown cleared");
-  updateLCDDisplay();
+
+  // NOTE: Network sync calls removed to prevent watchdog timeouts when called from FreeRTOS tasks
+  // LCD task will update display on next cycle
 }
 
 // ============================================
@@ -327,12 +325,9 @@ void enterFailsafeMode(const char* reason) {
   // Log to NVS for post-mortem analysis
   LOG_ERROR("Failsafe event logged to NVS");
 
-  // Update all interfaces
-  updateLCDDisplay();
-  syncHeaterToBlynk();
-  syncPumpToBlynk();
-  syncHeaterToSinric();
-  syncPumpToSinric();
+  // NOTE: LCD and network sync operations removed to prevent watchdog timeouts
+  // The main loop and respective tasks will handle interface updates automatically
+  // when they detect state.inFailsafeMode is true
 
   LOG_WARN("System in FAILSAFE MODE - manual intervention required");
 }
@@ -354,7 +349,8 @@ void clearFailsafeMode() {
 
   if (wasInFailsafe) {
     LOG_INFO("Failsafe mode cleared - system ready for operation");
-    updateLCDDisplay();
+    // NOTE: LCD update removed to prevent watchdog timeouts
+    // LCD task will update display on next cycle
   }
 }
 
@@ -378,7 +374,8 @@ void clearOverheatLockout() {
 
   if (wasInLockout) {
     LOG_INFO("Overheat lockout cleared - heater may be enabled");
-    updateLCDDisplay();
+    // NOTE: LCD update removed to prevent watchdog timeouts
+    // LCD task will update display on next cycle
   }
 }
 
@@ -418,7 +415,8 @@ void startCooldown() {
       setPumpState(PUMP_LOW);  // Use centralized pump control (handles mutex)
     }
 
-    updateLCDDisplay();
+    // NOTE: LCD update removed to prevent watchdog timeouts
+    // LCD task will update display on next cycle
   }
 }
 
