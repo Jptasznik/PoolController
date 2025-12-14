@@ -8,6 +8,7 @@
 #include "StateManager.h"
 #include "StateMutex.h"
 #include <BlynkSimpleEsp32.h>
+#include <esp_task_wdt.h>
 
 // External Blynk instance (defined in PoolController.ino)
 extern BlynkWifi Blynk;
@@ -58,7 +59,7 @@ static void syncPeriodicDataToBlynk() {
   }
 
   // Sync runtime
-  Blynk.virtualWrite(VPIN_PUMP_RUNTIME, pumpRuntimeToday);
+  Blynk.virtualWrite(VPIN_PUMP_RUNTIME_TODAY, pumpRuntimeToday);
 
   // Sync pump failure alert
   Blynk.virtualWrite(VPIN_PUMP_FAILURE_ALERT, pumpFailureAlert ? 1 : 0);
@@ -150,7 +151,7 @@ void blynkSyncTask(void* parameter) {
 
         case MSG_SYNC_RUNTIME:
           LOG_DEBUG("Syncing runtime to Blynk");
-          Blynk.virtualWrite(VPIN_PUMP_RUNTIME, msg.payload.networkSync.pumpRuntimeToday);
+          Blynk.virtualWrite(VPIN_PUMP_RUNTIME_TODAY, msg.payload.networkSync.pumpRuntimeToday);
           break;
 
         case MSG_SYNC_ALL_STATE:
@@ -177,7 +178,7 @@ void blynkSyncTask(void* parameter) {
             Blynk.virtualWrite(VPIN_PUMP_CURRENT, msg.payload.networkSync.pumpCurrent);
           }
           // Runtime
-          Blynk.virtualWrite(VPIN_PUMP_RUNTIME, msg.payload.networkSync.pumpRuntimeToday);
+          Blynk.virtualWrite(VPIN_PUMP_RUNTIME_TODAY, msg.payload.networkSync.pumpRuntimeToday);
           break;
 
         default:

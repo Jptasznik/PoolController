@@ -10,6 +10,7 @@
 #include <SinricPro.h>
 #include <SinricProThermostat.h>
 #include <SinricProDimSwitch.h>
+#include <esp_task_wdt.h>
 
 // ============================================
 // PERIODIC SYNC HELPERS
