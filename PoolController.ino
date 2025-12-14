@@ -357,8 +357,10 @@ void handleWiFiRuntimeFailure(const char* reason) {
   displayWiFiReset();
 
   // Clear WiFi credentials
-  WiFi.disconnect(true, true);  // disconnect and erase stored credentials
-
+  if (!WiFiProvLite.resetProvision()) {
+    LOG_ERROR("Failed to reset the Network Credentials");
+    return;
+  }
   // Reset boot failure counter (this is a runtime failure, not boot failure)
   resetWiFiFailureCount();
 
@@ -590,7 +592,12 @@ void setup() {
   LOG_INFO("Main task watchdog timer enabled (30s timeout)");
 
   // Start FreeRTOS tasks (each task has its own watchdog)
-  initTasks();
+  #if CREATE_TASKS
+    initTasks();
+    LOG_INFO("Creating tasks, monitoring hardware.")
+  #else
+    LOG_INFO("NOT Creating tasks, not monitoring hardware.");
+  #endif
 
   LOG_INFO("\n========================================");
   LOG_INFO("System initialized - entering main loop");
