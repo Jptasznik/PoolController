@@ -105,7 +105,7 @@ struct NetworkSyncData {
 - **Stack**: 4096 words
 - **Priority**: 1 (Low - can tolerate delays)
 - **Core**: 1 (Application core)
-- **Watchdog**: 10 seconds (network can be slow)
+- **Watchdog**: 60 seconds (network operations can be very slow)
 
 **Supported Virtual Pins:**
 ```cpp
@@ -134,7 +134,7 @@ VPIN_PUMP_RUNTIME (V9)    - Pump runtime today
 - **Stack**: 4096 words
 - **Priority**: 1 (Low - can tolerate delays)
 - **Core**: 1 (Application core)
-- **Watchdog**: 10 seconds (network can be slow)
+- **Watchdog**: 60 seconds (network operations can be very slow)
 
 **Sinric Devices:**
 ```cpp
@@ -273,8 +273,8 @@ SINRIC_SYNC_TASK_PRIORITY = 1  // Low - can tolerate delays
 
 **Watchdog Timeouts:**
 ```cpp
-BLYNK_SYNC_WDT_TIMEOUT = 10000ms   // 10 seconds
-SINRIC_SYNC_WDT_TIMEOUT = 10000ms  // 10 seconds
+BLYNK_SYNC_WDT_TIMEOUT = 60000ms   // 60 seconds
+SINRIC_SYNC_WDT_TIMEOUT = 60000ms  // 60 seconds
 ```
 
 **Queue Configuration:**

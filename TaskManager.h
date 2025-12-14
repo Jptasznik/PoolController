@@ -57,8 +57,8 @@
 #define LCD_WDT_TIMEOUT 3000           // 3s (3x 1s interval)
 #define BUTTON_WDT_TIMEOUT 500         // 500ms (10x 50ms interval)
 #define CONTROL_WDT_TIMEOUT 180000     // 180s (3x 60s interval)
-#define BLYNK_SYNC_WDT_TIMEOUT 10000   // 10s - network operations can be slow
-#define SINRIC_SYNC_WDT_TIMEOUT 10000  // 10s - network operations can be slow
+#define BLYNK_SYNC_WDT_TIMEOUT 60000   // 60s - network operations can be very slow
+#define SINRIC_SYNC_WDT_TIMEOUT 60000  // 60s - network operations can be very slow
 
 // ============================================
 // TASK INITIALIZATION

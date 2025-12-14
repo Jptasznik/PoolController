@@ -16,10 +16,10 @@
 void sinricSyncTask(void* parameter) {
   LOG_INFO("Sinric sync task started");
 
-  // Add this task to watchdog
+  // Add this task to watchdog (60 second timeout for slow network operations)
 #ifndef DISABLE_WATCHDOG
   esp_task_wdt_add(NULL);
-  LOG_DEBUG("Sinric sync task watchdog timer added");
+  LOG_DEBUG("Sinric sync task watchdog timer added (60s timeout)");
 #else
   LOG_WARN("DISABLE_WATCHDOG: Sinric sync task watchdog disabled");
 #endif

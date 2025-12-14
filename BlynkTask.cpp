@@ -17,10 +17,10 @@ extern BlynkWifi Blynk;
 void blynkSyncTask(void* parameter) {
   LOG_INFO("Blynk sync task started");
 
-  // Add this task to watchdog
+  // Add this task to watchdog (60 second timeout for slow network operations)
 #ifndef DISABLE_WATCHDOG
   esp_task_wdt_add(NULL);
-  LOG_DEBUG("Blynk sync task watchdog timer added");
+  LOG_DEBUG("Blynk sync task watchdog timer added (60s timeout)");
 #else
   LOG_WARN("DISABLE_WATCHDOG: Blynk sync task watchdog disabled");
 #endif
