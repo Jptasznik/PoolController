@@ -63,6 +63,8 @@ void initSystemState() {
   // Initialize WiFi runtime failure tracking
   state.provisioningActive = false;
   state.provisioningStartTime = 0;
+  state.credentialsReceived = false;
+  state.credReceivedTime = 0;
   state.disconnectCount = 0;
   for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
     state.disconnectTimestamps[i] = 0;
@@ -648,6 +650,8 @@ bool isProvisioningHung() {
 void clearWiFiRuntimeTracking() {
   state.provisioningActive = false;
   state.provisioningStartTime = 0;
+  state.credentialsReceived = false;
+  state.credReceivedTime = 0;
   state.disconnectCount = 0;
   for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
     state.disconnectTimestamps[i] = 0;

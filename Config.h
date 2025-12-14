@@ -130,6 +130,7 @@
 // WiFi Failure Detection
 #define WIFI_MAX_BOOT_FAILURES 5        // Clear credentials after this many consecutive boot failures
 #define WIFI_FAILURE_RESET_DELAY 3000   // Delay before reset (ms)
+#define WIFI_CRED_VALIDATION_TIMEOUT 60000  // 1 minute - timeout for credential validation
 
 // WiFi Runtime Failure Detection
 #define WIFI_PROVISIONING_TIMEOUT 300000      // 5 minutes - max time for provisioning
