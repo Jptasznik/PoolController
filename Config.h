@@ -19,6 +19,14 @@
 // #define NO_HARDWARE
 
 // ============================================
+// WATCHDOG DEBUGGING MODE
+// ============================================
+// Uncomment to disable all watchdog timers (for debugging/development)
+// Allows running tasks without watchdog resets (useful for debugging hangs)
+// WARNING: Only use for debugging - NOT for production
+// #define DISABLE_WATCHDOG
+
+// ============================================
 // PIN DEFINITIONS
 // ============================================
 
