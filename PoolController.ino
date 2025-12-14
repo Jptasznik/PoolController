@@ -55,7 +55,7 @@
 // GLOBAL OBJECTS
 // ============================================
 
-BlynkTimer blynkTimer;
+// BlynkTimer removed - periodic sync now handled by BlynkSyncTask and SinricSyncTask
 
 // ============================================
 // TIMING VARIABLES
@@ -564,18 +564,10 @@ void setup() {
     // Initialize cloud services
     initBlynk();
     initSinric();
-    
-    // Setup Blynk timers
-    blynkTimer.setInterval(BLYNK_UPDATE_INTERVAL, []() {
-      syncTemperaturesToBlynk();
-      syncPumpRuntimeToBlynk();
-      syncPumpCurrentToBlynk();
-      syncPumpAlertsToBlynk();
-    });
-    
-    blynkTimer.setInterval(SINRIC_TEMP_UPDATE_INTERVAL, []() {
-      syncTargetTempToSinric();
-    });
+
+    // BlynkTimer removed - periodic sync now handled by BlynkSyncTask and SinricSyncTask
+    // BlynkSyncTask syncs temperatures/current/runtime/alerts every 2 seconds
+    // SinricSyncTask syncs target temp/inlet temp every 30 seconds
   } else {
     LOG_WARN("\nWiFi not connected - continuing in offline mode");
     LOG_INFO("WiFi will auto-connect in background when available");
@@ -651,10 +643,9 @@ void loop() {
     }
   }
 
-  // Run Blynk
+  // Run Blynk (network event processing only - sync handled by BlynkSyncTask)
   if (wifiConnected) {
     Blynk.run();
-    blynkTimer.run();
   }
 
   // Run Sinric Pro (Alexa)

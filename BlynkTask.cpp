@@ -5,10 +5,66 @@
 #include "Config.h"
 #include "MessageQueue.h"
 #include "CredentialsManager.h"
+#include "StateManager.h"
+#include "StateMutex.h"
 #include <BlynkSimpleEsp32.h>
 
 // External Blynk instance (defined in PoolController.ino)
 extern BlynkWifi Blynk;
+
+// ============================================
+// PERIODIC SYNC HELPERS
+// ============================================
+
+static void syncPeriodicDataToBlynk() {
+  if (!Blynk.connected()) return;
+
+  // Copy state with mutex protection
+  float inletTemp, heaterTemp, ambientTemp, pumpCurrent, pumpRuntimeToday;
+  bool inletValid, heaterValid, ambientValid, currentValid, pumpFailureAlert;
+
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      inletTemp = state.inletTemp;
+      heaterTemp = state.heaterTemp;
+      ambientTemp = state.ambientTemp;
+      pumpCurrent = state.pumpCurrent;
+      pumpRuntimeToday = state.pumpRuntimeToday;
+      inletValid = state.inletTempValid;
+      heaterValid = state.heaterTempValid;
+      ambientValid = state.ambientTempValid;
+      currentValid = state.currentSensorValid;
+      pumpFailureAlert = state.pumpFailureAlert;
+    } else {
+      return; // Couldn't get lock, skip this sync
+    }
+  }
+
+  // Sync temperatures
+  if (inletValid) {
+    Blynk.virtualWrite(VPIN_INLET_TEMP, inletTemp);
+  }
+  if (heaterValid) {
+    Blynk.virtualWrite(VPIN_HEATER_TEMP, heaterTemp);
+  }
+  if (ambientValid) {
+    Blynk.virtualWrite(VPIN_AMBIENT_TEMP, ambientTemp);
+  }
+
+  // Sync current
+  if (currentValid) {
+    Blynk.virtualWrite(VPIN_PUMP_CURRENT, pumpCurrent);
+  }
+
+  // Sync runtime
+  Blynk.virtualWrite(VPIN_PUMP_RUNTIME, pumpRuntimeToday);
+
+  // Sync pump failure alert
+  Blynk.virtualWrite(VPIN_PUMP_FAILURE_ALERT, pumpFailureAlert ? 1 : 0);
+
+  LOG_DEBUG("Periodic sync to Blynk complete");
+}
 
 // ============================================
 // BLYNK SYNC TASK
@@ -25,6 +81,10 @@ void blynkSyncTask(void* parameter) {
   LOG_WARN("DISABLE_WATCHDOG: Blynk sync task watchdog disabled");
 #endif
 
+  // Periodic sync timing
+  unsigned long lastPeriodicSync = 0;
+  const unsigned long periodicSyncInterval = BLYNK_UPDATE_INTERVAL; // 2 seconds
+
   // Wait for message queue messages
   Message msg;
   const uint32_t receiveTimeout = 100; // 100ms timeout for queue receive
@@ -34,6 +94,13 @@ void blynkSyncTask(void* parameter) {
 #ifndef DISABLE_WATCHDOG
     esp_task_wdt_reset();
 #endif
+
+    // Check if periodic sync is due
+    unsigned long now = millis();
+    if (now - lastPeriodicSync >= periodicSyncInterval) {
+      lastPeriodicSync = now;
+      syncPeriodicDataToBlynk();
+    }
 
     // Wait for sync message from queue
     if (receiveFromNetworkSyncQueue(&msg, receiveTimeout)) {

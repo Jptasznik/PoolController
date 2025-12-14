@@ -5,9 +5,44 @@
 #include "Config.h"
 #include "MessageQueue.h"
 #include "CredentialsManager.h"
+#include "StateManager.h"
+#include "StateMutex.h"
 #include <SinricPro.h>
 #include <SinricProThermostat.h>
 #include <SinricProDimSwitch.h>
+
+// ============================================
+// PERIODIC SYNC HELPERS
+// ============================================
+
+static void syncPeriodicDataToSinric() {
+  if (!SinricPro.isConnected() || !hasSinricCredentials()) return;
+
+  // Copy state with mutex protection
+  float targetTemp, inletTemp;
+  bool inletValid;
+
+  {
+    StateScopedLock stateLock;
+    if (stateLock.isLocked()) {
+      targetTemp = state.targetTemp;
+      inletTemp = state.inletTemp;
+      inletValid = state.inletTempValid;
+    } else {
+      return; // Couldn't get lock, skip this sync
+    }
+  }
+
+  // Sync target temperature and current temperature to thermostat
+  SinricProThermostat &thermostat = SinricPro[getSinricThermostatId()];
+  thermostat.sendTargetTemperatureEvent(targetTemp);
+
+  if (inletValid) {
+    thermostat.sendTemperatureEvent(inletTemp);
+  }
+
+  LOG_DEBUG("Periodic sync to Sinric complete");
+}
 
 // ============================================
 // SINRIC PRO SYNC TASK
@@ -24,6 +59,10 @@ void sinricSyncTask(void* parameter) {
   LOG_WARN("DISABLE_WATCHDOG: Sinric sync task watchdog disabled");
 #endif
 
+  // Periodic sync timing
+  unsigned long lastPeriodicSync = 0;
+  const unsigned long periodicSyncInterval = SINRIC_TEMP_UPDATE_INTERVAL; // 30 seconds
+
   // Wait for message queue messages
   Message msg;
   const uint32_t receiveTimeout = 100; // 100ms timeout for queue receive
@@ -33,6 +72,13 @@ void sinricSyncTask(void* parameter) {
 #ifndef DISABLE_WATCHDOG
     esp_task_wdt_reset();
 #endif
+
+    // Check if periodic sync is due
+    unsigned long now = millis();
+    if (now - lastPeriodicSync >= periodicSyncInterval) {
+      lastPeriodicSync = now;
+      syncPeriodicDataToSinric();
+    }
 
     // Wait for sync message from queue
     if (receiveFromNetworkSyncQueue(&msg, receiveTimeout)) {
