@@ -646,11 +646,22 @@ void loop() {
   // Run Blynk (network event processing only - sync handled by BlynkSyncTask)
   if (wifiConnected) {
     Blynk.run();
+
+    // Reset watchdog after Blynk.run() (can block for extended periods on slow networks)
+#ifndef DISABLE_WATCHDOG
+    esp_task_wdt_reset();
+#endif
   }
 
   // Run Sinric Pro (Alexa)
   if (wifiConnected) {
     handleSinricEvents();
+
+    // Reset watchdog after SinricPro (can block for extended periods on slow networks)
+#ifndef DISABLE_WATCHDOG
+    esp_task_wdt_reset();
+#endif
+
     handleOTA();  // Handle Arduino OTA updates
   }
 

@@ -181,6 +181,11 @@ void controlSystemTask(void* parameter) {
     // Run heater control logic
     runControlSystem();
 
+    // Reset watchdog after control logic (multiple state locks and operations)
+#ifndef DISABLE_WATCHDOG
+    esp_task_wdt_reset();
+#endif
+
     // Check for pump failure (pump should be running but no current detected)
     bool pumpFailure = isPumpFailureDetected();
     bool currentPumpFailureAlert;
