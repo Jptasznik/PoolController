@@ -111,20 +111,28 @@ void readTemperatures() {
       }
     }
 
+#ifndef NO_HARDWARE
     // Enter failsafe mode if not already in it
     if (!state.inFailsafeMode) {
       enterFailsafeMode("CRITICAL_SENSOR_FAILURE");
     }
     return;
+#else
+    LOG_WARN("NO_HARDWARE mode: Skipping failsafe trigger for sensor failure");
+#endif
   }
 
   // Check for single critical sensor failure
   if (!inletValid) {
     LOG_ERROR("CRITICAL: Inlet temperature sensor failure!");
+#ifndef NO_HARDWARE
     // Enter failsafe if not already in it
     if (!state.inFailsafeMode) {
       enterFailsafeMode("INLET_SENSOR_FAILURE");
     }
+#else
+    LOG_WARN("NO_HARDWARE mode: Skipping failsafe trigger for inlet sensor failure");
+#endif
   }
 
   // Update state with mutex protection

@@ -235,6 +235,7 @@ void checkEmergencyOverheat() {
     LOG_ERROR("!!! EMERGENCY: HEATER OVERHEAT DETECTED !!!");
     LOG_ERRORF("Heater temp: %.1f°F (max: %.1f°F)", heaterTemp, MAX_HEATER_TEMP);
 
+#ifndef NO_HARDWARE
     // Immediate hardware shutdown (critical safety)
     digitalWrite(HEATER_PIN, LOW);
 
@@ -255,5 +256,8 @@ void checkEmergencyOverheat() {
 
     LOG_ERROR("OVERHEAT LOCKOUT active - manual intervention required!");
     LOG_ERROR("System will NOT automatically recover");
+#else
+    LOG_WARN("NO_HARDWARE mode: Skipping failsafe trigger for overheat");
+#endif
   }
 }
