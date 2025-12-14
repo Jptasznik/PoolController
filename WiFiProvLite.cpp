@@ -1,3 +1,5 @@
+#define LOG_MODULE "WIFIPROV"
+
 /*
     WiFiProv.cpp - WiFiProv class for provisioning
     All rights reserved.
@@ -19,6 +21,7 @@
 */
 
 #include "config.h"
+#include "logger.h"
 #include "soc/soc_caps.h"
 #include "sdkconfig.h"
 #if SOC_WIFI_SUPPORTED && CONFIG_NETWORK_PROV_NETWORK_TYPE_WIFI
@@ -60,7 +63,7 @@ static const uint8_t custom_service_uuid[16] = {
 static void get_device_service_name(prov_scheme_t prov_scheme, char *service_name, size_t max) {
   uint8_t eth_mac[6] = {0, 0, 0, 0, 0, 0};
   if (esp_wifi_get_mac((wifi_interface_t)WIFI_IF_STA, eth_mac) != ESP_OK) {
-    log_e("esp_wifi_get_mac failed!");
+    LOG_ERROR("esp_wifi_get_mac failed!");
     return;
   }
 #if CONFIG_IDF_TARGET_ESP32 && (defined(CONFIG_BLUEDROID_ENABLED_1) || defined(CONFIG_NIMBLE_ENABLED_1)) && __has_include("esp_bt.h")
@@ -76,7 +79,7 @@ static void get_device_service_name(prov_scheme_t prov_scheme, char *service_nam
 
 void WiFiProvLiteClass ::initProvision(prov_scheme_t prov_scheme, scheme_handler_t scheme_handler, bool reset_provisioned) {
   if (this->provInitDone) {
-    log_i("provInit was already done!");
+    LOG_INFO("provInit was already done!");
     return;
   }
   network_prov_mgr_config_t config;
@@ -104,7 +107,7 @@ void WiFiProvLiteClass ::initProvision(prov_scheme_t prov_scheme, scheme_handler
     network_prov_event_handler_t scheme_event_handler = NETWORK_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BLE;
     memcpy(&config.scheme_event_handler, &scheme_event_handler, sizeof(network_prov_event_handler_t));
   } else {
-    log_e("Unknown scheme handler!");
+    LOG_ERROR("Unknown scheme handler!");
     return;
   }
 #endif
@@ -112,14 +115,14 @@ void WiFiProvLiteClass ::initProvision(prov_scheme_t prov_scheme, scheme_handler
   config.app_event_handler.user_data = NULL;
   WiFi.STA.begin(false);
   if (network_prov_mgr_init(config) != ESP_OK) {
-    log_e("network_prov_mgr_init failed!");
+    LOG_ERROR("network_prov_mgr_init failed!");
     return;
   }
   if (reset_provisioned) {
-    log_i("Resetting provisioned data.");
+    LOG_INFO("Resetting provisioned data.");
     network_prov_mgr_reset_wifi_provisioning();
   } else if (network_prov_mgr_is_wifi_provisioned(&(this->provisioned)) != ESP_OK) {
-    log_e("network_prov_mgr_is_wifi_provisioned failed!");
+    LOG_ERROR("network_prov_mgr_is_wifi_provisioned failed!");
     network_prov_mgr_deinit();
     return;
   }
@@ -152,27 +155,27 @@ void WiFiProvLiteClass ::beginProvision(
 
 #if (defined(CONFIG_BLUEDROID_ENABLED_1) || defined(CONFIG_NIMBLE_ENABLED_1)) && __has_include("esp_bt.h")
     if (prov_scheme == NETWORK_PROV_SCHEME_BLE) {
-      log_i("Starting AP using BLE. service_name : %s, pop : %s", service_name, pop);
+      LOG_INFOF("Starting AP using BLE. service_name : %s, pop : %s", service_name, pop);
     } else {
 #endif
       if (service_key == NULL) {
-        log_i("Starting provisioning AP using SOFTAP. service_name : %s, pop : %s", service_name, pop);
+        LOG_INFOF("Starting provisioning AP using SOFTAP. service_name : %s, pop : %s", service_name, pop);
       } else {
-        log_i("Starting provisioning AP using SOFTAP. service_name : %s, password : %s, pop : %s", service_name, service_key, pop);
+        LOG_INFOF("Starting provisioning AP using SOFTAP. service_name : %s, password : %s, pop : %s", service_name, service_key, pop);
       }
 #if (defined(CONFIG_BLUEDROID_ENABLED_1) || defined(CONFIG_NIMBLE_ENABLED_1)) && __has_include("esp_bt.h")
     }
 #endif
     if (network_prov_mgr_start_provisioning(security, pop, service_name, service_key) != ESP_OK) {
-      log_e("network_prov_mgr_start_provisioning failed!");
+      LOG_ERROR("network_prov_mgr_start_provisioning failed!");
       return;
     }
   } else {
-    log_i("Already Provisioned");
+    LOG_INFO("Already Provisioned");
 #if ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_INFO
     static wifi_config_t conf;
     esp_wifi_get_config((wifi_interface_t)WIFI_IF_STA, &conf);
-    log_i("Attempting connect to AP: %s\n", conf.sta.ssid);
+    LOG_INFONFO("Attempting connect to AP: %s\n", conf.sta.ssid);
 #endif
     esp_wifi_start();
     network_prov_mgr_deinit();
@@ -184,10 +187,22 @@ void WiFiProvLiteClass::endProvision() {
   network_prov_mgr_stop_provisioning();
 }
 
+bool WiFiProvLiteClass::resetProvision() {
+  if (esp_wifi_stop() == ESP_OK) {
+    if (esp_wifi_restore() == ESP_OK) {
+      return true;
+    }
+    LOG_ERROR("Failed to reset Network credentials, esp_wifi_restore Failed.");
+  } else {
+    LOG_ERROR("Failed to reset Network credentials, esp_wifi_stop Failed.");
+  }
+  return false;
+}
+
 bool WiFiProvLiteClass::disableAutoStop(uint32_t cleanup_delay) {
   esp_err_t err = network_prov_mgr_disable_auto_stop(cleanup_delay);
   if (err != ESP_OK) {
-    log_e("disable_auto_stop failed!");
+    LOG_ERROR("disable_auto_stop failed!");
   }
   return err == ESP_OK;
 }
@@ -250,7 +265,7 @@ static void _qrcode_print_console(esp_qrcode_handle_t qrcode) {
 
 void WiFiProvLiteClass::printQR(const char *name, const char *pop, const char *transport, Print &out) {
   if (!name || !transport) {
-    log_w("Cannot generate QR code payload. Data missing.");
+    LOG_WARN("Cannot generate QR code payload. Data missing.");
     return;
   }
   char payload[150] = {0};
