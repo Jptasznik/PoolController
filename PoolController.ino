@@ -287,6 +287,24 @@ void syncAllToBlynk() {
   LOG_INFO("Synced all values to Blynk");
 }
 
+// ============================================
+// BLYNK WRAPPER FUNCTIONS FOR WIFI NETWORK TASK
+// ============================================
+// These wrapper functions allow WiFiNetworkTask.cpp to call Blynk methods
+// without including BlynkSimpleEsp32.h (which would create duplicate global objects)
+
+void runBlynk() {
+  Blynk.run();
+}
+
+bool isBlynkConnected() {
+  return Blynk.connected();
+}
+
+// ============================================
+// BLYNK STATE SYNC FUNCTIONS
+// ============================================
+
 void syncHeaterToBlynk() {
   if (!Blynk.connected()) return;
   Blynk.virtualWrite(VPIN_HEATER_ENABLE, state.heaterEnabled ? 1 : 0);

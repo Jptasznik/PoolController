@@ -7,11 +7,12 @@
 #include "StateMutex.h"
 #include "MessageQueue.h"
 #include "SinricIntegration.h"
-#include <BlynkSimpleEsp32.h>
 #include <esp_task_wdt.h>
 
-// External Blynk instance (defined in PoolController.ino)
-extern BlynkWifi Blynk;
+// External Blynk wrapper functions (defined in PoolController.ino)
+// These wrappers avoid needing to include BlynkSimpleEsp32.h which creates global objects
+extern void runBlynk();
+extern bool isBlynkConnected();
 
 // External sync functions (defined in PoolController.ino)
 extern void syncHeaterToBlynk();
@@ -33,7 +34,7 @@ static unsigned long lastWiFiRuntimeCheck = 0;
 // ============================================
 
 void processNetworkSyncMessages() {
-  if (!Blynk.connected()) return;
+  if (!isBlynkConnected()) return;
 
   Message msg;
   const uint32_t receiveTimeout = 10; // 10ms timeout for non-blocking check
@@ -193,7 +194,7 @@ void wifiNetworkTask(void* parameter) {
     // Run network services if connected
     if (wifiConnected) {
       // Run Blynk event processing
-      Blynk.run();
+      runBlynk();
 
       // Reset watchdog after Blynk.run() (can block on slow networks)
 #ifndef DISABLE_WATCHDOG
