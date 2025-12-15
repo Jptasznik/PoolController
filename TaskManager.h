@@ -16,7 +16,8 @@
 // - LCDUpdateTask: Update LCD display (1s interval)
 // - ButtonScanTask: Scan MCP23008 buttons (50ms interval)
 // - ControlSystemTask: Run heater/pump logic (60s interval)
-// - Main loop: Network services (Blynk.run(), SinricPro.handle(), network sync)
+// - WiFiNetworkTask: Network services (Blynk, SinricPro, OTA, WiFi monitoring) (100ms interval)
+// - Main loop: Minimal coordination only
 // ============================================
 
 // ============================================
@@ -29,6 +30,7 @@
 #define LCD_TASK_STACK_SIZE 4096
 #define BUTTON_TASK_STACK_SIZE 3072
 #define CONTROL_TASK_STACK_SIZE 4096
+#define WIFI_NETWORK_TASK_STACK_SIZE 8192  // Larger for Blynk/Sinric network libs
 
 // Task priorities (0 = lowest, configMAX_PRIORITIES-1 = highest)
 // Higher priority = more important/time-critical
@@ -37,6 +39,7 @@
 #define CURRENT_TASK_PRIORITY 2       // High - safety monitoring
 #define TEMPERATURE_TASK_PRIORITY 1   // Medium
 #define LCD_TASK_PRIORITY 1           // Medium - can tolerate delays
+#define WIFI_NETWORK_TASK_PRIORITY 1  // Low - network sync (can tolerate delays)
 
 // Task core assignment (ESP32 has 2 cores: 0 and 1)
 // Core 0: Used by WiFi/network stack
@@ -70,6 +73,7 @@ void currentMonitorTask(void* parameter);
 void lcdUpdateTask(void* parameter);
 void buttonScanTask(void* parameter);
 void controlSystemTask(void* parameter);
+void wifiNetworkTask(void* parameter);
 
 // ============================================
 // WATCHDOG MANAGEMENT
@@ -81,5 +85,6 @@ extern TaskHandle_t currentTaskHandle;
 extern TaskHandle_t lcdTaskHandle;
 extern TaskHandle_t buttonTaskHandle;
 extern TaskHandle_t controlTaskHandle;
+extern TaskHandle_t wifiNetworkTaskHandle;
 
 #endif // TASK_MANAGER_H

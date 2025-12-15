@@ -84,10 +84,12 @@ void runControlSystem() {
   }
 
   // Log state changes
+#ifndef NO_HARDWARE
   if (previousStatus != newStatus) {
     LOG_INFOF("Heater status changed: %s (Inlet: %.1f°F, Target: %.1f°F)",
               getHeaterStatusString(), inletTemp, targetTemp);
   }
+#endif
 }
 
 // ============================================
@@ -154,7 +156,9 @@ bool shouldHeaterBeOn() {
   // 3. SAFETY: Check heater outlet temperature for overheat
   if (heaterTempValid && heaterTemp > MAX_HEATER_TEMP) {
     LOG_ERROR("!!! HEATER OVERHEAT DETECTED !!!");
+#ifndef NO_HARDWARE
     LOG_ERRORF("Heater temperature: %.1f°F", heaterTemp);
+#endif
     triggerEmergencyShutdown();
     return false;
   }
@@ -178,13 +182,17 @@ bool shouldHeaterBeOn() {
 
   // 7. User-configurable minimum heater temperature
   if (inletTemp < minHeaterTemp) {
+#ifndef NO_HARDWARE
     LOG_WARNF("Heater OFF: Water temp %.1f°F below minimum %.1f°F", inletTemp, minHeaterTemp);
+#endif
     return false;
   }
 
   // 8. User-configurable maximum heater temperature
   if (inletTemp >= maxHeaterTemp) {
+#ifndef NO_HARDWARE
     LOG_WARNF("Heater OFF: Water temp %.1f°F at or above maximum %.1f°F", inletTemp, maxHeaterTemp);
+#endif
     return false;
   }
 
@@ -233,7 +241,9 @@ void checkEmergencyOverheat() {
   // CRITICAL: Check for overheat condition
   if (heaterTemp > MAX_HEATER_TEMP) {
     LOG_ERROR("!!! EMERGENCY: HEATER OVERHEAT DETECTED !!!");
+#ifndef NO_HARDWARE
     LOG_ERRORF("Heater temp: %.1f°F (max: %.1f°F)", heaterTemp, MAX_HEATER_TEMP);
+#endif
 
 #ifndef NO_HARDWARE
     // Immediate hardware shutdown (critical safety)

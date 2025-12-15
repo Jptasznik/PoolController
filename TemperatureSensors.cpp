@@ -29,9 +29,11 @@ void initTemperatureSensors() {
   heaterSensor.begin();
   ambientSensor.begin();
 
+#ifndef NO_HARDWARE
   LOG_INFOF("Inlet sensor devices: %d", inletSensor.getDeviceCount());
   LOG_INFOF("Heater sensor devices: %d", heaterSensor.getDeviceCount());
   LOG_INFOF("Ambient sensor devices: %d", ambientSensor.getDeviceCount());
+#endif
 
   // Set resolution to 12-bit (0.0625°C precision)
   inletSensor.setResolution(12);
@@ -61,11 +63,15 @@ void readTemperatures() {
     inletTemp = celsiusToFahrenheit(inletC);
     inletValid = isValidTemperature(inletTemp);
 
+#ifndef NO_HARDWARE
     if (!inletValid) {
       LOG_WARNF("Inlet temp out of range: %.1f", inletTemp);
     }
+#endif
   } else {
+#ifndef NO_HARDWARE
     LOG_WARN("Inlet sensor disconnected");
+#endif
   }
 
   // Read heater temperature
@@ -74,11 +80,15 @@ void readTemperatures() {
     heaterTemp = celsiusToFahrenheit(heaterC);
     heaterValid = isValidTemperature(heaterTemp);
 
+#ifndef NO_HARDWARE
     if (!heaterValid) {
       LOG_WARNF("Heater temp out of range: %.1f", heaterTemp);
     }
+#endif
   } else {
+#ifndef NO_HARDWARE
     LOG_WARN("Heater sensor disconnected");
+#endif
   }
 
   // Read ambient temperature (3rd sensor)
@@ -87,11 +97,15 @@ void readTemperatures() {
     ambientTemp = celsiusToFahrenheit(ambientC);
     ambientValid = isValidTemperature(ambientTemp);
 
+#ifndef NO_HARDWARE
     if (!ambientValid) {
       LOG_WARNF("Ambient temp out of range: %.1f", ambientTemp);
     }
+#endif
   } else {
+#ifndef NO_HARDWARE
     LOG_WARN("Ambient sensor disconnected");
+#endif
   }
 
   // Check for critical sensor failure (both primary sensors failed)
@@ -153,6 +167,7 @@ void readTemperatures() {
 
   // Log valid temperatures (using local copies)
   // Build a single formatted string for all valid temperatures
+#ifndef NO_HARDWARE
   char tempMsg[80] = "";
   bool hasData = false;
 
@@ -174,6 +189,7 @@ void readTemperatures() {
   if (hasData) {
     LOG_DEBUG(tempMsg);
   }
+#endif
 }
 
 // ============================================

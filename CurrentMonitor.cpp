@@ -46,15 +46,19 @@ void initCurrentMonitor() {
   ads.setDataRate(RATE_ADS1115_860SPS);
 
   LOG_INFO("ADS1115 initialized successfully");
+#ifndef NO_HARDWARE
   LOG_INFOF("  I2C Address: 0x%02X", ADS1115_ADDRESS);
   LOG_INFO("  Gain: ±4.096V");
   LOG_INFO("  Data Rate: 860 SPS");
+#endif
 
   state.currentSensorValid = true;
   state.pumpCurrent = 0.0;
 
   // Note: calibration offset is loaded from flash in loadAllSettings()
+#ifndef NO_HARDWARE
   LOG_INFOF("Using saved current calibration offset: %.3f A", state.currentOffset);
+#endif
 }
 
 // ============================================
@@ -159,11 +163,13 @@ void readPumpCurrent() {
   }
 
   // Debug output (optional - can be disabled for production)
+#ifndef NO_HARDWARE
   static unsigned long lastDebugPrint = 0;
   if (millis() - lastDebugPrint >= 5000) {  // Print every 5 seconds
     lastDebugPrint = millis();
     LOG_DEBUGF("Pump Current: %.2f A (RMS voltage: %.3f V)", rmsCurrent, rmsVoltage);
   }
+#endif
 }
 
 // ============================================
@@ -296,7 +302,9 @@ void calibrateCurrentSensor() {
     }
   }
 
+#ifndef NO_HARDWARE
   LOG_INFOF("Calibration complete - Offset: %.3f A", calibratedOffset);
+#endif
 
   // Save calibration to flash
   saveCurrentCalibration(calibratedOffset);

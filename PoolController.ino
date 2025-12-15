@@ -55,13 +55,7 @@
 // GLOBAL OBJECTS
 // ============================================
 
-// BlynkTimer removed - periodic sync now handled by BlynkSyncTask and SinricSyncTask
-
-// ============================================
-// TIMING VARIABLES
-// ============================================
-
-unsigned long lastWiFiRuntimeCheck = 0;
+// BlynkTimer removed - periodic sync now handled by WiFiNetworkTask
 
 // ============================================
 // BLYNK WRITE HANDLERS
@@ -622,84 +616,20 @@ void loop() {
   esp_task_wdt_reset();
 #endif
 
-  unsigned long now = millis();
-
   // ============================================
-  // NETWORK SERVICES (Main loop responsibility)
+  // MAIN LOOP - MINIMAL COORDINATION
   // ============================================
-  // All other functions run in FreeRTOS tasks:
+  // All functions now run in FreeRTOS tasks:
   // - Temperature reading (TemperatureSensorTask)
   // - Current monitoring (CurrentMonitorTask)
   // - LCD updates (LCDUpdateTask)
   // - Button scanning (ButtonScanTask)
   // - Control system logic (ControlSystemTask)
+  // - Network services (WiFiNetworkTask - Blynk, Sinric, OTA, WiFi monitoring)
+  //
+  // Main loop is now minimal - just keep watchdog happy
   // ============================================
 
-  bool wifiConnected;
-  {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
-      wifiConnected = state.wifiConnected;
-    } else {
-      wifiConnected = false;
-    }
-  }
-
-  // Run Blynk (network event processing only - sync handled by BlynkSyncTask)
-  if (wifiConnected) {
-    Blynk.run();
-
-    // Reset watchdog after Blynk.run() (can block for extended periods on slow networks)
-#ifndef DISABLE_WATCHDOG
-    esp_task_wdt_reset();
-#endif
-  }
-
-  // Run Sinric Pro (Alexa)
-  if (wifiConnected) {
-    handleSinricEvents();
-
-    // Reset watchdog after SinricPro (can block for extended periods on slow networks)
-#ifndef DISABLE_WATCHDOG
-    esp_task_wdt_reset();
-#endif
-
-    handleOTA();  // Handle Arduino OTA updates
-  }
-
-  // Check for WiFi runtime failures periodically
-  if (now - lastWiFiRuntimeCheck >= WIFI_RUNTIME_CHECK_INTERVAL) {
-    lastWiFiRuntimeCheck = now;
-
-    // Check for provisioning hang
-    if (isProvisioningHung()) {
-      handleWiFiRuntimeFailure("Provisioning timeout - no response for 5 minutes");
-    }
-
-    // Check for credential validation timeout
-    if (state.credentialsReceived) {
-      unsigned long elapsed = now - state.credReceivedTime;
-
-      // Handle millis() overflow
-      if (elapsed > MILLIS_OVERFLOW_THRESHOLD) {
-        // Overflow detected, reset tracking
-        state.credentialsReceived = false;
-        state.credReceivedTime = 0;
-      } else if (elapsed >= WIFI_CRED_VALIDATION_TIMEOUT) {
-        LOG_WARN("Credential validation timeout - credentials received but not validated");
-        handleWiFiRuntimeFailure("Credential validation timeout (1 minute)");
-      }
-    }
-
-    // Check for excessive disconnections
-    int recentDisconnects = getRecentDisconnectCount();
-    if (recentDisconnects >= WIFI_MAX_DISCONNECTS) {
-      char msg[64];
-      snprintf(msg, sizeof(msg), "Excessive disconnects (%d in 10 minutes)", recentDisconnects);
-      handleWiFiRuntimeFailure(msg);
-    }
-  }
-
-  // Small delay to prevent watchdog issues
-  delay(10);
+  // Small delay to prevent tight loop
+  delay(100);
 }

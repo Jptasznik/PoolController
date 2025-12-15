@@ -12,6 +12,7 @@
 #include "ButtonHandler.h"
 #include "HeaterControl.h"
 #include "PumpControl.h"
+#include "WiFiNetworkTask.h"
 
 // ============================================
 // TASK HANDLES
@@ -22,6 +23,7 @@ TaskHandle_t currentTaskHandle = NULL;
 TaskHandle_t lcdTaskHandle = NULL;
 TaskHandle_t buttonTaskHandle = NULL;
 TaskHandle_t controlTaskHandle = NULL;
+TaskHandle_t wifiNetworkTaskHandle = NULL;
 
 // ============================================
 // TEMPERATURE SENSOR TASK
@@ -358,8 +360,24 @@ void initTasks() {
   }
   LOG_INFO("[INIT] Control system task created");
 
+  // Create WiFi network task
+  result = xTaskCreatePinnedToCore(
+    wifiNetworkTask,
+    "WiFiNetworkTask",
+    WIFI_NETWORK_TASK_STACK_SIZE,
+    NULL,
+    WIFI_NETWORK_TASK_PRIORITY,
+    &wifiNetworkTaskHandle,
+    TASK_CORE_0  // Run on Core 0 with WiFi stack
+  );
+  if (result != pdPASS) {
+    LOG_WARN("Failed to create WiFi network task - network services will be degraded");
+  } else {
+    LOG_INFO("[INIT] WiFi network task created");
+  }
+
   LOG_INFO("========================================");
   LOG_INFO("All FreeRTOS tasks started successfully");
-  LOG_INFO("Network sync handled in main loop");
+  LOG_INFO("Network sync handled in WiFiNetworkTask");
   LOG_INFO("========================================\n");
 }
