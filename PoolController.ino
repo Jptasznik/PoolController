@@ -581,16 +581,18 @@ void setup() {
 
   updateLCDDisplay();
 
-  // Initialize watchdog timer (main task: 30 second timeout)
+  // Initialize watchdog timer (global timeout for all tasks)
+  // Note: ESP32 uses a single global watchdog timeout for all tasks
+  // Set to 180s to accommodate the control task (60s interval * 3 = 180s)
 #ifndef DISABLE_WATCHDOG
-  LOG_INFO("Initializing main task watchdog timer...");
+  LOG_INFO("Initializing watchdog timer...");
   esp_task_wdt_config_t wdt_config = {
-    .timeout_ms = 30000,      // 30 seconds in milliseconds
+    .timeout_ms = 180000,     // 180 seconds (3 minutes) - matches CONTROL_WDT_TIMEOUT
     .trigger_panic = true      // Panic on timeout
   };
   esp_task_wdt_init(&wdt_config);  // Initialize with config struct
   esp_task_wdt_add(NULL);          // Add main task to watchdog
-  LOG_INFO("Main task watchdog timer enabled (30s timeout)");
+  LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
 #else
   LOG_WARN("DISABLE_WATCHDOG: Main task watchdog timer disabled");
 #endif
