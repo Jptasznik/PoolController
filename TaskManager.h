@@ -16,7 +16,7 @@
 // - LCDUpdateTask: Update LCD display (1s interval)
 // - ButtonScanTask: Scan MCP23008 buttons (50ms interval)
 // - ControlSystemTask: Run heater/pump logic (60s interval)
-// - Main loop: Network services (Blynk, Sinric, WiFi)
+// - Main loop: Network services (Blynk.run(), SinricPro.handle(), network sync)
 // ============================================
 
 // ============================================
@@ -44,13 +44,15 @@
 #define TASK_CORE_0 0
 #define TASK_CORE_1 1
 
-// Watchdog timeouts (milliseconds)
-// Should be 2-3x the task interval to allow for delays
+// Watchdog timeouts (milliseconds) - INFORMATIONAL ONLY
+// NOTE: ESP32 uses a single global watchdog timeout for all tasks
+// The actual timeout is set in PoolController.ino setup() to 180s (CONTROL_WDT_TIMEOUT)
+// These values show the ideal timeout for each task based on interval * 3
 #define TEMPERATURE_WDT_TIMEOUT 15000  // 15s (3x 5s interval)
 #define CURRENT_WDT_TIMEOUT 6000       // 6s (3x 2s interval)
 #define LCD_WDT_TIMEOUT 3000           // 3s (3x 1s interval)
 #define BUTTON_WDT_TIMEOUT 500         // 500ms (10x 50ms interval)
-#define CONTROL_WDT_TIMEOUT 180000     // 180s (3x 60s interval)
+#define CONTROL_WDT_TIMEOUT 180000     // 180s (3x 60s interval) - USED AS GLOBAL TIMEOUT
 
 // ============================================
 // TASK INITIALIZATION

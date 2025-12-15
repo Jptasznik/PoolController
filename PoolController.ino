@@ -55,7 +55,7 @@
 // GLOBAL OBJECTS
 // ============================================
 
-BlynkTimer blynkTimer;
+// BlynkTimer removed - periodic sync now handled by BlynkSyncTask and SinricSyncTask
 
 // ============================================
 // TIMING VARIABLES
@@ -564,18 +564,10 @@ void setup() {
     // Initialize cloud services
     initBlynk();
     initSinric();
-    
-    // Setup Blynk timers
-    blynkTimer.setInterval(BLYNK_UPDATE_INTERVAL, []() {
-      syncTemperaturesToBlynk();
-      syncPumpRuntimeToBlynk();
-      syncPumpCurrentToBlynk();
-      syncPumpAlertsToBlynk();
-    });
-    
-    blynkTimer.setInterval(SINRIC_TEMP_UPDATE_INTERVAL, []() {
-      syncTargetTempToSinric();
-    });
+
+    // BlynkTimer removed - periodic sync now handled by BlynkSyncTask and SinricSyncTask
+    // BlynkSyncTask syncs temperatures/current/runtime/alerts every 2 seconds
+    // SinricSyncTask syncs target temp/inlet temp every 30 seconds
   } else {
     LOG_WARN("\nWiFi not connected - continuing in offline mode");
     LOG_INFO("WiFi will auto-connect in background when available");
@@ -589,22 +581,31 @@ void setup() {
 
   updateLCDDisplay();
 
-  // Initialize watchdog timer (main task: 30 second timeout)
+  // Initialize watchdog timer (global timeout for all tasks)
+  // Note: ESP32 uses a single global watchdog timeout for all tasks
+  // Set to 180s to accommodate the control task (60s interval * 3 = 180s)
 #ifndef DISABLE_WATCHDOG
-  LOG_INFO("Initializing main task watchdog timer...");
+  LOG_INFO("Initializing watchdog timer...");
   esp_task_wdt_config_t wdt_config = {
-    .timeout_ms = 30000,      // 30 seconds in milliseconds
+    .timeout_ms = 180000,     // 180 seconds (3 minutes) - matches CONTROL_WDT_TIMEOUT
     .trigger_panic = true      // Panic on timeout
   };
-  esp_task_wdt_init(&wdt_config);  // Initialize with config struct
+  esp_err_t result = esp_task_wdt_init(&wdt_config);
+  if ( result != ESP_OK) { // Initialize with config struct
+    result = esp_task_wdt_reconfigure(&wdt_config);
+  }
+  if ( result != ESP_OK) {
+    LOG_ERROR("Watchdog timer failed to configure the timeout");
+  } else {
+    LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
+  }
   esp_task_wdt_add(NULL);          // Add main task to watchdog
-  LOG_INFO("Main task watchdog timer enabled (30s timeout)");
 #else
   LOG_WARN("DISABLE_WATCHDOG: Main task watchdog timer disabled");
 #endif
 
   // Start FreeRTOS tasks (each task has its own watchdog)
-  #if CREATE_TASKS
+  #ifndef DO_NOT_CREATE_TASKS
     initTasks();
     LOG_INFO("Creating tasks, monitoring hardware.");
   #else
@@ -651,15 +652,25 @@ void loop() {
     }
   }
 
-  // Run Blynk
+  // Run Blynk (network event processing only - sync handled by BlynkSyncTask)
   if (wifiConnected) {
     Blynk.run();
-    blynkTimer.run();
+
+    // Reset watchdog after Blynk.run() (can block for extended periods on slow networks)
+#ifndef DISABLE_WATCHDOG
+    esp_task_wdt_reset();
+#endif
   }
 
   // Run Sinric Pro (Alexa)
   if (wifiConnected) {
     handleSinricEvents();
+
+    // Reset watchdog after SinricPro (can block for extended periods on slow networks)
+#ifndef DISABLE_WATCHDOG
+    esp_task_wdt_reset();
+#endif
+
     handleOTA();  // Handle Arduino OTA updates
   }
 
