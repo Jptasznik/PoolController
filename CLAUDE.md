@@ -1162,6 +1162,114 @@ For development and testing **without physical hardware** connected, the system 
 // ============================================
 ```
 
+#### ESP32 Error Handling
+
+**ESP-IDF Functions Return esp_err_t:**
+
+Many ESP32 functions (from ESP-IDF framework) return `esp_err_t` error codes that **must be checked**. Never ignore return values from ESP functions.
+
+**Common ESP Functions That Return esp_err_t:**
+- `esp_task_wdt_init()` - Initialize watchdog timer
+- `esp_task_wdt_add()` - Add task to watchdog
+- `esp_task_wdt_reset()` - Reset watchdog (can fail if task not added)
+- `esp_task_wdt_delete()` - Remove task from watchdog
+- `esp_wifi_*()` - WiFi configuration functions
+- `nvs_*()` - Non-volatile storage (flash) operations
+- `esp_ota_*()` - Over-the-air update functions
+
+**Error Code Values:**
+```cpp
+ESP_OK          // Success (0)
+ESP_FAIL        // Generic failure
+ESP_ERR_NO_MEM  // Out of memory
+ESP_ERR_INVALID_ARG  // Invalid argument
+ESP_ERR_INVALID_STATE  // Invalid state
+ESP_ERR_TIMEOUT  // Operation timed out
+// ... many more defined in esp_err.h
+```
+
+**Best Practices:**
+
+1. **Always check return codes:**
+```cpp
+// CORRECT - Check return value
+esp_err_t err = esp_task_wdt_init(&wdt_config);
+if (err != ESP_OK) {
+  LOG_ERRORF("Failed to init watchdog: %s", esp_err_to_name(err));
+  // Handle error appropriately
+}
+
+// INCORRECT - Ignoring return value
+esp_task_wdt_init(&wdt_config);  // DON'T DO THIS
+```
+
+2. **Use esp_err_to_name() for logging:**
+```cpp
+esp_err_t err = esp_task_wdt_add(NULL);
+if (err != ESP_OK) {
+  LOG_ERRORF("Failed to add task to watchdog: %s", esp_err_to_name(err));
+}
+```
+
+3. **Handle errors gracefully:**
+```cpp
+// Option 1: Retry on failure
+esp_err_t err = nvs_set_u32(handle, "key", value);
+if (err != ESP_OK) {
+  LOG_WARNF("NVS write failed: %s - retrying", esp_err_to_name(err));
+  vTaskDelay(pdMS_TO_TICKS(100));
+  err = nvs_set_u32(handle, "key", value);
+}
+
+// Option 2: Return error to caller
+esp_err_t initSomething() {
+  esp_err_t err = esp_task_wdt_init(&config);
+  if (err != ESP_OK) {
+    return err;  // Propagate error
+  }
+  return ESP_OK;
+}
+
+// Option 3: Enter safe mode on critical failure
+esp_err_t err = esp_task_wdt_add(NULL);
+if (err != ESP_OK) {
+  LOG_ERROR("Critical: Cannot add watchdog - entering failsafe");
+  enterFailsafeMode("WATCHDOG_INIT_FAILURE");
+}
+```
+
+4. **Document expected errors:**
+```cpp
+// This function may return:
+// - ESP_OK: Success
+// - ESP_ERR_NO_MEM: Out of memory
+// - ESP_ERR_TIMEOUT: I2C timeout
+esp_err_t readSensor() {
+  // Implementation
+}
+```
+
+**ESP_ERROR_CHECK() Macro:**
+
+ESP-IDF provides `ESP_ERROR_CHECK()` macro that aborts on error (useful for critical init):
+
+```cpp
+// Aborts program if initialization fails (use sparingly)
+ESP_ERROR_CHECK(esp_task_wdt_init(&wdt_config));
+
+// Better for production: Check and handle gracefully
+esp_err_t err = esp_task_wdt_init(&wdt_config);
+if (err != ESP_OK) {
+  LOG_ERRORF("Watchdog init failed: %s", esp_err_to_name(err));
+  // Graceful degradation or failsafe mode
+  return;
+}
+```
+
+**Reference:**
+- ESP-IDF Error Handling: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/error-handling.html
+- Error Codes Reference: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/error-codes.html
+
 ### 11. Dependencies and Libraries
 
 **Required Arduino Libraries:**
