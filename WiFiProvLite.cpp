@@ -174,10 +174,17 @@ void WiFiProvLiteClass ::beginProvision(
     LOG_INFO("Already Provisioned");
 #if ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_INFO
     static wifi_config_t conf;
-    esp_wifi_get_config((wifi_interface_t)WIFI_IF_STA, &conf);
-    LOG_INFONFO("Attempting connect to AP: %s\n", conf.sta.ssid);
+    esp_err_t err = esp_wifi_get_config((wifi_interface_t)WIFI_IF_STA, &conf);
+    if (err == ESP_OK) {
+      LOG_INFONFO("Attempting connect to AP: %s\n", conf.sta.ssid);
+    } else {
+      LOG_WARNF("Failed to get WiFi config: %s", esp_err_to_name(err));
+    }
 #endif
-    esp_wifi_start();
+    esp_err_t err = esp_wifi_start();
+    if (err != ESP_OK) {
+      LOG_ERRORF("Failed to start WiFi: %s", esp_err_to_name(err));
+    }
     network_prov_mgr_deinit();
     WiFi.begin();
   }

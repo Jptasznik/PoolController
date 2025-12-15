@@ -34,8 +34,12 @@ void temperatureSensorTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("Temperature task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add temperature task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("Temperature task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Temperature task watchdog disabled");
 #endif
@@ -66,8 +70,12 @@ void currentMonitorTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("Current task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add current monitor task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("Current task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Current monitor task watchdog disabled");
 #endif
@@ -98,8 +106,12 @@ void lcdUpdateTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("LCD task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add LCD update task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("LCD task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: LCD update task watchdog disabled");
 #endif
@@ -130,8 +142,12 @@ void buttonScanTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("Button task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add button scan task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("Button task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Button scan task watchdog disabled");
 #endif
@@ -162,8 +178,12 @@ void controlSystemTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("Control task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add control system task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("Control task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Control system task watchdog disabled");
 #endif

@@ -165,8 +165,12 @@ void wifiNetworkTask(void* parameter) {
 
   // Add this task to watchdog (180 second timeout - same as global)
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("WiFi network task watchdog timer added (180s timeout)");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add WiFi network task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("WiFi network task watchdog timer added (180s timeout)");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: WiFi network task watchdog disabled");
 #endif

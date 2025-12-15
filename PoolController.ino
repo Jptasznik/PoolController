@@ -602,9 +602,22 @@ void setup() {
     .timeout_ms = 180000,     // 180 seconds (3 minutes) - matches CONTROL_WDT_TIMEOUT
     .trigger_panic = true      // Panic on timeout
   };
-  esp_task_wdt_init(&wdt_config);  // Initialize with config struct
-  esp_task_wdt_add(NULL);          // Add main task to watchdog
-  LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
+
+  // Initialize watchdog with error checking
+  esp_err_t err = esp_task_wdt_init(&wdt_config);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to init watchdog: %s", esp_err_to_name(err));
+    LOG_ERROR("System will run without watchdog protection!");
+  } else {
+    // Add main task to watchdog
+    err = esp_task_wdt_add(NULL);
+    if (err != ESP_OK) {
+      LOG_ERRORF("Failed to add main task to watchdog: %s", esp_err_to_name(err));
+      LOG_WARN("Main task will run without watchdog monitoring");
+    } else {
+      LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
+    }
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Main task watchdog timer disabled");
 #endif
