@@ -129,8 +129,8 @@ Contrast: Adjust potentiometer on back of module
 
 ```
 MCP23008 Pinout:
-  Pin 1  (SCL)    ──── ESP32 GPIO 22
-  Pin 2  (SDA)    ──── ESP32 GPIO 21
+  Pin 1  (SCL Y)  ──── ESP32 GPIO 22
+  Pin 2  (SDA B)  ──── ESP32 GPIO 21
   Pin 3  (A2)     ──── GND (address select)
   Pin 4  (A1)     ──── GND (address select)
   Pin 5  (A0)     ──── GND (address select)
