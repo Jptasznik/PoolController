@@ -24,7 +24,9 @@ void initLCD() {
   // Lock I2C bus for LCD initialization
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
+#ifndef NO_HARDWARE
     LOG_ERROR("Failed to lock I2C for LCD init!");
+#endif
     return;
   }
 
