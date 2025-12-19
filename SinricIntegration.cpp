@@ -197,6 +197,24 @@ bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool fo
 #endif // ENABLE_SINRIC_OTA
 
 // ============================================
+// CONNECTION CALLBACKS
+// ============================================
+
+void onSinricConnected() {
+  LOG_INFO("========================================");
+  LOG_INFO("Sinric Pro Connected!");
+  LOG_INFO("========================================");
+  state.sinricConnected = true;
+}
+
+void onSinricDisconnected() {
+  LOG_WARN("========================================");
+  LOG_WARN("Sinric Pro Disconnected!");
+  LOG_WARN("========================================");
+  state.sinricConnected = false;
+}
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -221,10 +239,18 @@ void initSinric() {
   pump.onPowerLevel(onPowerLevelPump);
   pump.onAdjustPowerLevel(onAdjustPowerLevelPump);
 
+  // Register connection callbacks
+  SinricPro.onConnected(onSinricConnected);
+  SinricPro.onDisconnected(onSinricDisconnected);
+
   // Connect to Sinric Pro
   SinricPro.begin(getSinricAppKey(), getSinricAppSecret());
 
+  // Restore device states from cloud (required for proper connection)
+  SinricPro.restoreDeviceStates(true);
+
   LOG_INFO("Sinric Pro initialized");
+  LOG_INFO("Waiting for Sinric Pro connection...");
 
 #if ENABLE_SINRIC_OTA
   // Register OTA update callback with SinricPro
@@ -242,8 +268,15 @@ void initSinric() {
 void handleSinricEvents() {
   SinricPro.handle();
 
-  // Update connection status
+  // Update connection status and log changes
+  bool wasConnected = state.sinricConnected;
   state.sinricConnected = SinricPro.isConnected();
+
+  if (state.sinricConnected && !wasConnected) {
+    LOG_INFO("Sinric Pro connected successfully!");
+  } else if (!state.sinricConnected && wasConnected) {
+    LOG_WARN("Sinric Pro disconnected!");
+  }
 }
 
 void handleOTA() {

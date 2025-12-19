@@ -607,7 +607,12 @@ void setup() {
   esp_err_t err = esp_task_wdt_init(&wdt_config);
   if (err != ESP_OK) {
     LOG_ERRORF("Failed to init watchdog: %s", esp_err_to_name(err));
-    LOG_ERROR("System will run without watchdog protection!");
+    err = esp_task_wdt_reconfigure(&wdt_config);
+    if ( err != ESP_OK) {
+      LOG_ERROR("Watchdog timer failed to configure the timeout");
+    } else {
+      LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
+    }
   } else {
     // Add main task to watchdog
     err = esp_task_wdt_add(NULL);
