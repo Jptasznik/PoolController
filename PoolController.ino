@@ -609,19 +609,13 @@ void setup() {
     LOG_ERRORF("Failed to init watchdog: %s", esp_err_to_name(err));
     err = esp_task_wdt_reconfigure(&wdt_config);
     if ( err != ESP_OK) {
+      LOG_ERRORF("Failed to reconfigure watchdog: %s", esp_err_to_name(err));
       LOG_ERROR("Watchdog timer failed to configure the timeout");
     } else {
       LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
     }
   } else {
-    // Add main task to watchdog
-    err = esp_task_wdt_add(NULL);
-    if (err != ESP_OK) {
-      LOG_ERRORF("Failed to add main task to watchdog: %s", esp_err_to_name(err));
-      LOG_WARN("Main task will run without watchdog monitoring");
-    } else {
-      LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
-    }
+    LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
   }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Main task watchdog timer disabled");
@@ -647,11 +641,6 @@ void setup() {
 // ============================================
 
 void loop() {
-  // Reset watchdog timer at start of every loop iteration
-#ifndef DISABLE_WATCHDOG
-  esp_task_wdt_reset();
-#endif
-
   // ============================================
   // MAIN LOOP - MINIMAL COORDINATION
   // ============================================
