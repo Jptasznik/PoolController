@@ -55,13 +55,7 @@
 // GLOBAL OBJECTS
 // ============================================
 
-// BlynkTimer removed - periodic sync now handled by BlynkSyncTask and SinricSyncTask
-
-// ============================================
-// TIMING VARIABLES
-// ============================================
-
-unsigned long lastWiFiRuntimeCheck = 0;
+// BlynkTimer removed - periodic sync now handled by WiFiNetworkTask
 
 // ============================================
 // BLYNK WRITE HANDLERS
@@ -292,6 +286,24 @@ void syncAllToBlynk() {
 
   LOG_INFO("Synced all values to Blynk");
 }
+
+// ============================================
+// BLYNK WRAPPER FUNCTIONS FOR WIFI NETWORK TASK
+// ============================================
+// These wrapper functions allow WiFiNetworkTask.cpp to call Blynk methods
+// without including BlynkSimpleEsp32.h (which would create duplicate global objects)
+
+void runBlynk() {
+  Blynk.run();
+}
+
+bool isBlynkConnected() {
+  return Blynk.connected();
+}
+
+// ============================================
+// BLYNK STATE SYNC FUNCTIONS
+// ============================================
 
 void syncHeaterToBlynk() {
   if (!Blynk.connected()) return;
@@ -590,16 +602,21 @@ void setup() {
     .timeout_ms = 180000,     // 180 seconds (3 minutes) - matches CONTROL_WDT_TIMEOUT
     .trigger_panic = true      // Panic on timeout
   };
-  esp_err_t result = esp_task_wdt_init(&wdt_config);
-  if ( result != ESP_OK) { // Initialize with config struct
-    result = esp_task_wdt_reconfigure(&wdt_config);
-  }
-  if ( result != ESP_OK) {
-    LOG_ERROR("Watchdog timer failed to configure the timeout");
+
+  // Initialize watchdog with error checking
+  esp_err_t err = esp_task_wdt_init(&wdt_config);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to init watchdog: %s", esp_err_to_name(err));
+    err = esp_task_wdt_reconfigure(&wdt_config);
+    if ( err != ESP_OK) {
+      LOG_ERRORF("Failed to reconfigure watchdog: %s", esp_err_to_name(err));
+      LOG_ERROR("Watchdog timer failed to configure the timeout");
+    } else {
+      LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
+    }
   } else {
     LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
   }
-  esp_task_wdt_add(NULL);          // Add main task to watchdog
 #else
   LOG_WARN("DISABLE_WATCHDOG: Main task watchdog timer disabled");
 #endif
@@ -624,89 +641,20 @@ void setup() {
 // ============================================
 
 void loop() {
-  // Reset watchdog timer at start of every loop iteration
-#ifndef DISABLE_WATCHDOG
-  esp_task_wdt_reset();
-#endif
-
-  unsigned long now = millis();
-
   // ============================================
-  // NETWORK SERVICES (Main loop responsibility)
+  // MAIN LOOP - MINIMAL COORDINATION
   // ============================================
-  // All other functions run in FreeRTOS tasks:
+  // All functions now run in FreeRTOS tasks:
   // - Temperature reading (TemperatureSensorTask)
   // - Current monitoring (CurrentMonitorTask)
   // - LCD updates (LCDUpdateTask)
   // - Button scanning (ButtonScanTask)
   // - Control system logic (ControlSystemTask)
+  // - Network services (WiFiNetworkTask - Blynk, Sinric, OTA, WiFi monitoring)
+  //
+  // Main loop is now minimal - just keep watchdog happy
   // ============================================
 
-  bool wifiConnected;
-  {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
-      wifiConnected = state.wifiConnected;
-    } else {
-      wifiConnected = false;
-    }
-  }
-
-  // Run Blynk (network event processing only - sync handled by BlynkSyncTask)
-  if (wifiConnected) {
-    Blynk.run();
-
-    // Reset watchdog after Blynk.run() (can block for extended periods on slow networks)
-#ifndef DISABLE_WATCHDOG
-    esp_task_wdt_reset();
-#endif
-  }
-
-  // Run Sinric Pro (Alexa)
-  if (wifiConnected) {
-    handleSinricEvents();
-
-    // Reset watchdog after SinricPro (can block for extended periods on slow networks)
-#ifndef DISABLE_WATCHDOG
-    esp_task_wdt_reset();
-#endif
-
-    handleOTA();  // Handle Arduino OTA updates
-  }
-
-  // Check for WiFi runtime failures periodically
-  if (now - lastWiFiRuntimeCheck >= WIFI_RUNTIME_CHECK_INTERVAL) {
-    lastWiFiRuntimeCheck = now;
-
-    // Check for provisioning hang
-    if (isProvisioningHung()) {
-      handleWiFiRuntimeFailure("Provisioning timeout - no response for 5 minutes");
-    }
-
-    // Check for credential validation timeout
-    if (state.credentialsReceived) {
-      unsigned long elapsed = now - state.credReceivedTime;
-
-      // Handle millis() overflow
-      if (elapsed > MILLIS_OVERFLOW_THRESHOLD) {
-        // Overflow detected, reset tracking
-        state.credentialsReceived = false;
-        state.credReceivedTime = 0;
-      } else if (elapsed >= WIFI_CRED_VALIDATION_TIMEOUT) {
-        LOG_WARN("Credential validation timeout - credentials received but not validated");
-        handleWiFiRuntimeFailure("Credential validation timeout (1 minute)");
-      }
-    }
-
-    // Check for excessive disconnections
-    int recentDisconnects = getRecentDisconnectCount();
-    if (recentDisconnects >= WIFI_MAX_DISCONNECTS) {
-      char msg[64];
-      snprintf(msg, sizeof(msg), "Excessive disconnects (%d in 10 minutes)", recentDisconnects);
-      handleWiFiRuntimeFailure(msg);
-    }
-  }
-
-  // Small delay to prevent watchdog issues
-  delay(10);
+  // Small delay to prevent tight loop
+  delay(100);
 }

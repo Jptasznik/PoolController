@@ -12,6 +12,7 @@
 #include "ButtonHandler.h"
 #include "HeaterControl.h"
 #include "PumpControl.h"
+#include "WiFiNetworkTask.h"
 
 // ============================================
 // TASK HANDLES
@@ -22,6 +23,7 @@ TaskHandle_t currentTaskHandle = NULL;
 TaskHandle_t lcdTaskHandle = NULL;
 TaskHandle_t buttonTaskHandle = NULL;
 TaskHandle_t controlTaskHandle = NULL;
+TaskHandle_t wifiNetworkTaskHandle = NULL;
 
 // ============================================
 // TEMPERATURE SENSOR TASK
@@ -32,8 +34,12 @@ void temperatureSensorTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("Temperature task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add temperature task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("Temperature task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Temperature task watchdog disabled");
 #endif
@@ -64,8 +70,12 @@ void currentMonitorTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("Current task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add current monitor task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("Current task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Current monitor task watchdog disabled");
 #endif
@@ -96,8 +106,12 @@ void lcdUpdateTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("LCD task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add LCD update task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("LCD task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: LCD update task watchdog disabled");
 #endif
@@ -128,8 +142,12 @@ void buttonScanTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("Button task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add button scan task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("Button task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Button scan task watchdog disabled");
 #endif
@@ -160,8 +178,12 @@ void controlSystemTask(void* parameter) {
 
   // Add this task to watchdog
 #ifndef DISABLE_WATCHDOG
-  esp_task_wdt_add(NULL);
-  LOG_DEBUG("Control task watchdog timer added");
+  esp_err_t err = esp_task_wdt_add(NULL);
+  if (err != ESP_OK) {
+    LOG_ERRORF("Failed to add control system task to watchdog: %s", esp_err_to_name(err));
+  } else {
+    LOG_DEBUG("Control task watchdog timer added");
+  }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Control system task watchdog disabled");
 #endif
@@ -358,8 +380,24 @@ void initTasks() {
   }
   LOG_INFO("[INIT] Control system task created");
 
+  // Create WiFi network task
+  result = xTaskCreatePinnedToCore(
+    wifiNetworkTask,
+    "WiFiNetworkTask",
+    WIFI_NETWORK_TASK_STACK_SIZE,
+    NULL,
+    WIFI_NETWORK_TASK_PRIORITY,
+    &wifiNetworkTaskHandle,
+    TASK_CORE_0  // Run on Core 0 with WiFi stack
+  );
+  if (result != pdPASS) {
+    LOG_WARN("Failed to create WiFi network task - network services will be degraded");
+  } else {
+    LOG_INFO("[INIT] WiFi network task created");
+  }
+
   LOG_INFO("========================================");
   LOG_INFO("All FreeRTOS tasks started successfully");
-  LOG_INFO("Network sync handled in main loop");
+  LOG_INFO("Network sync handled in WiFiNetworkTask");
   LOG_INFO("========================================\n");
 }

@@ -112,7 +112,9 @@ void setHeaterEnabledState(bool enabled) {
   state.heaterEnabled = enabled;
   saveHeaterEnabled(enabled);
 
+#ifndef NO_HARDWARE
   LOG_INFOF("Heater enabled state: %s", enabled ? "ENABLED" : "DISABLED");
+#endif
 
   // Queue network sync message (non-blocking, handled by network tasks)
   Message msg = createSyncHeaterMessage();
@@ -140,7 +142,9 @@ void setPumpState(PumpState newState) {
   state.pumpState = newState;
   savePumpState(newState);
 
+#ifndef NO_HARDWARE
   LOG_INFOF("Pump state: %s", getPumpStateString());
+#endif
 
   // Queue network sync message (non-blocking, handled by network tasks)
   Message msg = createSyncPumpMessage();
@@ -155,7 +159,9 @@ void setTargetTemperature(float newTemp) {
   state.targetTemp = newTemp;
   saveTargetTemp(newTemp);
 
+#ifndef NO_HARDWARE
   LOG_INFOF("Target temperature: %.1f°F", newTemp);
+#endif
 
   // Queue network sync message (non-blocking, handled by network tasks)
   Message msg = createSyncTargetTempMessage();
