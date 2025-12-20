@@ -146,9 +146,9 @@ Line 4: Heater: ON      CLOUD
 - Pin 8  / GPIO 33 = Ambient/outdoor temperature
 - Each needs 4.7kΩ pull-up resistor (data to VCC)
 
-**I2C Bus (shared):**
-- Pin 33 / GPIO 21 = SDA
-- Pin 36 / GPIO 22 = SCL
+**I2C Bus (shared) - Blue/Yellow wires:**
+- Pin 33 / GPIO 21 = SDA / **Blue**
+- Pin 36 / GPIO 22 = SCL / **Yellow**
 - LCD address: 0x27 or 0x3F
 - MCP23008 address: 0x20
 
@@ -211,12 +211,12 @@ Edit `Config.h` to change:
 
 **LCD blank:**
 - Check I2C address (try 0x3F if 0x27 doesn't work)
-- Verify I2C wiring (SDA/SCL)
+- Verify I2C wiring: Blue to GPIO 21 (SDA), Yellow to GPIO 22 (SCL)
 - Adjust contrast pot on back of LCD
 
 **Buttons not working:**
 - Verify MCP23008 detected at 0x20
-- Check I2C wiring
+- Check I2C wiring (Blue/Yellow)
 - Ensure A0, A1, A2 connected to GND
 - Verify buttons connect GP pins to GND
 

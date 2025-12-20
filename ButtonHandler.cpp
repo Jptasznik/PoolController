@@ -39,12 +39,16 @@ void initButtons() {
   // Lock I2C bus for MCP23008 initialization
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
+#ifndef NO_HARDWARE
     LOG_ERROR("Failed to lock I2C for MCP23008 init!");
+#endif
     return;
   }
 
   if (!mcp.begin_I2C(MCP23008_ADDRESS)) {
+#ifndef NO_HARDWARE
     LOG_ERROR("MCP23008 not found!");
+#endif
     return;
   }
 

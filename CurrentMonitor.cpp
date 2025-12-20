@@ -26,15 +26,19 @@ void initCurrentMonitor() {
   // Lock I2C bus for ADS1115 initialization
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
+#ifndef NO_HARDWARE
     LOG_ERROR("Failed to lock I2C for ADS1115 init!");
+#endif
     state.currentSensorValid = false;
     return;
   }
 
   // Initialize ADS1115
   if (!ads.begin(ADS1115_ADDRESS)) {
+#ifndef NO_HARDWARE
     LOG_ERROR("Failed to initialize ADS1115!");
     LOG_ERROR("Check I2C connections and address");
+#endif
     state.currentSensorValid = false;
     return;
   }
@@ -263,7 +267,9 @@ void calibrateCurrentSensor() {
   }
 
   if (!currentSensorValid) {
+#ifndef NO_HARDWARE
     LOG_ERROR("Cannot calibrate - sensor not initialized");
+#endif
     return;
   }
 
@@ -277,7 +283,9 @@ void calibrateCurrentSensor() {
   {
     I2CScopedLock i2cLock;
     if (!i2cLock.isLocked()) {
+#ifndef NO_HARDWARE
       LOG_ERROR("Failed to lock I2C for calibration");
+#endif
       return;
     }
 

@@ -67,9 +67,7 @@ void readTemperatures() {
     if (!inletValid) {
       LOG_WARNF("Inlet temp out of range: %.1f", inletTemp);
     }
-#endif
   } else {
-#ifndef NO_HARDWARE
     LOG_WARN("Inlet sensor disconnected");
 #endif
   }
@@ -84,9 +82,7 @@ void readTemperatures() {
     if (!heaterValid) {
       LOG_WARNF("Heater temp out of range: %.1f", heaterTemp);
     }
-#endif
   } else {
-#ifndef NO_HARDWARE
     LOG_WARN("Heater sensor disconnected");
 #endif
   }
@@ -101,16 +97,16 @@ void readTemperatures() {
     if (!ambientValid) {
       LOG_WARNF("Ambient temp out of range: %.1f", ambientTemp);
     }
-#endif
   } else {
-#ifndef NO_HARDWARE
     LOG_WARN("Ambient sensor disconnected");
 #endif
   }
 
   // Check for critical sensor failure (both primary sensors failed)
   if (!inletValid && !heaterValid) {
+#ifndef NO_HARDWARE
     LOG_ERROR("CRITICAL: Both inlet and heater sensors failed!");
+#endif
 
     // Update state first
     {
@@ -132,20 +128,18 @@ void readTemperatures() {
     }
     return;
 #else
-    LOG_WARN("NO_HARDWARE mode: Skipping failsafe trigger for sensor failure");
+    return;  // Skip failsafe in NO_HARDWARE mode
 #endif
   }
 
   // Check for single critical sensor failure
   if (!inletValid) {
-    LOG_ERROR("CRITICAL: Inlet temperature sensor failure!");
 #ifndef NO_HARDWARE
+    LOG_ERROR("CRITICAL: Inlet temperature sensor failure!");
     // Enter failsafe if not already in it
     if (!state.inFailsafeMode) {
       enterFailsafeMode("INLET_SENSOR_FAILURE");
     }
-#else
-    LOG_WARN("NO_HARDWARE mode: Skipping failsafe trigger for inlet sensor failure");
 #endif
   }
 

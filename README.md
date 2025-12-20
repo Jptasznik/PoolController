@@ -61,16 +61,16 @@ Temperature Sensors:
 - GPIO 32 (Pin 7):  Heater outlet temperature (DS18B20)
 - GPIO 33 (Pin 8):  Ambient/outdoor temperature (DS18B20)
 
-I2C Bus (shared):
-- GPIO 21 (Pin 33): SDA (LCD + MCP23008 + ADS1115)
-- GPIO 22 (Pin 36): SCL (LCD + MCP23008 + ADS1115)
+I2C Bus (shared) - **Use Blue wire for SDA, Yellow wire for SCL:**
+- GPIO 21 (Pin 33): SDA / **Blue** (LCD + MCP23008 + ADS1115)
+- GPIO 22 (Pin 36): SCL / **Yellow** (LCD + MCP23008 + ADS1115)
 
 Control Outputs:
 - GPIO 26 (Pin 10): Pump enable relay
 - GPIO 13 (Pin 15): Pump speed relay (LOW=low, HIGH=high)
 - GPIO 12 (Pin 13): Heater relay
 
-I2C Device Addresses:
+I2C Device Addresses (all share Blue/SDA and Yellow/SCL wires):
 - LCD Display: 0x27 (or 0x3F)
 - MCP23008: 0x20 (A0, A1, A2 to GND; RESET to 3.3V)
 - ADS1115: 0x48 (default address)
@@ -253,6 +253,8 @@ Status indicators:
 
 ### I2C Device Not Found
 
+First verify Blue wire is on GPIO 21 (SDA) and Yellow wire is on GPIO 22 (SCL).
+
 Run this I2C scanner sketch to verify addresses:
 ```cpp
 #include <Wire.h>
@@ -419,7 +421,7 @@ Always:
 
 For issues or questions:
 1. Check Serial Monitor output at 115200 baud
-2. Verify all I2C devices detected
+2. Verify all I2C devices detected (check Blue/Yellow wiring if not)
 3. Confirm WiFi and cloud connections
 4. Review error messages in serial output
 5. Test each subsystem independently
