@@ -54,8 +54,8 @@ Legend:
 | 28 | **GPIO 17** | Available | I/O | Safe to use. UART2 TX. Can be used as GPIO. |
 | 30 | **GPIO 18** | Available | I/O | Safe to use. VSPI SCK. Can be used as GPIO. |
 | 31 | **GPIO 19** | Available | I/O | Safe to use. VSPI MISO. Can be used as GPIO. |
-| 33 | **GPIO 21** | **I2C SDA** ✓ | I/O | Used for I2C data (LCD + MCP23008). Safe to use. |
-| 36 | **GPIO 22** | **I2C SCL** ✓ | I/O | Used for I2C clock (LCD + MCP23008). Safe to use. |
+| 33 | **GPIO 21** | **I2C SDA / Blue** ✓ | I/O | Used for I2C data (LCD + MCP23008 + ADS1115). Safe to use. |
+| 36 | **GPIO 22** | **I2C SCL / Yellow** ✓ | I/O | Used for I2C clock (LCD + MCP23008 + ADS1115). Safe to use. |
 | 37 | **GPIO 23** | Available | I/O | Safe to use. VSPI MOSI. Can be used as GPIO. |
 | 9 | **GPIO 25** | Available | I/O + ADC2_8 + DAC1 | Safe to use. ADC2 disabled when WiFi active. Has DAC output. |
 | 10 | **GPIO 26** | **PUMP ENABLE RELAY** ✓ | I/O + ADC2_9 + DAC2 | Safe to use. ADC2 disabled when WiFi active. Has DAC output. |
@@ -100,14 +100,14 @@ Legend:
 |--------------|------|----------|-----------|
 | 13 | 12 | Heater relay control | Single relay/SSR |
 | 15 | 13 | Pump speed relay | 2-channel relay module |
-| 33 | 21 | I2C SDA | LCD + MCP23008 (shared bus) |
-| 36 | 22 | I2C SCL | LCD + MCP23008 (shared bus) |
+| 33 | 21 | I2C SDA / Blue | LCD + MCP23008 + ADS1115 (shared bus) |
+| 36 | 22 | I2C SCL / Yellow | LCD + MCP23008 + ADS1115 (shared bus) |
 | 10 | 26 | Pump enable relay | 2-channel relay module |
 | 7 | 32 | Heater temperature | DS18B20 sensor #2 |
 | 8 | 33 | Ambient temperature | DS18B20 sensor #3 |
 | 6 | 35 | Inlet temperature | DS18B20 sensor #1 |
 
-**I2C Devices (on bus):**
+**I2C Devices (on bus) - Blue wire = SDA (GPIO 21), Yellow wire = SCL (GPIO 22):**
 - LCD Display (address 0x27)
 - MCP23008 (address 0x20) - handles 5 buttons
 
@@ -201,8 +201,10 @@ Can output analog voltage (0-3.3V). Still works as digital GPIO.
 ## I2C Interface
 
 ### Default I2C (Used in project)
-- **SDA:** GPIO 21 ✓ Used
-- **SCL:** GPIO 22 ✓ Used
+- **SDA / Blue:** GPIO 21 ✓ Used
+- **SCL / Yellow:** GPIO 22 ✓ Used
+
+**Wire Color Code:** Use Blue wire for SDA (GPIO 21) and Yellow wire for SCL (GPIO 22)
 
 **Note:** ESP32 I2C is software-based, can use any GPIO pins. We use default pins for compatibility.
 
@@ -247,9 +249,9 @@ These pins determine boot mode. Be careful with them:
 - ADC2 (GPIO 0, 2, 4, 12-15, 25-27) will NOT work with WiFi
 
 ### For I2C Devices
-**Standard:**
-- SDA: GPIO 21 (default)
-- SCL: GPIO 22 (default)
+**Standard (Blue/Yellow wires):**
+- SDA / Blue wire: GPIO 21 (default)
+- SCL / Yellow wire: GPIO 22 (default)
 
 **Alternative:** Can use any GPIO pair, but stick to standard for compatibility
 

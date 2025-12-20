@@ -73,20 +73,24 @@ DS18B20 Sensor #3:
 
 ## I2C Bus (Shared by LCD, MCP23008, and ADS1115)
 
+**Wire Color Code:**
+- **SDA (GPIO 21, Pin 33) - BLUE wire**
+- **SCL (GPIO 22, Pin 36) - YELLOW wire**
+
 **Pull-up resistors:** 4.7kΩ on SDA and SCL (usually built-in to modules)
 
 ```
-ESP32 GPIO 21 (Pin 33/SDA) ─────┬─────────── LCD SDA
-                                │
-                                ├─────────── MCP23008 SDA (Pin 1)
-                                │
-                                └─────────── ADS1115 SDA
+ESP32 GPIO 21 (Pin 33/SDA/BLUE) ─┬─────────── LCD SDA (Blue)
+                                 │
+                                 ├─────────── MCP23008 SDA (Pin 1, Blue)
+                                 │
+                                 └─────────── ADS1115 SDA (Blue)
 
-ESP32 GPIO 22 (Pin 36/SCL) ─────┬─────────── LCD SCL
-                                │
-                                ├─────────── MCP23008 SCL (Pin 2)
-                                │
-                                └─────────── ADS1115 SCL
+ESP32 GPIO 22 (Pin 36/SCL/YELLOW)┬─────────── LCD SCL (Yellow)
+                                 │
+                                 ├─────────── MCP23008 SCL (Pin 2, Yellow)
+                                 │
+                                 └─────────── ADS1115 SCL (Yellow)
 
 ESP32 3.3V or 5V (Pin 1/19) ────┬─────────── LCD VCC (check module voltage)
                                 │
@@ -112,8 +116,8 @@ ESP32 GND (Pin 14/20/26) ───────┬──────────�
 LCD Module Pins:
   VCC  ──── 5V (Pin 19) or 3.3V (Pin 1) - check module specs
   GND  ──── ESP32 GND (Pin 14, 38, or 32)
-  SDA  ──── ESP32 GPIO 21 (Pin 33)
-  SCL  ──── ESP32 GPIO 22 (Pin 36)
+  SDA  ──── ESP32 GPIO 21 (Pin 33) - Blue wire
+  SCL  ──── ESP32 GPIO 22 (Pin 36) - Yellow wire
   
 Backlight: Controlled by LCD module (always on)
 Contrast: Adjust potentiometer on back of module
@@ -129,8 +133,8 @@ Contrast: Adjust potentiometer on back of module
 
 ```
 MCP23008 Pinout:
-  Pin 1  (SCL Y)  ──── ESP32 GPIO 22
-  Pin 2  (SDA B)  ──── ESP32 GPIO 21
+  Pin 1  (SDA)    ──── ESP32 GPIO 21 - Blue wire
+  Pin 2  (SCL)    ──── ESP32 GPIO 22 - Yellow wire
   Pin 3  (A2)     ──── GND (address select)
   Pin 4  (A1)     ──── GND (address select)
   Pin 5  (A0)     ──── GND (address select)
@@ -166,8 +170,8 @@ A2 A1 A0 = Address
 ADS1115 16-bit ADC Module:
   VDD  ──── ESP32 3.3V (Pin 1)
   GND  ──── ESP32 GND (Pin 14)
-  SDA  ──── ESP32 GPIO 21 (Pin 33) - shared I2C
-  SCL  ──── ESP32 GPIO 22 (Pin 36) - shared I2C
+  SDA  ──── ESP32 GPIO 21 (Pin 33) - Blue wire - shared I2C
+  SCL  ──── ESP32 GPIO 22 (Pin 36) - Yellow wire - shared I2C
   ADDR ──── GND (sets address to 0x48)
   ALRT ──── Not connected (optional alert pin)
   A0   ──── Current sensor signal (see circuit below)
@@ -404,8 +408,8 @@ GPIO 12 (Pin 13)    Result
 │           ├──── All button commons                      │
 │           └──── Relay module GND                        │
 │                                                         │
-│  GPIO 21 (Pin 33) ─┴─ I2C SDA (LCD + MCP23008)          │
-│  GPIO 22 (Pin 36) ─┴─ I2C SCL (LCD + MCP23008)          │
+│  GPIO 21 (Pin 33) ─┴─ I2C SDA/Blue (LCD + MCP23008 + ADS1115) │
+│  GPIO 22 (Pin 36) ─┴─ I2C SCL/Yellow (LCD + MCP23008 + ADS1115) │
 │                                                         │
 │  GPIO 35 (Pin 6)  ──── DS18B20 #1 DATA (inlet temp)     │
 │  GPIO 32 (Pin 7)  ──── DS18B20 #2 DATA (heater temp)    │
@@ -429,11 +433,12 @@ GPIO 12 (Pin 13)    Result
 ## Wiring Best Practices
 
 **I2C Bus:**
-1. Keep wiring under 30cm (12") if possible
-2. Use twisted pair or shielded cable for longer runs
-3. Add 100nF capacitors near each I2C device (optional, for noise)
-4. Check for 4.7kΩ pull-ups (usually built-in to modules)
-5. Test each I2C device individually before combining
+1. **Use Blue wire for SDA (GPIO 21) and Yellow wire for SCL (GPIO 22)**
+2. Keep wiring under 30cm (12") if possible
+3. Use twisted pair or shielded cable for longer runs
+4. Add 100nF capacitors near each I2C device (optional, for noise)
+5. Check for 4.7kΩ pull-ups (usually built-in to modules)
+6. Test each I2C device individually before combining
 
 **Temperature Sensors:**
 1. MUST have 4.7kΩ pull-up resistor on each sensor
@@ -503,6 +508,7 @@ GPIO 12 (Pin 13)    Result
 - Maximum length: 2 meters (6 feet)
 
 **I2C (SDA/SCL):**
+- **Wire colors: Blue (SDA/GPIO 21), Yellow (SCL/GPIO 22)**
 - Wire gauge: 22-24 AWG
 - Maximum length: 30cm (1 foot) unshielded
 - Up to 3 meters (10 feet) with shielded cable
@@ -529,7 +535,8 @@ GPIO 12 (Pin 13)    Result
 
 **No I2C devices detected:**
 - Verify 3.3V power present at devices
-- Check SDA and SCL not swapped
+- Check SDA (Blue) and SCL (Yellow) not swapped
+- Verify Blue wire to GPIO 21 (SDA) and Yellow wire to GPIO 22 (SCL)
 - Test I2C lines with multimeter (should idle at 3.3V)
 - Add pull-up resistors if very long cables used
 
@@ -619,8 +626,8 @@ When in doubt, consult a qualified professional.
 
 - [ ] ESP32 powered from 5V, 2A supply
 - [ ] All grounds connected to common GND
-- [ ] I2C: GPIO 21 = SDA, GPIO 22 = SCL
-- [ ] LCD at address 0x27, powered, on I2C bus
+- [ ] I2C: GPIO 21 (Blue) = SDA, GPIO 22 (Yellow) = SCL
+- [ ] LCD at address 0x27, powered, on I2C bus (Blue and Yellow wires)
 - [ ] MCP23008 at address 0x20, A0/A1/A2 = GND
 - [ ] DS18B20 inlet on GPIO 35 with 4.7kΩ pull-up
 - [ ] DS18B20 heater on GPIO 32 with 4.7kΩ pull-up

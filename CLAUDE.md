@@ -661,6 +661,15 @@ xTaskCreatePinnedToCore(
 
 ### 5. Hardware Configuration
 
+#### Wiring Color Code Standard
+
+For consistency and ease of troubleshooting, use the following color code for I2C connections:
+
+- **I2C_SCL (GPIO 22, Pin 36)** - **Yellow wire** - Clock line
+- **I2C_SDA (GPIO 21, Pin 33)** - **Blue wire** - Data line
+
+This color coding should be used in all wiring diagrams and physical connections to maintain consistency across documentation and hardware builds.
+
 #### Pin Assignments (Config.h)
 
 **Temperature Sensors (1-Wire DS18B20):**
@@ -669,15 +678,15 @@ xTaskCreatePinnedToCore(
 - `TEMP_AMBIENT_PIN` (GPIO 33, Pin 8) - Ambient/outdoor temperature
 
 **I2C Bus (shared):**
-- `I2C_SDA` (GPIO 21, Pin 33) - Data line
-- `I2C_SCL` (GPIO 22, Pin 36) - Clock line
+- `I2C_SDA` (GPIO 21, Pin 33) - **Blue** - Data line
+- `I2C_SCL` (GPIO 22, Pin 36) - **Yellow** - Clock line
 
 **Control Outputs:**
 - `PUMP_ENABLE_PIN` (GPIO 26, Pin 10) - Pump relay
 - `PUMP_SPEED_PIN` (GPIO 13, Pin 15) - Speed relay (LOW/HIGH)
 - `HEATER_PIN` (GPIO 12, Pin 13) - Heater relay
 
-**I2C Devices:**
+**I2C Devices (all share SDA/Blue and SCL/Yellow):**
 - LCD Display: Address `0x27`
 - MCP23008 GPIO Expander: Address `0x20`
 - ADS1115 ADC: Address `0x48`

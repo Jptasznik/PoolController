@@ -21,10 +21,10 @@ Pin#  GPIO    Status                 Pin#  GPIO    Status
 ════════════════════════════         ════════════════════════════
  1    3V3    [Power]                  38   GND    [Ground]
  2    EN     [Reset]                  37   IO23   ○  VSPI MOSI
- 3    IO36   ▶  ADC1_0                36   IO22   ✓  I2C SCL
+ 3    IO36   ▶  ADC1_0                36   IO22   ✓  I2C SCL (Yellow)
  4    IO39   ▶  ADC1_3                35   TX0    ⚠  Serial TX
  5    IO34   ▶  ADC1_6                34   RX0    ⚠  Serial RX
- 6    IO35   ✓  Inlet Temp            33   IO21   ✓  I2C SDA
+ 6    IO35   ✓  Inlet Temp            33   IO21   ✓  I2C SDA (Blue)
  7    IO32   ✓  Heater Temp           32   GND    [Ground]
  8    IO33   ✓  Ambient Temp          31   IO19   ○  VSPI MISO
  9    IO25   ○  ADC2_8, DAC1          30   IO18   ○  VSPI SCK
@@ -107,8 +107,8 @@ Pin 22 / GPIO 8    Pin 16 / GPIO 9
 Pin 13  GPIO 12  ✓  Heater relay control
 Pin 15  GPIO 13  ✓  Pump speed relay
 Pin 10  GPIO 26  ✓  Pump enable relay
-Pin 33  GPIO 21  ✓  I2C SDA (LCD + MCP23008)
-Pin 36  GPIO 22  ✓  I2C SCL (LCD + MCP23008)
+Pin 33  GPIO 21  ✓  I2C SDA / Blue (LCD + MCP23008 + ADS1115)
+Pin 36  GPIO 22  ✓  I2C SCL / Yellow (LCD + MCP23008 + ADS1115)
 ```
 
 ### Temperature Sensors (3 pins used)
@@ -204,6 +204,8 @@ Note: GPIO 32, 33, 35 already used for temp sensors
 
 ## I2C Bus Capacity
 
+**Wire Color Code: Blue = SDA (GPIO 21), Yellow = SCL (GPIO 22)**
+
 Current I2C devices:
 ```
 Address 0x20: MCP23008 GPIO expander (5 buttons)
@@ -275,7 +277,7 @@ Analog Input              Pin 3/GPIO 36, Pin 4/GPIO 39      Works with WiFi
 Temperature Sensor        Pin 26/GPIO 4, Pin 27/GPIO 16     Any GPIO works
 (DS18B20, etc.)          Pin 28/GPIO 17, Pin 9/GPIO 25     Future options
 
-I2C Device               Pin 33/GPIO 21, Pin 36/GPIO 22     Already configured
+I2C Device               Pin 33/GPIO 21 (Blue), Pin 36/GPIO 22 (Yellow)     Already configured
 (sensor, display)        (shared bus)                       127 addresses available
 
 SPI Device               Pin 30,31,37,29 / GPIO 18,19,23,5  VSPI bus

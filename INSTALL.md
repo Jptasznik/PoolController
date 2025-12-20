@@ -97,18 +97,18 @@ Temperature Sensors (DS18B20):
 - Yellow wire → GPIO 35 (Pin 6 - inlet) or GPIO 32 (Pin 7 - heater) or GPIO 33 (Pin 8 - ambient)
 - 4.7kΩ resistor between yellow and red wire
 
-I2C Devices:
-- SDA → GPIO 21 (Pin 33)
-- SCL → GPIO 22 (Pin 36)
+I2C Devices - **Use Blue wire for SDA, Yellow for SCL:**
+- SDA / **Blue** → GPIO 21 (Pin 33)
+- SCL / **Yellow** → GPIO 22 (Pin 36)
 - VCC → 3.3V (Pin 1) or 5V (Pin 19) depending on device
 - GND → GND (Pin 14, 32, or 38)
 
 LCD Display (I2C):
-- Shares GPIO 21 (SDA) and GPIO 22 (SCL)
+- Shares GPIO 21 (SDA/Blue) and GPIO 22 (SCL/Yellow)
 - Address usually 0x27 or 0x3F
 
 MCP23008:
-- Shares GPIO 21 (SDA) and GPIO 22 (SCL)
+- Shares GPIO 21 (SDA/Blue) and GPIO 22 (SCL/Yellow)
 - A0, A1, A2 → GND (sets address to 0x20)
 - RESET → 3.3V
 - GP0-GP4 → Connect buttons to GND when pressed
@@ -168,7 +168,7 @@ Open Serial Monitor (115200 baud) and verify:
 ## Common Issues
 
 **"MCP23008 not found!"**
-- Check I2C wiring (SDA/SCL)
+- Check I2C wiring: Blue wire to GPIO 21 (SDA), Yellow wire to GPIO 22 (SCL)
 - Verify A0, A1, A2 connected to GND
 - Run I2C scanner (see README.md)
 
