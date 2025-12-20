@@ -468,8 +468,12 @@ void setup() {
   initSystemState();
 
   // Initialize I2C bus
+#ifndef NO_HARDWARE
   Wire.begin(I2C_SDA, I2C_SCL);
   LOG_INFO("I2C bus initialized");
+#else
+  LOG_INFO("I2C bus initialization skipped (NO_HARDWARE mode)");
+#endif
 
   // Initialize hardware
   LOG_INFO("Initializing hardware...");
