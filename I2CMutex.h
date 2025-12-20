@@ -21,8 +21,12 @@ void initI2CMutex();
 
 // Lock I2C bus for exclusive access
 // Returns true if lock acquired, false if timeout
-// timeout_ms: Maximum time to wait for lock (default 100ms)
+// timeout_ms: Maximum time to wait for lock (default 100ms, 1000ms in NO_HARDWARE mode)
+#ifdef NO_HARDWARE
+bool lockI2C(uint32_t timeout_ms = 1000);
+#else
 bool lockI2C(uint32_t timeout_ms = 100);
+#endif
 
 // Unlock I2C bus
 void unlockI2C();
@@ -38,7 +42,11 @@ void unlockI2C();
 
 class I2CScopedLock {
 public:
+#ifdef NO_HARDWARE
+  I2CScopedLock(uint32_t timeout_ms = 1000);
+#else
   I2CScopedLock(uint32_t timeout_ms = 100);
+#endif
   ~I2CScopedLock();
 
   bool isLocked() const { return locked; }
