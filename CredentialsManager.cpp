@@ -162,7 +162,7 @@ bool setSinricCredentials(
 ) {
   if (appKey == NULL || appSecret == NULL ||
       strlen(appKey) == 0 || strlen(appSecret) == 0) {
-    Serial.println("ERROR: Invalid Sinric credentials");
+    LOG_ERROR("Invalid Sinric credentials");
     return false;
   }
 
@@ -191,10 +191,10 @@ bool setSinricCredentials(
     preferences.end();
 
     xSemaphoreGive(credentialsMutex);
-    Serial.println("Sinric Pro credentials saved to flash");
+    LOG_INFO("Sinric Pro credentials saved to flash");
     return true;
   } else {
-    Serial.println("ERROR: Credentials mutex timeout in setSinricCredentials");
+    LOG_ERROR("Credentials mutex timeout in setSinricCredentials");
     return false;
   }
 }
@@ -208,7 +208,7 @@ bool hasSinricCredentials() {
 // ============================================
 
 void clearAllCredentials() {
-  Serial.println("Clearing all stored credentials...");
+  LOG_INFO("Clearing all stored credentials...");
 
   if (xSemaphoreTake(credentialsMutex, pdMS_TO_TICKS(CREDENTIALS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
     // Clear internal buffers
@@ -227,9 +227,9 @@ void clearAllCredentials() {
     preferences.end();
 
     xSemaphoreGive(credentialsMutex);
-    Serial.println("All credentials cleared");
+    LOG_INFO("All credentials cleared");
   } else {
-    Serial.println("ERROR: Credentials mutex timeout in clearAllCredentials");
+    LOG_ERROR("Credentials mutex timeout in clearAllCredentials");
   }
 }
 
@@ -238,9 +238,7 @@ bool hasAnyCredentials() {
 }
 
 void printCredentialStatus() {
-  Serial.println("Credential Status:");
-  Serial.print("  Blynk: ");
-  Serial.println(blynkConfigured ? "Configured" : "Not configured");
-  Serial.print("  Sinric Pro: ");
-  Serial.println(sinricConfigured ? "Configured" : "Not configured");
+  LOG_INFO("Credential Status:");
+  LOG_INFOF("  Blynk: %s", blynkConfigured ? "Configured" : "Not configured");
+  LOG_INFOF("  Sinric Pro: %s", sinricConfigured ? "Configured" : "Not configured");
 }
