@@ -475,8 +475,14 @@ void setup() {
 
   // Initialize I2C bus
 #ifndef NO_HARDWARE
-  Wire.begin(I2C_SDA, I2C_SCL);
-  LOG_INFO("I2C bus initialized");
+  bool i2cInitialized = Wire.begin(I2C_SDA, I2C_SCL);
+  if (!i2cInitialized) {
+    LOG_ERROR("CRITICAL: Failed to initialize I2C bus!");
+    LOG_ERROR("Check I2C pin connections (SDA: GPIO21, SCL: GPIO22)");
+    LOG_ERROR("System cannot operate without I2C (LCD, buttons, current sensor)");
+  } else {
+    LOG_INFO("I2C bus initialized successfully");
+  }
 #else
   LOG_INFO("I2C bus initialization skipped (NO_HARDWARE mode)");
 #endif
