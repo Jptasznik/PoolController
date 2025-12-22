@@ -32,6 +32,21 @@
 // #define DISABLE_WATCHDOG
 
 // ============================================
+// HARDWARE COMPONENT ENABLES
+// ============================================
+// Comment out any component to disable it for independent testing
+// Allows testing each hardware component separately
+// All components enabled by default - comment out to disable specific hardware
+#define ENABLE_TEMPERATURE_SENSORS 1    // DS18B20 temperature sensors
+#define ENABLE_CURRENT_MONITOR 1        // ADS1115 current sensor
+#define ENABLE_LCD 1                    // I2C LCD display
+#define ENABLE_BUTTONS 1                // MCP23008 button interface
+#define ENABLE_PUMP 1                   // Pump relay control
+#define ENABLE_HEATER 1                 // Heater relay control
+#define ENABLE_BLYNK 1                  // Blynk cloud integration
+#define ENABLE_SINRIC 1                 // SinricPro/Alexa integration
+
+// ============================================
 // PIN DEFINITIONS
 // ============================================
 

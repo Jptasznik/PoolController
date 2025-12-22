@@ -8,17 +8,20 @@
 #include "StateMutex.h"
 #include <LiquidCrystal_I2C.h>
 
+#ifdef ENABLE_LCD
 // LCD instance (20 columns, 4 rows)
 LiquidCrystal_I2C lcd(LCD_ADDRESS, 20, 4);
 
 // Track if LCD needs full clear (prevents flicker)
 static bool lcdNeedsClear = true;
+#endif
 
 // ============================================
 // INITIALIZATION
 // ============================================
 
 void initLCD() {
+#ifdef ENABLE_LCD
   LOG_INFO("Initializing LCD display...");
 
   // Lock I2C bus for LCD initialization
@@ -43,6 +46,9 @@ void initLCD() {
   lcd.print("    Please Wait");
 
   LOG_INFO("LCD display initialized");
+#else
+  LOG_WARN("LCD display DISABLED (ENABLE_LCD not defined)");
+#endif
 }
 
 // ============================================
@@ -50,6 +56,7 @@ void initLCD() {
 // ============================================
 
 void updateLCDDisplay() {
+#ifdef ENABLE_LCD
   // Copy state data while holding state lock (minimize lock time)
   float inletTemp, heaterTemp, targetTemp, pumpCurrent;
   bool inletTempValid, heaterTempValid, currentSensorValid;
@@ -152,6 +159,9 @@ void updateLCDDisplay() {
   } else {
     lcd.print("     ");
   }
+#else
+  // LCD disabled - do nothing
+#endif
 }
 
 // ============================================
@@ -159,6 +169,7 @@ void updateLCDDisplay() {
 // ============================================
 
 void displayEmergencyShutdown() {
+#ifdef ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -174,9 +185,11 @@ void displayEmergencyShutdown() {
   // Force clear on next updateLCDDisplay call
   lcdNeedsClear = true;
   updateLCDDisplay();
+#endif
 }
 
 void displayFactoryReset() {
+#ifdef ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -187,9 +200,11 @@ void displayFactoryReset() {
   lcd.print("  FACTORY RESET!");
   lcd.setCursor(0, 2);
   lcd.print("  Restarting...");
+#endif
 }
 
 void displayWiFiProvisioning() {
+#ifdef ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -207,9 +222,11 @@ void displayWiFiProvisioning() {
 
   // Force clear on next updateLCDDisplay call
   lcdNeedsClear = true;
+#endif
 }
 
 void displayWiFiReset() {
+#ifdef ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -224,9 +241,11 @@ void displayWiFiReset() {
   lcd.print("Credentials cleared");
   lcd.setCursor(0, 3);
   lcd.print("  Rebooting...");
+#endif
 }
 
 void displayOTAUpdate() {
+#ifdef ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -244,9 +263,11 @@ void displayOTAUpdate() {
 
   // Force clear on next updateLCDDisplay call
   lcdNeedsClear = true;
+#endif
 }
 
 void displayOTAProgress(unsigned int progress, unsigned int total) {
+#ifdef ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -272,4 +293,5 @@ void displayOTAProgress(unsigned int progress, unsigned int total) {
   lcd.print(" KB     ");
 
   // Don't set lcdNeedsClear - we're updating an existing display
+#endif
 }

@@ -285,6 +285,7 @@ void initTasks() {
 
   BaseType_t result;
 
+#ifdef ENABLE_TEMPERATURE_SENSORS
   // Create temperature sensor task
   result = xTaskCreatePinnedToCore(
     temperatureSensorTask,           // Task function
@@ -303,7 +304,11 @@ void initTasks() {
     ESP.restart();
   }
   LOG_INFO("[INIT] Temperature sensor task created");
+#else
+  LOG_WARN("[INIT] Temperature sensor task DISABLED");
+#endif
 
+#ifdef ENABLE_CURRENT_MONITOR
   // Create current monitor task
   result = xTaskCreatePinnedToCore(
     currentMonitorTask,
@@ -322,7 +327,11 @@ void initTasks() {
     ESP.restart();
   }
   LOG_INFO("[INIT] Current monitor task created");
+#else
+  LOG_WARN("[INIT] Current monitor task DISABLED");
+#endif
 
+#ifdef ENABLE_LCD
   // Create LCD update task
   result = xTaskCreatePinnedToCore(
     lcdUpdateTask,
@@ -341,7 +350,11 @@ void initTasks() {
     ESP.restart();
   }
   LOG_INFO("[INIT] LCD update task created");
+#else
+  LOG_WARN("[INIT] LCD update task DISABLED");
+#endif
 
+#ifdef ENABLE_BUTTONS
   // Create button scan task
   result = xTaskCreatePinnedToCore(
     buttonScanTask,
@@ -360,6 +373,9 @@ void initTasks() {
     ESP.restart();
   }
   LOG_INFO("[INIT] Button scan task created");
+#else
+  LOG_WARN("[INIT] Button scan task DISABLED");
+#endif
 
   // Create control system task
   result = xTaskCreatePinnedToCore(

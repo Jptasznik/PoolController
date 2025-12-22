@@ -16,6 +16,8 @@
 #include "SemVer.h"
 #endif
 
+#ifdef ENABLE_SINRIC
+
 // ============================================
 // ALEXA THERMOSTAT CALLBACKS
 // ============================================
@@ -325,3 +327,31 @@ void syncTargetTempToSinric() {
     thermostat.sendTemperatureEvent(state.inletTemp);
   }
 }
+
+#else // ENABLE_SINRIC not defined - provide stub implementations
+
+void initSinric() {
+  LOG_WARN("Sinric DISABLED (ENABLE_SINRIC not defined)");
+}
+
+void handleSinricEvents() {
+  // Sinric disabled - do nothing
+}
+
+void handleOTA() {
+  // Sinric disabled - do nothing
+}
+
+void syncHeaterToSinric() {
+  // Sinric disabled - do nothing
+}
+
+void syncPumpToSinric() {
+  // Sinric disabled - do nothing
+}
+
+void syncTargetTempToSinric() {
+  // Sinric disabled - do nothing
+}
+
+#endif // ENABLE_SINRIC

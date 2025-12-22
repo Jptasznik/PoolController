@@ -8,6 +8,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+#ifdef ENABLE_TEMPERATURE_SENSORS
 // OneWire instances for each sensor
 OneWire inletWire(TEMP_INLET_PIN);
 OneWire heaterWire(TEMP_HEATER_PIN);
@@ -17,12 +18,14 @@ OneWire ambientWire(TEMP_AMBIENT_PIN);
 DallasTemperature inletSensor(&inletWire);
 DallasTemperature heaterSensor(&heaterWire);
 DallasTemperature ambientSensor(&ambientWire);
+#endif
 
 // ============================================
 // INITIALIZATION
 // ============================================
 
 void initTemperatureSensors() {
+#ifdef ENABLE_TEMPERATURE_SENSORS
   LOG_INFO("Initializing temperature sensors...");
 
   inletSensor.begin();
@@ -41,6 +44,9 @@ void initTemperatureSensors() {
   ambientSensor.setResolution(12);
 
   LOG_INFO("Temperature sensors initialized");
+#else
+  LOG_WARN("Temperature sensors DISABLED (ENABLE_TEMPERATURE_SENSORS not defined)");
+#endif
 }
 
 // ============================================
@@ -48,6 +54,7 @@ void initTemperatureSensors() {
 // ============================================
 
 void readTemperatures() {
+#ifdef ENABLE_TEMPERATURE_SENSORS
   // Request temperatures from all sensors (no mutex needed - hardware access)
   inletSensor.requestTemperatures();
   heaterSensor.requestTemperatures();
@@ -183,6 +190,9 @@ void readTemperatures() {
   if (hasData) {
     LOG_DEBUG(tempMsg);
   }
+#endif
+#else
+  // Temperature sensors disabled - do nothing
 #endif
 }
 

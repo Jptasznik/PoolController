@@ -13,12 +13,16 @@
 // ============================================
 
 void initHeaterControl() {
+#ifdef ENABLE_HEATER
   LOG_INFO("Initializing heater control...");
 
   pinMode(HEATER_PIN, OUTPUT);
   digitalWrite(HEATER_PIN, LOW);
 
   LOG_INFO("Heater control initialized");
+#else
+  LOG_WARN("Heater control DISABLED (ENABLE_HEATER not defined)");
+#endif
 }
 
 // ============================================
@@ -97,6 +101,7 @@ void runControlSystem() {
 // ============================================
 
 void applyHeaterState() {
+#ifdef ENABLE_HEATER
   HeaterStatus currentStatus;
 
   {
@@ -113,6 +118,9 @@ void applyHeaterState() {
   } else {
     digitalWrite(HEATER_PIN, LOW);
   }
+#else
+  // Heater disabled - do nothing
+#endif
 }
 
 // ============================================
