@@ -1689,8 +1689,6 @@ This ensures the pool controller remains operational and automatically recovers 
 
 ### 15. Version Control and Git
 
-Current branch: `claude/claude-md-miu9qz78g82t3q4r-018b8tPRfz77RkdRvHbJHaxB`
-
 **When committing changes:**
 1. Test thoroughly on hardware first
 2. Verify safety interlocks still work
@@ -1832,7 +1830,7 @@ This is a well-structured, safety-critical embedded system. The modular architec
 
 ---
 
-**Last Updated:** 2025-12-12
+**Last Updated:** 2025-12-22
 **Project Version:** 1.2
 **Major Updates:**
 - ✅ Logging framework fully integrated across all 11 modules (December 2025)
@@ -1840,5 +1838,11 @@ This is a well-structured, safety-critical embedded system. The modular architec
 - ✅ Module-based LOG_MODULE identifiers for all components
 - ✅ NVS persistent logging with configurable circular buffer (December 2025)
 - ✅ Remote log control via Blynk (log level V15, buffer size V16)
+- ✅ **Production safety hardening (December 22, 2025):**
+  - NO_HARDWARE mode disabled for production
+  - Thread-safe state access with mutex protection on all 18 state functions
+  - Standardized mutex error handling with logging
+  - WiFi credential validation timeout restored to 60 seconds
+  - All blocking delays documented
 
 **Claude Assistant:** Ready to help with this codebase!
