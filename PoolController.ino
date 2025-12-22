@@ -242,13 +242,17 @@ BLYNK_WRITE(VPIN_LOG_BUFFER_SIZE) {
 // ============================================
 
 BLYNK_CONNECTED() {
+  LOG_INFO("========================================");
   LOG_INFO("Blynk connected!");
+  LOG_INFO("========================================");
   state.blynkConnected = true;
   syncAllToBlynk();
 }
 
 BLYNK_DISCONNECTED() {
+  LOG_INFO("========================================");
   LOG_INFO("Blynk disconnected");
+  LOG_INFO("========================================");
   state.blynkConnected = false;
 }
 
