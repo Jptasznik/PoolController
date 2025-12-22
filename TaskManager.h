@@ -79,6 +79,10 @@ void wifiNetworkTask(void* parameter);
 // WATCHDOG MANAGEMENT
 // ============================================
 
+// Helper function to add current task to watchdog timer
+// Returns true if successful, false if failed
+void addTaskToWatchdog(const char* taskName);
+
 // Task handles for watchdog management
 extern TaskHandle_t temperatureTaskHandle;
 extern TaskHandle_t currentTaskHandle;

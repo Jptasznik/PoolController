@@ -386,7 +386,7 @@ void handleWiFiRuntimeFailure(const char* reason) {
   clearWiFiRuntimeTracking();
 
   // Wait for user to see message
-  delay(WIFI_FAILURE_RESET_DELAY);
+  delay(WIFI_FAILURE_RESET_DELAY);  // BLOCKING: Allow user to read WiFi reset message on LCD (acceptable before restart)
 
   // Restart ESP32
 #ifndef NO_HARDWARE

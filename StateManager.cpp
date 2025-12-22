@@ -93,6 +93,13 @@ void initSystemState() {
 // ============================================
 
 void setHeaterEnabledState(bool enabled) {
+  // CRITICAL: Acquire state mutex for thread-safe access
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    LOG_ERROR("Failed to acquire state lock in setHeaterEnabledState");
+    return;
+  }
+
   if (state.emergencyShutdown && enabled) {
     LOG_WARN("Cannot enable heater during emergency shutdown");
     return;
@@ -122,6 +129,13 @@ void setHeaterEnabledState(bool enabled) {
 }
 
 void setPumpState(PumpState newState) {
+  // CRITICAL: Acquire state mutex for thread-safe access
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    LOG_ERROR("Failed to acquire state lock in setPumpState");
+    return;
+  }
+
   if (state.emergencyShutdown && newState != PUMP_OFF) {
     LOG_WARN("Cannot enable pump during emergency shutdown");
     return;
@@ -156,7 +170,17 @@ void setTargetTemperature(float newTemp) {
   if (newTemp < MIN_TARGET_TEMP) newTemp = MIN_TARGET_TEMP;
   if (newTemp > MAX_TARGET_TEMP) newTemp = MAX_TARGET_TEMP;
 
-  state.targetTemp = newTemp;
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in setTargetTemperature");
+      return;
+    }
+
+    state.targetTemp = newTemp;
+  }
+
   saveTargetTemp(newTemp);
 
 #ifndef NO_HARDWARE
@@ -172,7 +196,17 @@ void setMaxRuntimeHours(float hours) {
   if (hours < 0) hours = 0;
   if (hours > 24) hours = 24;
 
-  state.maxRuntimeHours = hours;
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in setMaxRuntimeHours");
+      return;
+    }
+
+    state.maxRuntimeHours = hours;
+  }
+
   saveMaxRuntimeHours(hours);
 
   LOG_INFOF("Max runtime hours: %.1f", hours);
@@ -182,7 +216,17 @@ void setHeaterStartHour(int hour) {
   if (hour < 0) hour = 0;
   if (hour > 23) hour = 23;
 
-  state.heaterStartHour = hour;
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in setHeaterStartHour");
+      return;
+    }
+
+    state.heaterStartHour = hour;
+  }
+
   saveHeaterStartHour(hour);
 
   LOG_INFOF("Heater start hour: %d", hour);
@@ -192,7 +236,17 @@ void setHeaterEndHour(int hour) {
   if (hour < 0) hour = 0;
   if (hour > 23) hour = 23;
 
-  state.heaterEndHour = hour;
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in setHeaterEndHour");
+      return;
+    }
+
+    state.heaterEndHour = hour;
+  }
+
   saveHeaterEndHour(hour);
 
   LOG_INFOF("Heater end hour: %d", hour);
@@ -203,7 +257,17 @@ void setMinHeaterTemp(float temp) {
   if (temp < INVALID_TEMP_LOW) temp = INVALID_TEMP_LOW;
   if (temp > MAX_TARGET_TEMP) temp = MAX_TARGET_TEMP;
 
-  state.minHeaterTemp = temp;
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in setMinHeaterTemp");
+      return;
+    }
+
+    state.minHeaterTemp = temp;
+  }
+
   saveMinHeaterTemp(temp);
 
   LOG_INFOF("Minimum heater temp: %.1f°F", temp);
@@ -214,7 +278,17 @@ void setMaxHeaterTemp(float temp) {
   if (temp < MIN_TARGET_TEMP) temp = MIN_TARGET_TEMP;
   if (temp > MAX_HEATER_TEMP) temp = MAX_HEATER_TEMP;
 
-  state.maxHeaterTemp = temp;
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in setMaxHeaterTemp");
+      return;
+    }
+
+    state.maxHeaterTemp = temp;
+  }
+
   saveMaxHeaterTemp(temp);
 
   LOG_INFOF("Maximum heater temp: %.1f°F", temp);
@@ -511,23 +585,40 @@ bool isCooldownComplete() {
 
 void updatePumpRuntime() {
   unsigned long now = millis();
-  unsigned long elapsed = now - state.lastRuntimeUpdate;
+  unsigned long elapsed;
+  PumpState currentPumpState;
+  unsigned long lastRuntimeUpdate;
+  int lastResetDay;
 
-  // Sanity check: if elapsed time is impossibly large (> 1 hour),
-  // assume millis() overflow or system suspension occurred
-  // In this case, don't accumulate runtime to avoid corruption
-  if (elapsed > 3600000) {  // 1 hour
-    LOG_WARN("Runtime tracking anomaly detected, skipping accumulation");
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in updatePumpRuntime");
+      return;
+    }
+
+    lastRuntimeUpdate = state.lastRuntimeUpdate;
+    elapsed = now - lastRuntimeUpdate;
+
+    // Sanity check: if elapsed time is impossibly large (> 1 hour),
+    // assume millis() overflow or system suspension occurred
+    // In this case, don't accumulate runtime to avoid corruption
+    if (elapsed > 3600000) {  // 1 hour
+      LOG_WARN("Runtime tracking anomaly detected, skipping accumulation");
+      state.lastRuntimeUpdate = now;
+      return;
+    }
+
+    // Only count runtime if pump is actually running
+    currentPumpState = state.pumpState;
+    if (currentPumpState != PUMP_OFF) {
+      state.pumpRuntimeToday += elapsed;
+    }
+
     state.lastRuntimeUpdate = now;
-    return;
+    lastResetDay = state.lastResetDay;
   }
-
-  // Only count runtime if pump is actually running
-  if (state.pumpState != PUMP_OFF) {
-    state.pumpRuntimeToday += elapsed;
-  }
-
-  state.lastRuntimeUpdate = now;
 
   // Check if we need to reset daily runtime
   time_t now_t;
@@ -535,19 +626,41 @@ void updatePumpRuntime() {
   time(&now_t);
   localtime_r(&now_t, &timeinfo);
 
-  if (state.lastResetDay != timeinfo.tm_mday) {
+  if (lastResetDay != timeinfo.tm_mday) {
     resetDailyRuntime();
-    state.lastResetDay = timeinfo.tm_mday;
+
+    // Update lastResetDay with mutex protection
+    {
+      StateScopedLock stateLock;
+      if (stateLock.isLocked()) {
+        state.lastResetDay = timeinfo.tm_mday;
+      }
+    }
   }
 }
 
 void resetDailyRuntime() {
   LOG_INFO("Resetting daily pump runtime counter");
+
+  // CRITICAL: Acquire state mutex for thread-safe access
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    LOG_ERROR("Failed to acquire state lock in resetDailyRuntime");
+    return;
+  }
+
   state.pumpRuntimeToday = 0;
   state.lastRuntimeUpdate = millis();
 }
 
 float getPumpRuntimeHours() {
+  // CRITICAL: Acquire state mutex for thread-safe access
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    LOG_ERROR("Failed to acquire state lock in getPumpRuntimeHours");
+    return 0.0;
+  }
+
   return state.pumpRuntimeToday / 3600000.0;  // Convert ms to hours
 }
 
@@ -560,29 +673,55 @@ bool isWithinOperatingHours() {
   struct tm timeinfo;
   time(&now);
   localtime_r(&now, &timeinfo);
-  
+
   int currentHour = timeinfo.tm_hour;
-  
-  if (state.heaterStartHour <= state.heaterEndHour) {
+  int heaterStartHour, heaterEndHour;
+
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in isWithinOperatingHours");
+      return false;  // Fail-safe: assume outside operating hours
+    }
+
+    heaterStartHour = state.heaterStartHour;
+    heaterEndHour = state.heaterEndHour;
+  }
+
+  if (heaterStartHour <= heaterEndHour) {
     // Normal case: 6 AM to 10 PM
-    return (currentHour >= state.heaterStartHour && currentHour < state.heaterEndHour);
+    return (currentHour >= heaterStartHour && currentHour < heaterEndHour);
   } else {
     // Wrap case: 10 PM to 6 AM (overnight)
-    return (currentHour >= state.heaterStartHour || currentHour < state.heaterEndHour);
+    return (currentHour >= heaterStartHour || currentHour < heaterEndHour);
   }
 }
 
 bool canPumpTurnOff() {
+  // CRITICAL: Acquire state mutex for thread-safe access
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    LOG_ERROR("Failed to acquire state lock in canPumpTurnOff");
+    return false;  // Fail-safe: cannot turn off
+  }
+
   // Pump cannot turn off if heater is on
   if (state.heaterStatus == HEATER_ON) return false;
-  
+
   // Pump cannot turn off during cooldown
   if (state.inCooldown) return false;
-  
+
   return true;
 }
 
 const char* getPumpStateString() {
+  // CRITICAL: Acquire state mutex for thread-safe access
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    return "UNKNOWN";  // Safe fallback
+  }
+
   if (state.inCooldown) return "COOLDOWN";
 
   switch (state.pumpState) {
@@ -594,6 +733,12 @@ const char* getPumpStateString() {
 }
 
 const char* getHeaterStatusString() {
+  // CRITICAL: Acquire state mutex for thread-safe access
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    return "UNKNOWN";  // Safe fallback
+  }
+
   switch (state.heaterStatus) {
     case HEATER_OFF: return "OFF";
     case HEATER_ENABLED: return "ENABLED";
@@ -609,9 +754,18 @@ const char* getHeaterStatusString() {
 void recordWiFiDisconnect() {
   unsigned long now = millis();
 
-  // Add new disconnect timestamp to circular buffer
-  state.disconnectTimestamps[state.disconnectCount % WIFI_MAX_DISCONNECTS] = now;
-  state.disconnectCount++;
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in recordWiFiDisconnect");
+      return;
+    }
+
+    // Add new disconnect timestamp to circular buffer
+    state.disconnectTimestamps[state.disconnectCount % WIFI_MAX_DISCONNECTS] = now;
+    state.disconnectCount++;
+  }
 
   LOG_INFOF("WiFi disconnect recorded. Recent count: %d", getRecentDisconnectCount());
 }
@@ -619,11 +773,26 @@ void recordWiFiDisconnect() {
 int getRecentDisconnectCount() {
   unsigned long now = millis();
   int recentCount = 0;
+  unsigned long timestamps[WIFI_MAX_DISCONNECTS];
 
-  // Count disconnects within the time window
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in getRecentDisconnectCount");
+      return 0;  // Safe fallback
+    }
+
+    // Copy timestamps under mutex protection
+    for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
+      timestamps[i] = state.disconnectTimestamps[i];
+    }
+  }
+
+  // Count disconnects within the time window (outside mutex to reduce lock time)
   for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
-    if (state.disconnectTimestamps[i] > 0) {
-      unsigned long age = now - state.disconnectTimestamps[i];
+    if (timestamps[i] > 0) {
+      unsigned long age = now - timestamps[i];
 
       // Handle millis() overflow (happens every ~50 days)
       if (age < WIFI_DISCONNECT_WINDOW || age > MILLIS_OVERFLOW_THRESHOLD) {
@@ -636,12 +805,27 @@ int getRecentDisconnectCount() {
 }
 
 bool isProvisioningHung() {
-  if (!state.provisioningActive) {
-    return false;
+  bool provisioningActive;
+  unsigned long provisioningStartTime;
+
+  // CRITICAL: Acquire state mutex for thread-safe access
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in isProvisioningHung");
+      return false;  // Safe fallback
+    }
+
+    provisioningActive = state.provisioningActive;
+    if (!provisioningActive) {
+      return false;
+    }
+
+    provisioningStartTime = state.provisioningStartTime;
   }
 
   unsigned long now = millis();
-  unsigned long elapsed = now - state.provisioningStartTime;
+  unsigned long elapsed = now - provisioningStartTime;
 
   // Handle millis() overflow
   if (elapsed > MILLIS_OVERFLOW_THRESHOLD) {
@@ -653,6 +837,13 @@ bool isProvisioningHung() {
 }
 
 void clearWiFiRuntimeTracking() {
+  // CRITICAL: Acquire state mutex for thread-safe access
+  StateScopedLock stateLock;
+  if (!stateLock.isLocked()) {
+    LOG_ERROR("Failed to acquire state lock in clearWiFiRuntimeTracking");
+    return;
+  }
+
   state.provisioningActive = false;
   state.provisioningStartTime = 0;
   state.credentialsReceived = false;
