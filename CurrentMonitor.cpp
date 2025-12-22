@@ -14,13 +14,16 @@
 // ADS1115 INSTANCE
 // ============================================
 
+#ifdef ENABLE_CURRENT_MONITOR
 Adafruit_ADS1115 ads;
+#endif
 
 // ============================================
 // INITIALIZATION
 // ============================================
 
 void initCurrentMonitor() {
+#ifdef ENABLE_CURRENT_MONITOR
   LOG_INFO("Initializing current monitor...");
 
   // Lock I2C bus for ADS1115 initialization
@@ -63,6 +66,11 @@ void initCurrentMonitor() {
 #ifndef NO_HARDWARE
   LOG_INFOF("Using saved current calibration offset: %.3f A", state.currentOffset);
 #endif
+#else
+  LOG_WARN("Current monitor DISABLED (ENABLE_CURRENT_MONITOR not defined)");
+  state.currentSensorValid = false;
+  state.pumpCurrent = 0.0;
+#endif
 }
 
 // ============================================
@@ -70,6 +78,7 @@ void initCurrentMonitor() {
 // ============================================
 
 void readPumpCurrent() {
+#ifdef ENABLE_CURRENT_MONITOR
   bool currentSensorValid;
   float currentOffset;
 
@@ -174,6 +183,9 @@ void readPumpCurrent() {
     LOG_DEBUGF("Pump Current: %.2f A (RMS voltage: %.3f V)", rmsCurrent, rmsVoltage);
   }
 #endif
+#else
+  // Current monitor disabled - do nothing
+#endif
 }
 
 // ============================================
@@ -257,6 +269,7 @@ bool isOvercurrentDetected() {
 // ============================================
 
 void calibrateCurrentSensor() {
+#ifdef ENABLE_CURRENT_MONITOR
   bool currentSensorValid;
   {
     StateScopedLock stateLock;
@@ -316,4 +329,7 @@ void calibrateCurrentSensor() {
 
   // Save calibration to flash
   saveCurrentCalibration(calibratedOffset);
+#else
+  LOG_WARN("Cannot calibrate - current monitor disabled");
+#endif
 }

@@ -61,6 +61,7 @@
 // BLYNK WRITE HANDLERS
 // ============================================
 
+#ifdef ENABLE_BLYNK
 BLYNK_WRITE(VPIN_TARGET_TEMP) {
   float temp = param.asFloat();
 
@@ -354,6 +355,7 @@ void syncPumpAlertsToBlynk() {
   if (!Blynk.connected()) return;
   Blynk.virtualWrite(VPIN_PUMP_FAILURE_ALERT, state.pumpFailureAlert ? 1 : 0);
 }
+#endif // ENABLE_BLYNK
 
 // ============================================
 // WIFI RUNTIME FAILURE HANDLER
@@ -578,8 +580,12 @@ void setup() {
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER1, NTP_SERVER2);
     
     // Initialize cloud services
+#ifdef ENABLE_BLYNK
     initBlynk();
+#endif
+#ifdef ENABLE_SINRIC
     initSinric();
+#endif
 
     // BlynkTimer removed - periodic sync now handled by BlynkSyncTask and SinricSyncTask
     // BlynkSyncTask syncs temperatures/current/runtime/alerts every 2 seconds

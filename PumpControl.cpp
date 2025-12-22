@@ -10,6 +10,7 @@
 // ============================================
 
 void initPumpControl() {
+#ifdef ENABLE_PUMP
   LOG_INFO("Initializing pump control...");
 
   pinMode(PUMP_ENABLE_PIN, OUTPUT);
@@ -19,6 +20,9 @@ void initPumpControl() {
   digitalWrite(PUMP_SPEED_PIN, LOW);
 
   LOG_INFO("Pump control initialized");
+#else
+  LOG_WARN("Pump control DISABLED (ENABLE_PUMP not defined)");
+#endif
 }
 
 // ============================================
@@ -26,22 +30,26 @@ void initPumpControl() {
 // ============================================
 
 void applyPumpState() {
+#ifdef ENABLE_PUMP
   switch (state.pumpState) {
     case PUMP_OFF:
       digitalWrite(PUMP_ENABLE_PIN, LOW);
       digitalWrite(PUMP_SPEED_PIN, LOW);
       break;
-      
+
     case PUMP_LOW:
       digitalWrite(PUMP_ENABLE_PIN, HIGH);
       digitalWrite(PUMP_SPEED_PIN, LOW);
       break;
-      
+
     case PUMP_HIGH:
       digitalWrite(PUMP_ENABLE_PIN, HIGH);
       digitalWrite(PUMP_SPEED_PIN, HIGH);
       break;
   }
+#else
+  // Pump disabled - do nothing
+#endif
 }
 
 // ============================================
