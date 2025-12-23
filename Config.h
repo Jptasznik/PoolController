@@ -210,6 +210,25 @@
 #define MIN_LOG_BUFFER_SIZE 12    // Minimum log entries in NVS
 #define MAX_LOG_BUFFER_SIZE 100   // Maximum log entries in NVS
 #define DEFAULT_LOG_BUFFER_SIZE 12  // Default buffer size
+#define LOG_RETRIEVAL_BUFFER_SIZE 8192  // Buffer size for retrieving logs from NVS
+
+// ============================================
+// CURRENT SENSOR CALIBRATION
+// ============================================
+#define CURRENT_CALIBRATION_SAMPLES 100  // Number of samples for calibration
+#define CURRENT_SAMPLE_DELAY_MS 20       // Delay between ADC samples (ms)
+
+// ============================================
+// TASK STACK MONITORING
+// ============================================
+#define STACK_WARNING_THRESHOLD 512      // Warn when stack has less than this many bytes free
+#define STACK_MONITOR_INTERVAL 300000    // Check stack usage every 5 minutes (ms)
+
+// ============================================
+// HEAP MONITORING
+// ============================================
+#define HEAP_MONITOR_INTERVAL 60000      // Check heap every 1 minute (ms)
+#define HEAP_WARNING_THRESHOLD 10000     // Warn when free heap drops below this (bytes)
 
 // ============================================
 // OTA (OVER-THE-AIR) UPDATE CONFIGURATION

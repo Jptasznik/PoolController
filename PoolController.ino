@@ -234,6 +234,7 @@ BLYNK_WRITE(VPIN_LOG_BUFFER_SIZE) {
   } else {
     LOG_WARNF("Invalid log buffer size: %d (valid range: %d-%d)",
               size, MIN_LOG_BUFFER_SIZE, MAX_LOG_BUFFER_SIZE);
+    Blynk.virtualWrite(VPIN_LOG_BUFFER_SIZE, getLogBufferMaxEntries());  // Revert to current value
   }
 }
 

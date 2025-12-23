@@ -14,6 +14,9 @@ void initSettings();
 // Load all settings from flash
 void loadAllSettings();
 
+// Validate all settings (correct out-of-range values)
+void validateAllSettings();
+
 // Save individual settings
 void saveTargetTemp(float temp);
 void saveHeaterEnabled(bool enabled);

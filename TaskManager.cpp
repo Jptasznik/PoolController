@@ -278,6 +278,23 @@ void controlSystemTask(void* parameter) {
     applyPumpState();
     applyHeaterState();
 
+    // Health monitoring (periodic checks)
+    static unsigned long lastStackMonitor = 0;
+    static unsigned long lastHeapMonitor = 0;
+    unsigned long now = millis();
+
+    // Check task stack usage every STACK_MONITOR_INTERVAL (5 minutes)
+    if (now - lastStackMonitor >= STACK_MONITOR_INTERVAL) {
+      monitorTaskStackUsage();
+      lastStackMonitor = now;
+    }
+
+    // Check heap memory every HEAP_MONITOR_INTERVAL (1 minute)
+    if (now - lastHeapMonitor >= HEAP_MONITOR_INTERVAL) {
+      monitorHeapMemory();
+      lastHeapMonitor = now;
+    }
+
     // Wait for next cycle
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
@@ -428,4 +445,48 @@ void initTasks() {
   LOG_INFO("All FreeRTOS tasks started successfully");
   LOG_INFO("Network sync handled in WiFiNetworkTask");
   LOG_INFO("========================================\n");
+}
+
+// ============================================
+// HEALTH MONITORING
+// ============================================
+
+void monitorTaskStackUsage() {
+  struct TaskInfo {
+    const char* name;
+    TaskHandle_t handle;
+  };
+
+  TaskInfo tasks[] = {
+    {"Temperature", temperatureTaskHandle},
+    {"Current", currentTaskHandle},
+    {"LCD", lcdTaskHandle},
+    {"Button", buttonTaskHandle},
+    {"Control", controlTaskHandle},
+    {"WiFiNetwork", wifiNetworkTaskHandle}
+  };
+
+  for (int i = 0; i < 6; i++) {
+    if (tasks[i].handle != NULL) {
+      UBaseType_t stackHighWater = uxTaskGetStackHighWaterMark(tasks[i].handle);
+      UBaseType_t stackFreeBytes = stackHighWater * 4;  // Convert words to bytes
+
+      if (stackFreeBytes < STACK_WARNING_THRESHOLD) {
+        LOG_WARNF("%s task stack low: %u bytes free", tasks[i].name, stackFreeBytes);
+      } else {
+        LOG_DEBUGF("%s task stack: %u bytes free", tasks[i].name, stackFreeBytes);
+      }
+    }
+  }
+}
+
+void monitorHeapMemory() {
+  uint32_t freeHeap = ESP.getFreeHeap();
+  uint32_t minFreeHeap = ESP.getMinFreeHeap();
+
+  if (freeHeap < HEAP_WARNING_THRESHOLD) {
+    LOG_WARNF("Low heap memory: %u bytes free (min ever: %u bytes)", freeHeap, minFreeHeap);
+  } else {
+    LOG_DEBUGF("Heap: %u bytes free (min ever: %u bytes)", freeHeap, minFreeHeap);
+  }
 }

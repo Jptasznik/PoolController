@@ -601,11 +601,24 @@ void updatePumpRuntime() {
     lastRuntimeUpdate = state.lastRuntimeUpdate;
     elapsed = now - lastRuntimeUpdate;
 
+    // Enhanced overflow detection:
+    // 1. Check for millis() overflow (now wrapped around to small value)
+    // 2. Check for impossibly large elapsed times (> 1 hour)
+
+    // Detect millis() overflow: if lastRuntimeUpdate is near max uint32 and now is small
+    if (lastRuntimeUpdate > MILLIS_OVERFLOW_THRESHOLD && now < 60000) {
+      LOG_WARNF("millis() overflow detected (last: %lu, now: %lu) - resetting runtime tracking",
+                lastRuntimeUpdate, now);
+      state.lastRuntimeUpdate = now;
+      return;
+    }
+
     // Sanity check: if elapsed time is impossibly large (> 1 hour),
-    // assume millis() overflow or system suspension occurred
+    // assume system suspension or corruption occurred
     // In this case, don't accumulate runtime to avoid corruption
-    if (elapsed > 3600000) {  // 1 hour
-      LOG_WARN("Runtime tracking anomaly detected, skipping accumulation");
+    if (elapsed > COOLDOWN_SANITY_CHECK) {  // 1 hour
+      LOG_WARNF("Runtime tracking anomaly detected: %lu ms elapsed (> 1 hour) - skipping accumulation",
+                elapsed);
       state.lastRuntimeUpdate = now;
       return;
     }
