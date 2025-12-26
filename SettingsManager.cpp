@@ -62,6 +62,77 @@ void loadAllSettings() {
 }
 
 // ============================================
+// SETTINGS VALIDATION
+// ============================================
+
+void validateAllSettings() {
+  LOG_DEBUG("Validating all settings...");
+  bool corrected = false;
+
+  // Validate target temperature
+  if (state.targetTemp < MIN_TARGET_TEMP || state.targetTemp > MAX_TARGET_TEMP) {
+    LOG_WARNF("Target temp out of range (%.1f) - correcting to default", state.targetTemp);
+    state.targetTemp = DEFAULT_TARGET_TEMP;
+    saveTargetTemp(state.targetTemp);
+    corrected = true;
+  }
+
+  // Validate max runtime hours (reasonable range: 0.1 to 24 hours)
+  if (state.maxRuntimeHours < 0.1 || state.maxRuntimeHours > 24.0) {
+    LOG_WARNF("Max runtime hours out of range (%.1f) - correcting to default", state.maxRuntimeHours);
+    state.maxRuntimeHours = DEFAULT_MAX_RUNTIME_HOURS;
+    saveMaxRuntimeHours(state.maxRuntimeHours);
+    corrected = true;
+  }
+
+  // Validate heater start hour (0-23)
+  if (state.heaterStartHour < 0 || state.heaterStartHour > 23) {
+    LOG_WARNF("Heater start hour out of range (%d) - correcting to default", state.heaterStartHour);
+    state.heaterStartHour = DEFAULT_HEATER_START_HOUR;
+    saveHeaterStartHour(state.heaterStartHour);
+    corrected = true;
+  }
+
+  // Validate heater end hour (0-23)
+  if (state.heaterEndHour < 0 || state.heaterEndHour > 23) {
+    LOG_WARNF("Heater end hour out of range (%d) - correcting to default", state.heaterEndHour);
+    state.heaterEndHour = DEFAULT_HEATER_END_HOUR;
+    saveHeaterEndHour(state.heaterEndHour);
+    corrected = true;
+  }
+
+  // Validate min heater temp
+  if (state.minHeaterTemp < INVALID_TEMP_LOW || state.minHeaterTemp > MAX_HEATER_TEMP) {
+    LOG_WARNF("Min heater temp out of range (%.1f) - correcting to default", state.minHeaterTemp);
+    state.minHeaterTemp = DEFAULT_MIN_HEATER_TEMP;
+    saveMinHeaterTemp(state.minHeaterTemp);
+    corrected = true;
+  }
+
+  // Validate max heater temp
+  if (state.maxHeaterTemp < state.minHeaterTemp || state.maxHeaterTemp > MAX_HEATER_TEMP) {
+    LOG_WARNF("Max heater temp out of range (%.1f) - correcting to default", state.maxHeaterTemp);
+    state.maxHeaterTemp = DEFAULT_MAX_HEATER_TEMP;
+    saveMaxHeaterTemp(state.maxHeaterTemp);
+    corrected = true;
+  }
+
+  // Validate pump state (ensure it's a valid enum value)
+  if (state.pumpState < PUMP_OFF || state.pumpState > PUMP_HIGH) {
+    LOG_WARNF("Pump state invalid (%d) - correcting to PUMP_OFF", (int)state.pumpState);
+    state.pumpState = PUMP_OFF;
+    savePumpState(state.pumpState);
+    corrected = true;
+  }
+
+  if (corrected) {
+    LOG_WARN("Settings validation completed with corrections");
+  } else {
+    LOG_DEBUG("All settings valid");
+  }
+}
+
+// ============================================
 // SAVE FUNCTIONS
 // ============================================
 

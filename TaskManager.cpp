@@ -216,7 +216,8 @@ void controlSystemTask(void* parameter) {
       if (stateLock.isLocked()) {
         currentPumpFailureAlert = state.pumpFailureAlert;
       } else {
-        currentPumpFailureAlert = false;
+        LOG_ERROR("Failed to acquire state lock for pump failure check");
+        currentPumpFailureAlert = false;  // Safe default
       }
     }
 
@@ -224,26 +225,33 @@ void controlSystemTask(void* parameter) {
       StateScopedLock stateLock;
       if (stateLock.isLocked()) {
         state.pumpFailureAlert = true;
+        LOG_ERROR("!!! PUMP FAILURE DETECTED !!!");
+        LOG_ERROR("Pump should be running but no current detected");
+      } else {
+        LOG_ERROR("Failed to set pump failure alert (mutex timeout)");
       }
-      LOG_ERROR("!!! PUMP FAILURE DETECTED !!!");
-      LOG_ERROR("Pump should be running but no current detected");
     } else if (!pumpFailure && currentPumpFailureAlert) {
       StateScopedLock stateLock;
       if (stateLock.isLocked()) {
         state.pumpFailureAlert = false;
+        LOG_INFO("Pump failure cleared");
+      } else {
+        LOG_ERROR("Failed to clear pump failure alert (mutex timeout)");
       }
-      LOG_INFO("Pump failure cleared");
     }
 
     // Check for overcurrent
     bool overcurrent = isOvercurrentDetected();
     bool currentOvercurrentAlert;
+    float pumpCurrent = 0.0;
     {
       StateScopedLock stateLock;
       if (stateLock.isLocked()) {
         currentOvercurrentAlert = state.overcurrentAlert;
+        pumpCurrent = state.pumpCurrent;
       } else {
-        currentOvercurrentAlert = false;
+        LOG_ERROR("Failed to acquire state lock for overcurrent check");
+        currentOvercurrentAlert = false;  // Safe default
       }
     }
 
@@ -252,19 +260,40 @@ void controlSystemTask(void* parameter) {
       if (stateLock.isLocked()) {
         state.overcurrentAlert = true;
         LOG_ERROR("!!! OVERCURRENT DETECTED !!!");
-        LOG_ERRORF("Current: %.2f A", state.pumpCurrent);
+        LOG_ERRORF("Current: %.2f A", pumpCurrent);
+      } else {
+        LOG_ERROR("Failed to set overcurrent alert (mutex timeout)");
       }
     } else if (!overcurrent && currentOvercurrentAlert) {
       StateScopedLock stateLock;
       if (stateLock.isLocked()) {
         state.overcurrentAlert = false;
+        LOG_INFO("Overcurrent condition cleared");
+      } else {
+        LOG_ERROR("Failed to clear overcurrent alert (mutex timeout)");
       }
-      LOG_INFO("Overcurrent condition cleared");
     }
 
     // Apply states to hardware
     applyPumpState();
     applyHeaterState();
+
+    // Health monitoring (periodic checks)
+    static unsigned long lastStackMonitor = 0;
+    static unsigned long lastHeapMonitor = 0;
+    unsigned long now = millis();
+
+    // Check task stack usage every STACK_MONITOR_INTERVAL (5 minutes)
+    if (now - lastStackMonitor >= STACK_MONITOR_INTERVAL) {
+      monitorTaskStackUsage();
+      lastStackMonitor = now;
+    }
+
+    // Check heap memory every HEAP_MONITOR_INTERVAL (1 minute)
+    if (now - lastHeapMonitor >= HEAP_MONITOR_INTERVAL) {
+      monitorHeapMemory();
+      lastHeapMonitor = now;
+    }
 
     // Wait for next cycle
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -300,7 +329,7 @@ void initTasks() {
     LOG_ERROR("FATAL ERROR: Failed to create Temperature sensor task!");
     LOG_ERROR("System cannot operate safely without this task.");
     LOG_ERROR("Restarting in 5 seconds...");
-    delay(5000);
+    delay(5000);  // BLOCKING: Fatal error - allow user to see error before restart (system cannot continue)
     ESP.restart();
   }
   LOG_INFO("[INIT] Temperature sensor task created");
@@ -323,7 +352,7 @@ void initTasks() {
     LOG_ERROR("FATAL ERROR: Failed to create Current monitor task!");
     LOG_ERROR("System cannot operate safely without this task.");
     LOG_ERROR("Restarting in 5 seconds...");
-    delay(5000);
+    delay(5000);  // BLOCKING: Fatal error - allow user to see error before restart (system cannot continue)
     ESP.restart();
   }
   LOG_INFO("[INIT] Current monitor task created");
@@ -346,7 +375,7 @@ void initTasks() {
     LOG_ERROR("FATAL ERROR: Failed to create LCD update task!");
     LOG_ERROR("System cannot operate safely without this task.");
     LOG_ERROR("Restarting in 5 seconds...");
-    delay(5000);
+    delay(5000);  // BLOCKING: Fatal error - allow user to see error before restart (system cannot continue)
     ESP.restart();
   }
   LOG_INFO("[INIT] LCD update task created");
@@ -369,7 +398,7 @@ void initTasks() {
     LOG_ERROR("FATAL ERROR: Failed to create Button scan task!");
     LOG_ERROR("System cannot operate safely without this task.");
     LOG_ERROR("Restarting in 5 seconds...");
-    delay(5000);
+    delay(5000);  // BLOCKING: Fatal error - allow user to see error before restart (system cannot continue)
     ESP.restart();
   }
   LOG_INFO("[INIT] Button scan task created");
@@ -391,7 +420,7 @@ void initTasks() {
     LOG_ERROR("FATAL ERROR: Failed to create Control system task!");
     LOG_ERROR("System cannot operate safely without this task.");
     LOG_ERROR("Restarting in 5 seconds...");
-    delay(5000);
+    delay(5000);  // BLOCKING: Fatal error - allow user to see error before restart (system cannot continue)
     ESP.restart();
   }
   LOG_INFO("[INIT] Control system task created");
@@ -416,4 +445,48 @@ void initTasks() {
   LOG_INFO("All FreeRTOS tasks started successfully");
   LOG_INFO("Network sync handled in WiFiNetworkTask");
   LOG_INFO("========================================\n");
+}
+
+// ============================================
+// HEALTH MONITORING
+// ============================================
+
+void monitorTaskStackUsage() {
+  struct TaskInfo {
+    const char* name;
+    TaskHandle_t handle;
+  };
+
+  TaskInfo tasks[] = {
+    {"Temperature", temperatureTaskHandle},
+    {"Current", currentTaskHandle},
+    {"LCD", lcdTaskHandle},
+    {"Button", buttonTaskHandle},
+    {"Control", controlTaskHandle},
+    {"WiFiNetwork", wifiNetworkTaskHandle}
+  };
+
+  for (int i = 0; i < 6; i++) {
+    if (tasks[i].handle != NULL) {
+      UBaseType_t stackHighWater = uxTaskGetStackHighWaterMark(tasks[i].handle);
+      UBaseType_t stackFreeBytes = stackHighWater * 4;  // Convert words to bytes
+
+      if (stackFreeBytes < STACK_WARNING_THRESHOLD) {
+        LOG_WARNF("%s task stack low: %u bytes free", tasks[i].name, stackFreeBytes);
+      } else {
+        LOG_DEBUGF("%s task stack: %u bytes free", tasks[i].name, stackFreeBytes);
+      }
+    }
+  }
+}
+
+void monitorHeapMemory() {
+  uint32_t freeHeap = ESP.getFreeHeap();
+  uint32_t minFreeHeap = ESP.getMinFreeHeap();
+
+  if (freeHeap < HEAP_WARNING_THRESHOLD) {
+    LOG_WARNF("Low heap memory: %u bytes free (min ever: %u bytes)", freeHeap, minFreeHeap);
+  } else {
+    LOG_DEBUGF("Heap: %u bytes free (min ever: %u bytes)", freeHeap, minFreeHeap);
+  }
 }

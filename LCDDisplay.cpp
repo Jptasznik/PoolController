@@ -180,7 +180,7 @@ void displayEmergencyShutdown() {
   lcd.print("    EMERGENCY");
   lcd.setCursor(0, 2);
   lcd.print("    SHUTDOWN!");
-  delay(3000);
+  delay(3000);  // BLOCKING: Allow user to read critical emergency message (acceptable for safety-critical event)
 
   // Force clear on next updateLCDDisplay call
   lcdNeedsClear = true;

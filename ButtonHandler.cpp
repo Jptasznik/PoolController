@@ -169,7 +169,7 @@ void scanButtons() {
         // Clear all settings
         factoryResetSettings();
 
-        delay(2000);
+        delay(2000);  // BLOCKING: Brief delay after factory reset before restart (acceptable for rare operation)
         ESP.restart();
       }
     }

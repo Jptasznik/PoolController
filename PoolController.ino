@@ -234,6 +234,7 @@ BLYNK_WRITE(VPIN_LOG_BUFFER_SIZE) {
   } else {
     LOG_WARNF("Invalid log buffer size: %d (valid range: %d-%d)",
               size, MIN_LOG_BUFFER_SIZE, MAX_LOG_BUFFER_SIZE);
+    Blynk.virtualWrite(VPIN_LOG_BUFFER_SIZE, getLogBufferMaxEntries());  // Revert to current value
   }
 }
 
@@ -386,7 +387,7 @@ void handleWiFiRuntimeFailure(const char* reason) {
   clearWiFiRuntimeTracking();
 
   // Wait for user to see message
-  delay(WIFI_FAILURE_RESET_DELAY);
+  delay(WIFI_FAILURE_RESET_DELAY);  // BLOCKING: Allow user to read WiFi reset message on LCD (acceptable before restart)
 
   // Restart ESP32
 #ifndef NO_HARDWARE
@@ -461,9 +462,9 @@ void setup() {
   initLogger();
   initLogBuffer();
 
-  LOG_INFO("\n\n========================================");
+  LOG_INFO("========================================");
   LOG_INFO("ESP32 Pool Controller");
-  LOG_INFO("========================================\n");
+  LOG_INFO("========================================");
 
   // Initialize mutexes for thread-safe access
   LOG_INFO("Initializing mutexes...");
@@ -579,7 +580,7 @@ void setup() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    LOG_INFO("\nWiFi connected!");
+    LOG_INFO("WiFi connected!");
     state.wifiConnected = true;
 
     // Reset failure counter on successful connection
@@ -601,7 +602,7 @@ void setup() {
     // BlynkSyncTask syncs temperatures/current/runtime/alerts every 2 seconds
     // SinricSyncTask syncs target temp/inlet temp every 30 seconds
   } else {
-    LOG_WARN("\nWiFi not connected - continuing in offline mode");
+    LOG_WARN("WiFi not connected - continuing in offline mode");
     LOG_INFO("WiFi will auto-connect in background when available");
     LOG_INFO("Local controls (buttons, LCD) are fully functional");
 
@@ -649,11 +650,11 @@ void setup() {
     LOG_INFO("NOT Creating tasks, not monitoring hardware.");
   #endif
 
-  LOG_INFO("\n========================================");
+  LOG_INFO("========================================");
   LOG_INFO("System initialized - entering main loop");
   LOG_INFO("Main loop handles network services");
   LOG_INFO("All other functions run in FreeRTOS tasks");
-  LOG_INFO("========================================\n");
+  LOG_INFO("========================================");
 }
 
 // ============================================

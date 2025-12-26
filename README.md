@@ -428,6 +428,14 @@ For issues or questions:
 
 ## Version History
 
+**v1.2.1** - Production Safety Hardening (December 22, 2025)
+- ✅ **Thread-safe state management:** Mutex protection added to all 18 state functions
+- ✅ **Production safety:** NO_HARDWARE mode disabled for production deployment
+- ✅ **Standardized error handling:** Consistent mutex failure logging and safe defaults
+- ✅ **WiFi reliability:** Credential validation timeout restored to 60 seconds
+- ✅ **Code quality:** Blocking delays documented, watchdog helper function added
+- ✅ **System status:** Production-ready with all critical safety features active
+
 **v1.2** - NVS Persistent Logging (December 2025)
 - Configurable circular log buffer in NVS flash (12-100 entries)
 - Remote log level control via Blynk (V15)

@@ -310,7 +310,7 @@ void calibrateCurrentSensor() {
       float current = (acVoltage / CURRENT_SENSOR_BURDEN_RESISTOR) * CURRENT_SENSOR_CT_RATIO;
 
       sumCurrent += abs(current);  // Use absolute value for offset
-      delay(20);  // Short delay between samples
+      delay(20);  // BLOCKING: Short delay between ADC samples for accuracy (acceptable for calibration only)
     }
   }  // Release I2C lock
 
