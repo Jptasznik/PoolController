@@ -93,30 +93,34 @@ void initSystemState() {
 // ============================================
 
 void setHeaterEnabledState(bool enabled) {
-  // CRITICAL: Acquire state mutex for thread-safe access
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
-    LOG_ERROR("Failed to acquire state lock in setHeaterEnabledState");
-    return;
-  }
+  // CRITICAL: Acquire state mutex for thread-safe access (scoped to minimize lock time)
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in setHeaterEnabledState");
+      return;
+    }
 
-  if (state.emergencyShutdown && enabled) {
-    LOG_WARN("Cannot enable heater during emergency shutdown");
-    return;
-  }
+    if (state.emergencyShutdown && enabled) {
+      LOG_WARN("Cannot enable heater during emergency shutdown");
+      return;
+    }
 
-  if (state.inFailsafeMode && enabled) {
-    LOG_ERROR("Cannot enable heater while in FAILSAFE MODE");
-    return;
-  }
+    if (state.inFailsafeMode && enabled) {
+      LOG_ERROR("Cannot enable heater while in FAILSAFE MODE");
+      return;
+    }
 
-  if (state.overheatLockout && enabled) {
-    LOG_ERROR("Cannot enable heater - OVERHEAT LOCKOUT active");
-    LOG_ERROR("Clear lockout manually after verifying system safety");
-    return;
-  }
+    if (state.overheatLockout && enabled) {
+      LOG_ERROR("Cannot enable heater - OVERHEAT LOCKOUT active");
+      LOG_ERROR("Clear lockout manually after verifying system safety");
+      return;
+    }
 
-  state.heaterEnabled = enabled;
+    state.heaterEnabled = enabled;
+  }  // Release mutex BEFORE flash write
+
+  // Save to flash (outside mutex to avoid blocking other tasks)
   saveHeaterEnabled(enabled);
 
 #ifndef NO_HARDWARE
@@ -129,31 +133,35 @@ void setHeaterEnabledState(bool enabled) {
 }
 
 void setPumpState(PumpState newState) {
-  // CRITICAL: Acquire state mutex for thread-safe access
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
-    LOG_ERROR("Failed to acquire state lock in setPumpState");
-    return;
-  }
+  // CRITICAL: Acquire state mutex for thread-safe access (scoped to minimize lock time)
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in setPumpState");
+      return;
+    }
 
-  if (state.emergencyShutdown && newState != PUMP_OFF) {
-    LOG_WARN("Cannot enable pump during emergency shutdown");
-    return;
-  }
+    if (state.emergencyShutdown && newState != PUMP_OFF) {
+      LOG_WARN("Cannot enable pump during emergency shutdown");
+      return;
+    }
 
-  // Safety check: prevent turning off pump if heater is on
-  if (newState == PUMP_OFF && state.heaterStatus == HEATER_ON) {
-    LOG_WARN("Cannot turn pump OFF while heater is ON (safety interlock)");
-    return;
-  }
+    // Safety check: prevent turning off pump if heater is on
+    if (newState == PUMP_OFF && state.heaterStatus == HEATER_ON) {
+      LOG_WARN("Cannot turn pump OFF while heater is ON (safety interlock)");
+      return;
+    }
 
-  // Safety check: prevent turning off pump during cooldown
-  if (newState == PUMP_OFF && state.inCooldown) {
-    LOG_WARN("Cannot turn pump OFF during cooldown period");
-    return;
-  }
+    // Safety check: prevent turning off pump during cooldown
+    if (newState == PUMP_OFF && state.inCooldown) {
+      LOG_WARN("Cannot turn pump OFF during cooldown period");
+      return;
+    }
 
-  state.pumpState = newState;
+    state.pumpState = newState;
+  }  // Release mutex BEFORE flash write
+
+  // Save to flash (outside mutex to avoid blocking other tasks)
   savePumpState(newState);
 
 #ifndef NO_HARDWARE

@@ -4,6 +4,7 @@
 #include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
+#include "StateMutex.h"
 #include "CredentialsManager.h"
 #include "SettingsManager.h"
 #include "LCDDisplay.h"
@@ -39,7 +40,18 @@ bool onTargetTemperature(const String &deviceId, float &temperature) {
 bool onAdjustTargetTemperature(const String &deviceId, float &temperatureDelta) {
   LOG_INFOF("Alexa: Adjust temperature %.1f", temperatureDelta);
 
-  setTargetTemperature(state.targetTemp + temperatureDelta);
+  // Get current target temp with mutex protection
+  float currentTarget;
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in onAdjustTargetTemperature");
+      return false;
+    }
+    currentTarget = state.targetTemp;
+  }
+
+  setTargetTemperature(currentTarget + temperatureDelta);
   return true;
 }
 
@@ -98,10 +110,17 @@ bool onPowerLevelPump(const String &deviceId, int &powerLevel) {
 bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
   LOG_INFOF("Alexa: Adjust pump power level %d", powerLevelDelta);
 
-  // Convert current state to power level
+  // Convert current state to power level (with mutex protection)
   int currentLevel = 0;
-  if (state.pumpState == PUMP_LOW) currentLevel = 25;
-  if (state.pumpState == PUMP_HIGH) currentLevel = 75;
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in onAdjustPowerLevelPump");
+      return false;
+    }
+    if (state.pumpState == PUMP_LOW) currentLevel = 25;
+    if (state.pumpState == PUMP_HIGH) currentLevel = 75;
+  }
 
   int newLevel = currentLevel + powerLevelDelta;
   if (newLevel < 0) newLevel = 0;
@@ -147,10 +166,19 @@ bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool fo
     LOG_INFO("Forced update - proceeding with OTA");
   }
 
-  // Set OTA in progress flag
-  state.otaInProgress = true;
-  state.otaStartTime = millis();
-  snprintf(state.otaVersion, sizeof(state.otaVersion), "%d.%d.%d", major, minor, patch);
+  // Set OTA in progress flag (with mutex protection)
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock for OTA flag");
+      String result = "Failed to acquire state lock";
+      SinricPro.setResponseMessage(std::move(result));
+      return false;
+    }
+    state.otaInProgress = true;
+    state.otaStartTime = millis();
+    snprintf(state.otaVersion, sizeof(state.otaVersion), "%d.%d.%d", major, minor, patch);
+  }
 
   // CRITICAL SAFETY: Disable heater immediately
   LOG_WARN("SAFETY: Disabling heater for OTA update");
@@ -185,8 +213,15 @@ bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool fo
     LOG_ERRORF("OTA update failed: %s", result.c_str());
     SinricPro.setResponseMessage(std::move(result));
 
-    // Clear OTA in progress flag
-    state.otaInProgress = false;
+    // Clear OTA in progress flag (with mutex protection)
+    {
+      StateScopedLock stateLock;
+      if (stateLock.isLocked()) {
+        state.otaInProgress = false;
+      } else {
+        LOG_ERROR("Failed to acquire state lock to clear OTA flag");
+      }
+    }
 
     return false;
   }
@@ -206,14 +241,28 @@ void onSinricConnected() {
   LOG_INFO("========================================");
   LOG_INFO("Sinric Pro Connected!");
   LOG_INFO("========================================");
-  state.sinricConnected = true;
+
+  // Update connection state with mutex protection
+  StateScopedLock stateLock;
+  if (stateLock.isLocked()) {
+    state.sinricConnected = true;
+  } else {
+    LOG_ERROR("Failed to acquire state lock in onSinricConnected");
+  }
 }
 
 void onSinricDisconnected() {
   LOG_WARN("========================================");
   LOG_WARN("Sinric Pro Disconnected!");
   LOG_WARN("========================================");
-  state.sinricConnected = false;
+
+  // Update connection state with mutex protection
+  StateScopedLock stateLock;
+  if (stateLock.isLocked()) {
+    state.sinricConnected = false;
+  } else {
+    LOG_ERROR("Failed to acquire state lock in onSinricDisconnected");
+  }
 }
 
 // ============================================
@@ -270,13 +319,25 @@ void initSinric() {
 void handleSinricEvents() {
   SinricPro.handle();
 
-  // Update connection status and log changes
-  bool wasConnected = state.sinricConnected;
-  state.sinricConnected = SinricPro.isConnected();
+  // Update connection status and log changes (with mutex protection)
+  bool wasConnected;
+  bool isConnected = SinricPro.isConnected();
 
-  if (state.sinricConnected && !wasConnected) {
+  {
+    StateScopedLock stateLock;
+    if (!stateLock.isLocked()) {
+      LOG_ERROR("Failed to acquire state lock in handleSinricEvents");
+      return;
+    }
+
+    wasConnected = state.sinricConnected;
+    state.sinricConnected = isConnected;
+  }
+
+  // Log connection changes (outside mutex to avoid holding lock during logging)
+  if (isConnected && !wasConnected) {
     LOG_INFO("Sinric Pro connected successfully!");
-  } else if (!state.sinricConnected && wasConnected) {
+  } else if (!isConnected && wasConnected) {
     LOG_WARN("Sinric Pro disconnected!");
   }
 }
