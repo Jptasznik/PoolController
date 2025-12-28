@@ -3,7 +3,6 @@
 #include "StateManager.h"
 #include "Logger.h"
 #include "Config.h"
-#include "StateMutex.h"
 #include "SettingsManager.h"
 #include "LCDDisplay.h"
 #include "SinricIntegration.h"
@@ -11,14 +10,62 @@
 #include "MessageQueue.h"
 #include <time.h>
 
-// Global state instance
-SystemState state;
+// ============================================
+// SINGLETON IMPLEMENTATION
+// ============================================
+
+StateManager& StateManager::getInstance() {
+  static StateManager instance;
+  return instance;
+}
+
+StateManager::StateManager() : mutex(NULL) {
+  // Private constructor - initialize will be called via init()
+}
+
+// ============================================
+// MUTEX HELPERS
+// ============================================
+
+bool StateManager::lock(uint32_t timeout_ms) {
+  if (mutex == NULL) {
+    LOG_ERROR("State mutex not initialized!");
+    return false;
+  }
+
+  TickType_t timeout_ticks = pdMS_TO_TICKS(timeout_ms);
+  if (xSemaphoreTake(mutex, timeout_ticks) == pdTRUE) {
+    return true;
+  } else {
+    LOG_WARN("State mutex lock timeout!");
+    return false;
+  }
+}
+
+void StateManager::unlock() {
+  if (mutex == NULL) {
+    LOG_ERROR("State mutex not initialized!");
+    return;
+  }
+  xSemaphoreGive(mutex);
+}
 
 // ============================================
 // INITIALIZATION
 // ============================================
 
-void initSystemState() {
+void StateManager::init() {
+  // Create mutex
+  if (mutex == NULL) {
+    mutex = xSemaphoreCreateMutex();
+    if (mutex == NULL) {
+      LOG_ERROR("Failed to create state mutex!");
+    } else {
+      LOG_INFO("State mutex created successfully");
+    }
+  }
+
+  // Initialize all state fields
   state.inletTemp = 0.0;
   state.heaterTemp = 0.0;
   state.ambientTemp = 0.0;
@@ -37,21 +84,21 @@ void initSystemState() {
   state.heaterEnabled = false;
   state.heaterStatus = HEATER_OFF;
   state.pumpState = PUMP_OFF;
-  
+
   state.inCooldown = false;
   state.cooldownStartTime = 0;
   state.pumpStateBeforeCooldown = PUMP_OFF;
-  
+
   state.pumpRuntimeToday = 0;
   state.lastRuntimeUpdate = millis();
   state.lastResetDay = -1;
-  
+
   state.maxRuntimeHours = DEFAULT_MAX_RUNTIME_HOURS;
   state.heaterStartHour = DEFAULT_HEATER_START_HOUR;
   state.heaterEndHour = DEFAULT_HEATER_END_HOUR;
   state.minHeaterTemp = DEFAULT_MIN_HEATER_TEMP;
   state.maxHeaterTemp = DEFAULT_MAX_HEATER_TEMP;
-  
+
   state.wifiConnected = false;
   state.blynkConnected = false;
   state.sinricConnected = false;
@@ -89,36 +136,702 @@ void initSystemState() {
 }
 
 // ============================================
-// CENTRALIZED STATE SETTERS
+// TEMPERATURE GETTERS/SETTERS
 // ============================================
 
-void setHeaterEnabledState(bool enabled) {
-  // CRITICAL: Acquire state mutex for thread-safe access (scoped to minimize lock time)
+float StateManager::getInletTemp() {
+  if (!lock()) return 0.0;
+  float temp = state.inletTemp;
+  unlock();
+  return temp;
+}
+
+void StateManager::setInletTemp(float temp) {
+  if (!lock()) return;
+  state.inletTemp = temp;
+  unlock();
+}
+
+bool StateManager::isInletTempValid() {
+  if (!lock()) return false;
+  bool valid = state.inletTempValid;
+  unlock();
+  return valid;
+}
+
+void StateManager::setInletTempValid(bool valid) {
+  if (!lock()) return;
+  state.inletTempValid = valid;
+  unlock();
+}
+
+float StateManager::getHeaterTemp() {
+  if (!lock()) return 0.0;
+  float temp = state.heaterTemp;
+  unlock();
+  return temp;
+}
+
+void StateManager::setHeaterTemp(float temp) {
+  if (!lock()) return;
+  state.heaterTemp = temp;
+  unlock();
+}
+
+bool StateManager::isHeaterTempValid() {
+  if (!lock()) return false;
+  bool valid = state.heaterTempValid;
+  unlock();
+  return valid;
+}
+
+void StateManager::setHeaterTempValid(bool valid) {
+  if (!lock()) return;
+  state.heaterTempValid = valid;
+  unlock();
+}
+
+float StateManager::getAmbientTemp() {
+  if (!lock()) return 0.0;
+  float temp = state.ambientTemp;
+  unlock();
+  return temp;
+}
+
+void StateManager::setAmbientTemp(float temp) {
+  if (!lock()) return;
+  state.ambientTemp = temp;
+  unlock();
+}
+
+bool StateManager::isAmbientTempValid() {
+  if (!lock()) return false;
+  bool valid = state.ambientTempValid;
+  unlock();
+  return valid;
+}
+
+void StateManager::setAmbientTempValid(bool valid) {
+  if (!lock()) return;
+  state.ambientTempValid = valid;
+  unlock();
+}
+
+float StateManager::getTargetTemp() {
+  if (!lock()) return 0.0;
+  float temp = state.targetTemp;
+  unlock();
+  return temp;
+}
+
+void StateManager::setTargetTempInternal(float temp) {
+  if (!lock()) return;
+  state.targetTemp = temp;
+  unlock();
+}
+
+// ============================================
+// CURRENT MONITORING GETTERS/SETTERS
+// ============================================
+
+float StateManager::getPumpCurrent() {
+  if (!lock()) return 0.0;
+  float current = state.pumpCurrent;
+  unlock();
+  return current;
+}
+
+void StateManager::setPumpCurrent(float current) {
+  if (!lock()) return;
+  state.pumpCurrent = current;
+  unlock();
+}
+
+float StateManager::getCurrentOffset() {
+  if (!lock()) return 0.0;
+  float offset = state.currentOffset;
+  unlock();
+  return offset;
+}
+
+void StateManager::setCurrentOffset(float offset) {
+  if (!lock()) return;
+  state.currentOffset = offset;
+  unlock();
+}
+
+bool StateManager::isCurrentSensorValid() {
+  if (!lock()) return false;
+  bool valid = state.currentSensorValid;
+  unlock();
+  return valid;
+}
+
+void StateManager::setCurrentSensorValid(bool valid) {
+  if (!lock()) return;
+  state.currentSensorValid = valid;
+  unlock();
+}
+
+bool StateManager::isPumpFailureAlert() {
+  if (!lock()) return false;
+  bool alert = state.pumpFailureAlert;
+  unlock();
+  return alert;
+}
+
+void StateManager::setPumpFailureAlert(bool alert) {
+  if (!lock()) return;
+  state.pumpFailureAlert = alert;
+  unlock();
+}
+
+bool StateManager::isOvercurrentAlert() {
+  if (!lock()) return false;
+  bool alert = state.overcurrentAlert;
+  unlock();
+  return alert;
+}
+
+void StateManager::setOvercurrentAlert(bool alert) {
+  if (!lock()) return;
+  state.overcurrentAlert = alert;
+  unlock();
+}
+
+// ============================================
+// CONTROL STATE GETTERS/SETTERS
+// ============================================
+
+bool StateManager::isHeaterEnabled() {
+  if (!lock()) return false;
+  bool enabled = state.heaterEnabled;
+  unlock();
+  return enabled;
+}
+
+void StateManager::setHeaterEnabledInternal(bool enabled) {
+  if (!lock()) return;
+  state.heaterEnabled = enabled;
+  unlock();
+}
+
+HeaterStatus StateManager::getHeaterStatus() {
+  if (!lock()) return HEATER_OFF;
+  HeaterStatus status = state.heaterStatus;
+  unlock();
+  return status;
+}
+
+void StateManager::setHeaterStatus(HeaterStatus status) {
+  if (!lock()) return;
+  state.heaterStatus = status;
+  unlock();
+}
+
+PumpState StateManager::getPumpState() {
+  if (!lock()) return PUMP_OFF;
+  PumpState pstate = state.pumpState;
+  unlock();
+  return pstate;
+}
+
+// ============================================
+// COOLDOWN GETTERS/SETTERS
+// ============================================
+
+bool StateManager::isInCooldown() {
+  if (!lock()) return false;
+  bool cooldown = state.inCooldown;
+  unlock();
+  return cooldown;
+}
+
+void StateManager::setInCooldown(bool inCooldown) {
+  if (!lock()) return;
+  state.inCooldown = inCooldown;
+  unlock();
+}
+
+unsigned long StateManager::getCooldownStartTime() {
+  if (!lock()) return 0;
+  unsigned long time = state.cooldownStartTime;
+  unlock();
+  return time;
+}
+
+void StateManager::setCooldownStartTime(unsigned long time) {
+  if (!lock()) return;
+  state.cooldownStartTime = time;
+  unlock();
+}
+
+PumpState StateManager::getPumpStateBeforeCooldown() {
+  if (!lock()) return PUMP_OFF;
+  PumpState pstate = state.pumpStateBeforeCooldown;
+  unlock();
+  return pstate;
+}
+
+void StateManager::setPumpStateBeforeCooldown(PumpState pstate) {
+  if (!lock()) return;
+  state.pumpStateBeforeCooldown = pstate;
+  unlock();
+}
+
+// ============================================
+// RUNTIME TRACKING GETTERS/SETTERS
+// ============================================
+
+unsigned long StateManager::getPumpRuntimeToday() {
+  if (!lock()) return 0;
+  unsigned long runtime = state.pumpRuntimeToday;
+  unlock();
+  return runtime;
+}
+
+void StateManager::setPumpRuntimeToday(unsigned long runtime) {
+  if (!lock()) return;
+  state.pumpRuntimeToday = runtime;
+  unlock();
+}
+
+void StateManager::incrementPumpRuntimeToday(unsigned long elapsed) {
+  if (!lock()) return;
+  state.pumpRuntimeToday += elapsed;
+  unlock();
+}
+
+unsigned long StateManager::getLastRuntimeUpdate() {
+  if (!lock()) return 0;
+  unsigned long time = state.lastRuntimeUpdate;
+  unlock();
+  return time;
+}
+
+void StateManager::setLastRuntimeUpdate(unsigned long time) {
+  if (!lock()) return;
+  state.lastRuntimeUpdate = time;
+  unlock();
+}
+
+int StateManager::getLastResetDay() {
+  if (!lock()) return -1;
+  int day = state.lastResetDay;
+  unlock();
+  return day;
+}
+
+void StateManager::setLastResetDay(int day) {
+  if (!lock()) return;
+  state.lastResetDay = day;
+  unlock();
+}
+
+// ============================================
+// SETTINGS GETTERS/SETTERS
+// ============================================
+
+float StateManager::getMaxRuntimeHours() {
+  if (!lock()) return 0.0;
+  float hours = state.maxRuntimeHours;
+  unlock();
+  return hours;
+}
+
+void StateManager::setMaxRuntimeHoursInternal(float hours) {
+  if (!lock()) return;
+  state.maxRuntimeHours = hours;
+  unlock();
+}
+
+int StateManager::getHeaterStartHour() {
+  if (!lock()) return 0;
+  int hour = state.heaterStartHour;
+  unlock();
+  return hour;
+}
+
+void StateManager::setHeaterStartHourInternal(int hour) {
+  if (!lock()) return;
+  state.heaterStartHour = hour;
+  unlock();
+}
+
+int StateManager::getHeaterEndHour() {
+  if (!lock()) return 0;
+  int hour = state.heaterEndHour;
+  unlock();
+  return hour;
+}
+
+void StateManager::setHeaterEndHourInternal(int hour) {
+  if (!lock()) return;
+  state.heaterEndHour = hour;
+  unlock();
+}
+
+float StateManager::getMinHeaterTemp() {
+  if (!lock()) return 0.0;
+  float temp = state.minHeaterTemp;
+  unlock();
+  return temp;
+}
+
+void StateManager::setMinHeaterTempInternal(float temp) {
+  if (!lock()) return;
+  state.minHeaterTemp = temp;
+  unlock();
+}
+
+float StateManager::getMaxHeaterTemp() {
+  if (!lock()) return 0.0;
+  float temp = state.maxHeaterTemp;
+  unlock();
+  return temp;
+}
+
+void StateManager::setMaxHeaterTempInternal(float temp) {
+  if (!lock()) return;
+  state.maxHeaterTemp = temp;
+  unlock();
+}
+
+// ============================================
+// CONNECTION STATUS GETTERS/SETTERS
+// ============================================
+
+bool StateManager::isWiFiConnected() {
+  if (!lock()) return false;
+  bool connected = state.wifiConnected;
+  unlock();
+  return connected;
+}
+
+void StateManager::setWiFiConnected(bool connected) {
+  if (!lock()) return;
+  state.wifiConnected = connected;
+  unlock();
+}
+
+bool StateManager::isBlynkConnected() {
+  if (!lock()) return false;
+  bool connected = state.blynkConnected;
+  unlock();
+  return connected;
+}
+
+void StateManager::setBlynkConnected(bool connected) {
+  if (!lock()) return;
+  state.blynkConnected = connected;
+  unlock();
+}
+
+bool StateManager::isSinricConnected() {
+  if (!lock()) return false;
+  bool connected = state.sinricConnected;
+  unlock();
+  return connected;
+}
+
+void StateManager::setSinricConnected(bool connected) {
+  if (!lock()) return;
+  state.sinricConnected = connected;
+  unlock();
+}
+
+// ============================================
+// WIFI RUNTIME TRACKING GETTERS/SETTERS
+// ============================================
+
+bool StateManager::isProvisioningActive() {
+  if (!lock()) return false;
+  bool active = state.provisioningActive;
+  unlock();
+  return active;
+}
+
+void StateManager::setProvisioningActive(bool active) {
+  if (!lock()) return;
+  state.provisioningActive = active;
+  unlock();
+}
+
+unsigned long StateManager::getProvisioningStartTime() {
+  if (!lock()) return 0;
+  unsigned long time = state.provisioningStartTime;
+  unlock();
+  return time;
+}
+
+void StateManager::setProvisioningStartTime(unsigned long time) {
+  if (!lock()) return;
+  state.provisioningStartTime = time;
+  unlock();
+}
+
+bool StateManager::areCredentialsReceived() {
+  if (!lock()) return false;
+  bool received = state.credentialsReceived;
+  unlock();
+  return received;
+}
+
+void StateManager::setCredentialsReceived(bool received) {
+  if (!lock()) return;
+  state.credentialsReceived = received;
+  unlock();
+}
+
+unsigned long StateManager::getCredReceivedTime() {
+  if (!lock()) return 0;
+  unsigned long time = state.credReceivedTime;
+  unlock();
+  return time;
+}
+
+void StateManager::setCredReceivedTime(unsigned long time) {
+  if (!lock()) return;
+  state.credReceivedTime = time;
+  unlock();
+}
+
+unsigned long StateManager::getDisconnectTimestamp(int index) {
+  if (index < 0 || index >= WIFI_MAX_DISCONNECTS) return 0;
+  if (!lock()) return 0;
+  unsigned long time = state.disconnectTimestamps[index];
+  unlock();
+  return time;
+}
+
+void StateManager::setDisconnectTimestamp(int index, unsigned long time) {
+  if (index < 0 || index >= WIFI_MAX_DISCONNECTS) return;
+  if (!lock()) return;
+  state.disconnectTimestamps[index] = time;
+  unlock();
+}
+
+int StateManager::getDisconnectCount() {
+  if (!lock()) return 0;
+  int count = state.disconnectCount;
+  unlock();
+  return count;
+}
+
+void StateManager::setDisconnectCount(int count) {
+  if (!lock()) return;
+  state.disconnectCount = count;
+  unlock();
+}
+
+// ============================================
+// EMERGENCY/FAILSAFE GETTERS/SETTERS
+// ============================================
+
+bool StateManager::isEmergencyShutdown() {
+  if (!lock()) return false;
+  bool shutdown = state.emergencyShutdown;
+  unlock();
+  return shutdown;
+}
+
+void StateManager::setEmergencyShutdown(bool shutdown) {
+  if (!lock()) return;
+  state.emergencyShutdown = shutdown;
+  unlock();
+}
+
+bool StateManager::isInFailsafeMode() {
+  if (!lock()) return false;
+  bool failsafe = state.inFailsafeMode;
+  unlock();
+  return failsafe;
+}
+
+void StateManager::setInFailsafeMode(bool inFailsafe) {
+  if (!lock()) return;
+  state.inFailsafeMode = inFailsafe;
+  unlock();
+}
+
+const char* StateManager::getFailsafeReason() {
+  // Note: Returning pointer to internal buffer - caller should copy if needed
+  if (!lock()) return "";
+  const char* reason = state.failsafeReason;
+  unlock();
+  return reason;
+}
+
+void StateManager::setFailsafeReason(const char* reason) {
+  if (!lock()) return;
+  strncpy(state.failsafeReason, reason, sizeof(state.failsafeReason) - 1);
+  state.failsafeReason[sizeof(state.failsafeReason) - 1] = '\0';
+  unlock();
+}
+
+unsigned long StateManager::getFailsafeEnterTime() {
+  if (!lock()) return 0;
+  unsigned long time = state.failsafeEnterTime;
+  unlock();
+  return time;
+}
+
+void StateManager::setFailsafeEnterTime(unsigned long time) {
+  if (!lock()) return;
+  state.failsafeEnterTime = time;
+  unlock();
+}
+
+bool StateManager::isOverheatLockout() {
+  if (!lock()) return false;
+  bool lockout = state.overheatLockout;
+  unlock();
+  return lockout;
+}
+
+void StateManager::setOverheatLockout(bool lockout) {
+  if (!lock()) return;
+  state.overheatLockout = lockout;
+  unlock();
+}
+
+unsigned long StateManager::getOverheatDetectedTime() {
+  if (!lock()) return 0;
+  unsigned long time = state.overheatDetectedTime;
+  unlock();
+  return time;
+}
+
+void StateManager::setOverheatDetectedTime(unsigned long time) {
+  if (!lock()) return;
+  state.overheatDetectedTime = time;
+  unlock();
+}
+
+// ============================================
+// CRASH TRACKING GETTERS/SETTERS
+// ============================================
+
+uint32_t StateManager::getBootCount() {
+  if (!lock()) return 0;
+  uint32_t count = state.bootCount;
+  unlock();
+  return count;
+}
+
+void StateManager::setBootCount(uint32_t count) {
+  if (!lock()) return;
+  state.bootCount = count;
+  unlock();
+}
+
+uint32_t StateManager::getCrashCount() {
+  if (!lock()) return 0;
+  uint32_t count = state.crashCount;
+  unlock();
+  return count;
+}
+
+void StateManager::setCrashCount(uint32_t count) {
+  if (!lock()) return;
+  state.crashCount = count;
+  unlock();
+}
+
+unsigned long StateManager::getTotalPumpRuntime() {
+  if (!lock()) return 0;
+  unsigned long runtime = state.totalPumpRuntime;
+  unlock();
+  return runtime;
+}
+
+void StateManager::setTotalPumpRuntime(unsigned long runtime) {
+  if (!lock()) return;
+  state.totalPumpRuntime = runtime;
+  unlock();
+}
+
+// ============================================
+// OTA GETTERS/SETTERS
+// ============================================
+
+bool StateManager::isOTAInProgress() {
+  if (!lock()) return false;
+  bool inProgress = state.otaInProgress;
+  unlock();
+  return inProgress;
+}
+
+void StateManager::setOTAInProgress(bool inProgress) {
+  if (!lock()) return;
+  state.otaInProgress = inProgress;
+  unlock();
+}
+
+unsigned long StateManager::getOTAStartTime() {
+  if (!lock()) return 0;
+  unsigned long time = state.otaStartTime;
+  unlock();
+  return time;
+}
+
+void StateManager::setOTAStartTime(unsigned long time) {
+  if (!lock()) return;
+  state.otaStartTime = time;
+  unlock();
+}
+
+const char* StateManager::getOTAVersion() {
+  // Note: Returning pointer to internal buffer - caller should copy if needed
+  if (!lock()) return "";
+  const char* version = state.otaVersion;
+  unlock();
+  return version;
+}
+
+void StateManager::setOTAVersion(const char* version) {
+  if (!lock()) return;
+  strncpy(state.otaVersion, version, sizeof(state.otaVersion) - 1);
+  state.otaVersion[sizeof(state.otaVersion) - 1] = '\0';
+  unlock();
+}
+
+// ============================================
+// HIGH-LEVEL STATE MANAGEMENT FUNCTIONS
+// ============================================
+// The rest of the file contains the existing high-level functions,
+// adapted to use internal mutex locking instead of StateScopedLock
+
+void StateManager::setHeaterEnabledState(bool enabled) {
+  // Check safety conditions with lock
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in setHeaterEnabledState");
       return;
     }
 
     if (state.emergencyShutdown && enabled) {
+      unlock();
       LOG_WARN("Cannot enable heater during emergency shutdown");
       return;
     }
 
     if (state.inFailsafeMode && enabled) {
+      unlock();
       LOG_ERROR("Cannot enable heater while in FAILSAFE MODE");
       return;
     }
 
     if (state.overheatLockout && enabled) {
+      unlock();
       LOG_ERROR("Cannot enable heater - OVERHEAT LOCKOUT active");
       LOG_ERROR("Clear lockout manually after verifying system safety");
       return;
     }
 
     state.heaterEnabled = enabled;
-  }  // Release mutex BEFORE flash write
+    unlock();
+  }
 
   // Save to flash (outside mutex to avoid blocking other tasks)
   saveHeaterEnabled(enabled);
@@ -132,34 +845,37 @@ void setHeaterEnabledState(bool enabled) {
   sendToNetworkSyncQueue(&msg);
 }
 
-void setPumpState(PumpState newState) {
-  // CRITICAL: Acquire state mutex for thread-safe access (scoped to minimize lock time)
+void StateManager::setPumpState(PumpState newState) {
+  // Check safety conditions with lock
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in setPumpState");
       return;
     }
 
     if (state.emergencyShutdown && newState != PUMP_OFF) {
+      unlock();
       LOG_WARN("Cannot enable pump during emergency shutdown");
       return;
     }
 
     // Safety check: prevent turning off pump if heater is on
     if (newState == PUMP_OFF && state.heaterStatus == HEATER_ON) {
+      unlock();
       LOG_WARN("Cannot turn pump OFF while heater is ON (safety interlock)");
       return;
     }
 
     // Safety check: prevent turning off pump during cooldown
     if (newState == PUMP_OFF && state.inCooldown) {
+      unlock();
       LOG_WARN("Cannot turn pump OFF during cooldown period");
       return;
     }
 
     state.pumpState = newState;
-  }  // Release mutex BEFORE flash write
+    unlock();
+  }
 
   // Save to flash (outside mutex to avoid blocking other tasks)
   savePumpState(newState);
@@ -173,20 +889,19 @@ void setPumpState(PumpState newState) {
   sendToNetworkSyncQueue(&msg);
 }
 
-void setTargetTemperature(float newTemp) {
+void StateManager::setTargetTemperature(float newTemp) {
   // Enforce limits
   if (newTemp < MIN_TARGET_TEMP) newTemp = MIN_TARGET_TEMP;
   if (newTemp > MAX_TARGET_TEMP) newTemp = MAX_TARGET_TEMP;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in setTargetTemperature");
       return;
     }
 
     state.targetTemp = newTemp;
+    unlock();
   }
 
   saveTargetTemp(newTemp);
@@ -200,19 +915,18 @@ void setTargetTemperature(float newTemp) {
   sendToNetworkSyncQueue(&msg);
 }
 
-void setMaxRuntimeHours(float hours) {
+void StateManager::setMaxRuntimeHours(float hours) {
   if (hours < 0) hours = 0;
   if (hours > 24) hours = 24;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in setMaxRuntimeHours");
       return;
     }
 
     state.maxRuntimeHours = hours;
+    unlock();
   }
 
   saveMaxRuntimeHours(hours);
@@ -220,19 +934,18 @@ void setMaxRuntimeHours(float hours) {
   LOG_INFOF("Max runtime hours: %.1f", hours);
 }
 
-void setHeaterStartHour(int hour) {
+void StateManager::setHeaterStartHour(int hour) {
   if (hour < 0) hour = 0;
   if (hour > 23) hour = 23;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in setHeaterStartHour");
       return;
     }
 
     state.heaterStartHour = hour;
+    unlock();
   }
 
   saveHeaterStartHour(hour);
@@ -240,19 +953,18 @@ void setHeaterStartHour(int hour) {
   LOG_INFOF("Heater start hour: %d", hour);
 }
 
-void setHeaterEndHour(int hour) {
+void StateManager::setHeaterEndHour(int hour) {
   if (hour < 0) hour = 0;
   if (hour > 23) hour = 23;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in setHeaterEndHour");
       return;
     }
 
     state.heaterEndHour = hour;
+    unlock();
   }
 
   saveHeaterEndHour(hour);
@@ -260,20 +972,19 @@ void setHeaterEndHour(int hour) {
   LOG_INFOF("Heater end hour: %d", hour);
 }
 
-void setMinHeaterTemp(float temp) {
+void StateManager::setMinHeaterTemp(float temp) {
   // Enforce safety limits
   if (temp < INVALID_TEMP_LOW) temp = INVALID_TEMP_LOW;
   if (temp > MAX_TARGET_TEMP) temp = MAX_TARGET_TEMP;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in setMinHeaterTemp");
       return;
     }
 
     state.minHeaterTemp = temp;
+    unlock();
   }
 
   saveMinHeaterTemp(temp);
@@ -281,20 +992,19 @@ void setMinHeaterTemp(float temp) {
   LOG_INFOF("Minimum heater temp: %.1f°F", temp);
 }
 
-void setMaxHeaterTemp(float temp) {
+void StateManager::setMaxHeaterTemp(float temp) {
   // Enforce safety limits
   if (temp < MIN_TARGET_TEMP) temp = MIN_TARGET_TEMP;
   if (temp > MAX_HEATER_TEMP) temp = MAX_HEATER_TEMP;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in setMaxHeaterTemp");
       return;
     }
 
     state.maxHeaterTemp = temp;
+    unlock();
   }
 
   saveMaxHeaterTemp(temp);
@@ -306,7 +1016,7 @@ void setMaxHeaterTemp(float temp) {
 // EMERGENCY CONTROLS
 // ============================================
 
-void triggerEmergencyShutdown() {
+void StateManager::triggerEmergencyShutdown() {
   LOG_ERROR("!!! EMERGENCY SHUTDOWN TRIGGERED !!!");
 
   // CRITICAL: Immediately disable hardware FIRST (no mutex delay for safety)
@@ -315,13 +1025,13 @@ void triggerEmergencyShutdown() {
 
   // Now update state with mutex protection
   {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
+    if (lock()) {
       state.emergencyShutdown = true;
       state.heaterEnabled = false;
       state.heaterStatus = HEATER_OFF;
       state.pumpState = PUMP_OFF;
       state.inCooldown = false;
+      unlock();
     } else {
       // If we can't get the lock, still set these directly for safety
       // This is an emergency - hardware is already off
@@ -347,11 +1057,11 @@ void triggerEmergencyShutdown() {
   sendToNetworkSyncQueue(&pumpMsg);
 }
 
-void clearEmergencyShutdown() {
+void StateManager::clearEmergencyShutdown() {
   {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
+    if (lock()) {
       state.emergencyShutdown = false;
+      unlock();
     }
   }
   LOG_INFO("Emergency shutdown cleared");
@@ -364,7 +1074,7 @@ void clearEmergencyShutdown() {
 // FAILSAFE MODE
 // ============================================
 
-void enterFailsafeMode(const char* reason) {
+void StateManager::enterFailsafeMode(const char* reason) {
   LOG_ERROR("!!! ENTERING FAILSAFE MODE !!!");
   LOG_ERRORF("Reason: %s", reason);
 
@@ -377,8 +1087,7 @@ void enterFailsafeMode(const char* reason) {
 
   // Update state with mutex protection
   {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
+    if (lock()) {
       state.inFailsafeMode = true;
       state.failsafeEnterTime = millis();
       strncpy(state.failsafeReason, reason, sizeof(state.failsafeReason) - 1);
@@ -393,6 +1102,7 @@ void enterFailsafeMode(const char* reason) {
 
       // End any cooldown (failsafe takes priority)
       state.inCooldown = false;
+      unlock();
     } else {
       // If we can't get the lock, still set these directly for safety
       state.inFailsafeMode = true;
@@ -421,16 +1131,16 @@ void enterFailsafeMode(const char* reason) {
   LOG_WARN("System in FAILSAFE MODE - manual intervention required");
 }
 
-void clearFailsafeMode() {
+void StateManager::clearFailsafeMode() {
   bool wasInFailsafe;
 
   {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
+    if (lock()) {
       wasInFailsafe = state.inFailsafeMode;
       state.inFailsafeMode = false;
       state.failsafeEnterTime = 0;
       state.failsafeReason[0] = '\0';
+      unlock();
     } else {
       return;
     }
@@ -447,15 +1157,15 @@ void clearFailsafeMode() {
 // OVERHEAT PROTECTION
 // ============================================
 
-void clearOverheatLockout() {
+void StateManager::clearOverheatLockout() {
   bool wasInLockout;
 
   {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
+    if (lock()) {
       wasInLockout = state.overheatLockout;
       state.overheatLockout = false;
       state.overheatDetectedTime = 0;
+      unlock();
     } else {
       return;
     }
@@ -472,30 +1182,30 @@ void clearOverheatLockout() {
 // COOLDOWN MANAGEMENT
 // ============================================
 
-void startCooldown() {
+void StateManager::startCooldown() {
   bool inCooldown;
   PumpState currentPumpState;
 
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to lock state for cooldown start");
       return;
     }
 
     inCooldown = state.inCooldown;
     currentPumpState = state.pumpState;
+    unlock();
   }
 
   if (!inCooldown) {
     LOG_INFO("Starting 15-minute cooldown period");
 
     {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
+      if (lock()) {
         state.inCooldown = true;
         state.cooldownStartTime = millis();
         state.pumpStateBeforeCooldown = currentPumpState;
+        unlock();
       }
     }
 
@@ -509,28 +1219,28 @@ void startCooldown() {
   }
 }
 
-void endCooldown() {
+void StateManager::endCooldown() {
   bool inCooldown;
   PumpState pumpStateBeforeCooldown;
 
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to lock state for cooldown end");
       return;
     }
 
     inCooldown = state.inCooldown;
     pumpStateBeforeCooldown = state.pumpStateBeforeCooldown;
+    unlock();
   }
 
   if (inCooldown) {
     LOG_INFO("Cooldown period ended");
 
     {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
+      if (lock()) {
         state.inCooldown = false;
+        unlock();
       }
     }
 
@@ -539,26 +1249,29 @@ void endCooldown() {
   }
 }
 
-bool isCooldownComplete() {
+bool StateManager::isCooldownComplete() {
   bool inCooldown, inletTempValid, heaterTempValid;
   unsigned long cooldownStartTime;
   float inletTemp, heaterTemp;
 
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       // If we can't get the lock, assume cooldown is not complete (fail safe)
       return false;
     }
 
     inCooldown = state.inCooldown;
-    if (!inCooldown) return true;
+    if (!inCooldown) {
+      unlock();
+      return true;
+    }
 
     cooldownStartTime = state.cooldownStartTime;
     inletTempValid = state.inletTempValid;
     heaterTempValid = state.heaterTempValid;
     inletTemp = state.inletTemp;
     heaterTemp = state.heaterTemp;
+    unlock();
   }
 
   unsigned long currentTime = millis();
@@ -591,17 +1304,16 @@ bool isCooldownComplete() {
 // RUNTIME TRACKING
 // ============================================
 
-void updatePumpRuntime() {
+void StateManager::updatePumpRuntime() {
   unsigned long now = millis();
   unsigned long elapsed;
   PumpState currentPumpState;
   unsigned long lastRuntimeUpdate;
   int lastResetDay;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
+  // Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in updatePumpRuntime");
       return;
     }
@@ -618,6 +1330,7 @@ void updatePumpRuntime() {
       LOG_WARNF("millis() overflow detected (last: %lu, now: %lu) - resetting runtime tracking",
                 lastRuntimeUpdate, now);
       state.lastRuntimeUpdate = now;
+      unlock();
       return;
     }
 
@@ -628,6 +1341,7 @@ void updatePumpRuntime() {
       LOG_WARNF("Runtime tracking anomaly detected: %lu ms elapsed (> 1 hour) - skipping accumulation",
                 elapsed);
       state.lastRuntimeUpdate = now;
+      unlock();
       return;
     }
 
@@ -639,6 +1353,7 @@ void updatePumpRuntime() {
 
     state.lastRuntimeUpdate = now;
     lastResetDay = state.lastResetDay;
+    unlock();
   }
 
   // Check if we need to reset daily runtime
@@ -652,44 +1367,43 @@ void updatePumpRuntime() {
 
     // Update lastResetDay with mutex protection
     {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
+      if (lock()) {
         state.lastResetDay = timeinfo.tm_mday;
+        unlock();
       }
     }
   }
 }
 
-void resetDailyRuntime() {
+void StateManager::resetDailyRuntime() {
   LOG_INFO("Resetting daily pump runtime counter");
 
-  // CRITICAL: Acquire state mutex for thread-safe access
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
+  if (!lock()) {
     LOG_ERROR("Failed to acquire state lock in resetDailyRuntime");
     return;
   }
 
   state.pumpRuntimeToday = 0;
   state.lastRuntimeUpdate = millis();
+  unlock();
 }
 
-float getPumpRuntimeHours() {
-  // CRITICAL: Acquire state mutex for thread-safe access
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
+float StateManager::getPumpRuntimeHours() {
+  if (!lock()) {
     LOG_ERROR("Failed to acquire state lock in getPumpRuntimeHours");
     return 0.0;
   }
 
-  return state.pumpRuntimeToday / 3600000.0;  // Convert ms to hours
+  float hours = state.pumpRuntimeToday / 3600000.0;  // Convert ms to hours
+  unlock();
+  return hours;
 }
 
 // ============================================
 // STATUS QUERIES
 // ============================================
 
-bool isWithinOperatingHours() {
+bool StateManager::isWithinOperatingHours() {
   time_t now;
   struct tm timeinfo;
   time(&now);
@@ -698,16 +1412,15 @@ bool isWithinOperatingHours() {
   int currentHour = timeinfo.tm_hour;
   int heaterStartHour, heaterEndHour;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in isWithinOperatingHours");
       return false;  // Fail-safe: assume outside operating hours
     }
 
     heaterStartHour = state.heaterStartHour;
     heaterEndHour = state.heaterEndHour;
+    unlock();
   }
 
   if (heaterStartHour <= heaterEndHour) {
@@ -719,66 +1432,76 @@ bool isWithinOperatingHours() {
   }
 }
 
-bool canPumpTurnOff() {
-  // CRITICAL: Acquire state mutex for thread-safe access
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
+bool StateManager::canPumpTurnOff() {
+  if (!lock()) {
     LOG_ERROR("Failed to acquire state lock in canPumpTurnOff");
     return false;  // Fail-safe: cannot turn off
   }
 
   // Pump cannot turn off if heater is on
-  if (state.heaterStatus == HEATER_ON) return false;
+  if (state.heaterStatus == HEATER_ON) {
+    unlock();
+    return false;
+  }
 
   // Pump cannot turn off during cooldown
-  if (state.inCooldown) return false;
+  if (state.inCooldown) {
+    unlock();
+    return false;
+  }
 
+  unlock();
   return true;
 }
 
-const char* getPumpStateString() {
-  // CRITICAL: Acquire state mutex for thread-safe access
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
+const char* StateManager::getPumpStateString() {
+  if (!lock()) {
     return "UNKNOWN";  // Safe fallback
   }
 
-  if (state.inCooldown) return "COOLDOWN";
-
-  switch (state.pumpState) {
-    case PUMP_OFF: return "OFF";
-    case PUMP_LOW: return "LOW";
-    case PUMP_HIGH: return "HIGH";
-    default: return "UNKNOWN";
+  if (state.inCooldown) {
+    unlock();
+    return "COOLDOWN";
   }
+
+  const char* str;
+  switch (state.pumpState) {
+    case PUMP_OFF: str = "OFF"; break;
+    case PUMP_LOW: str = "LOW"; break;
+    case PUMP_HIGH: str = "HIGH"; break;
+    default: str = "UNKNOWN"; break;
+  }
+
+  unlock();
+  return str;
 }
 
-const char* getHeaterStatusString() {
-  // CRITICAL: Acquire state mutex for thread-safe access
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
+const char* StateManager::getHeaterStatusString() {
+  if (!lock()) {
     return "UNKNOWN";  // Safe fallback
   }
 
+  const char* str;
   switch (state.heaterStatus) {
-    case HEATER_OFF: return "OFF";
-    case HEATER_ENABLED: return "ENABLED";
-    case HEATER_ON: return "ON";
-    default: return "UNKNOWN";
+    case HEATER_OFF: str = "OFF"; break;
+    case HEATER_ENABLED: str = "ENABLED"; break;
+    case HEATER_ON: str = "ON"; break;
+    default: str = "UNKNOWN"; break;
   }
+
+  unlock();
+  return str;
 }
 
 // ============================================
 // WIFI RUNTIME FAILURE TRACKING
 // ============================================
 
-void recordWiFiDisconnect() {
+void StateManager::recordWiFiDisconnect() {
   unsigned long now = millis();
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in recordWiFiDisconnect");
       return;
     }
@@ -786,20 +1509,19 @@ void recordWiFiDisconnect() {
     // Add new disconnect timestamp to circular buffer
     state.disconnectTimestamps[state.disconnectCount % WIFI_MAX_DISCONNECTS] = now;
     state.disconnectCount++;
+    unlock();
   }
 
   LOG_INFOF("WiFi disconnect recorded. Recent count: %d", getRecentDisconnectCount());
 }
 
-int getRecentDisconnectCount() {
+int StateManager::getRecentDisconnectCount() {
   unsigned long now = millis();
   int recentCount = 0;
   unsigned long timestamps[WIFI_MAX_DISCONNECTS];
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in getRecentDisconnectCount");
       return 0;  // Safe fallback
     }
@@ -808,6 +1530,7 @@ int getRecentDisconnectCount() {
     for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
       timestamps[i] = state.disconnectTimestamps[i];
     }
+    unlock();
   }
 
   // Count disconnects within the time window (outside mutex to reduce lock time)
@@ -825,24 +1548,24 @@ int getRecentDisconnectCount() {
   return recentCount;
 }
 
-bool isProvisioningHung() {
+bool StateManager::isProvisioningHung() {
   bool provisioningActive;
   unsigned long provisioningStartTime;
 
-  // CRITICAL: Acquire state mutex for thread-safe access
   {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
+    if (!lock()) {
       LOG_ERROR("Failed to acquire state lock in isProvisioningHung");
       return false;  // Safe fallback
     }
 
     provisioningActive = state.provisioningActive;
     if (!provisioningActive) {
+      unlock();
       return false;
     }
 
     provisioningStartTime = state.provisioningStartTime;
+    unlock();
   }
 
   unsigned long now = millis();
@@ -857,10 +1580,8 @@ bool isProvisioningHung() {
   return elapsed >= WIFI_PROVISIONING_TIMEOUT;
 }
 
-void clearWiFiRuntimeTracking() {
-  // CRITICAL: Acquire state mutex for thread-safe access
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
+void StateManager::clearWiFiRuntimeTracking() {
+  if (!lock()) {
     LOG_ERROR("Failed to acquire state lock in clearWiFiRuntimeTracking");
     return;
   }
@@ -873,5 +1594,7 @@ void clearWiFiRuntimeTracking() {
   for (int i = 0; i < WIFI_MAX_DISCONNECTS; i++) {
     state.disconnectTimestamps[i] = 0;
   }
+  unlock();
+
   LOG_INFO("WiFi runtime tracking cleared");
 }

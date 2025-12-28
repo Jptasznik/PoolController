@@ -4,7 +4,6 @@
 #include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
-#include "StateMutex.h"
 #include "MessageQueue.h"
 #include "SinricIntegration.h"
 #include <esp_task_wdt.h>
@@ -117,17 +116,9 @@ void checkWiFiRuntimeFailures() {
   }
 
   // Check for credential validation timeout
-  bool credentialsReceived;
-  unsigned long credReceivedTime;
-  {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
-      credentialsReceived = state.credentialsReceived;
-      credReceivedTime = state.credReceivedTime;
-    } else {
-      return; // Can't check without state access
-    }
-  }
+  StateManager& stateMgr = StateManager::getInstance();
+  bool credentialsReceived = stateMgr.areCredentialsReceived();
+  unsigned long credReceivedTime = stateMgr.getCredReceivedTime();
 
   if (credentialsReceived) {
     unsigned long elapsed = now - credReceivedTime;
@@ -135,11 +126,8 @@ void checkWiFiRuntimeFailures() {
     // Handle millis() overflow
     if (elapsed > MILLIS_OVERFLOW_THRESHOLD) {
       // Overflow detected, reset tracking
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        state.credentialsReceived = false;
-        state.credReceivedTime = 0;
-      }
+      stateMgr.setCredentialsReceived(false);
+      stateMgr.setCredReceivedTime(0);
     } else if (elapsed >= WIFI_CRED_VALIDATION_TIMEOUT) {
       LOG_WARN("Credential validation timeout - credentials received but not validated");
       handleWiFiRuntimeFailure("Credential validation timeout (1 minute)");
@@ -185,15 +173,8 @@ void wifiNetworkTask(void* parameter) {
 #endif
 
     // Check if WiFi is connected
-    bool wifiConnected;
-    {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        wifiConnected = state.wifiConnected;
-      } else {
-        wifiConnected = false;
-      }
-    }
+    StateManager& stateMgr = StateManager::getInstance();
+    bool wifiConnected = stateMgr.isWiFiConnected();
 
     // Run network services if connected
     if (wifiConnected) {

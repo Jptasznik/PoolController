@@ -4,7 +4,6 @@
 #include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
-#include "StateMutex.h"
 #include "CredentialsManager.h"
 #include "SettingsManager.h"
 #include "LCDDisplay.h"
@@ -40,16 +39,9 @@ bool onTargetTemperature(const String &deviceId, float &temperature) {
 bool onAdjustTargetTemperature(const String &deviceId, float &temperatureDelta) {
   LOG_INFOF("Alexa: Adjust temperature %.1f", temperatureDelta);
 
-  // Get current target temp with mutex protection
-  float currentTarget;
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      LOG_ERROR("Failed to acquire state lock in onAdjustTargetTemperature");
-      return false;
-    }
-    currentTarget = state.targetTemp;
-  }
+  // Get current target temp (thread-safe getter)
+  StateManager& stateMgr = StateManager::getInstance();
+  float currentTarget = stateMgr.getTargetTemp();
 
   setTargetTemperature(currentTarget + temperatureDelta);
   return true;
@@ -110,17 +102,13 @@ bool onPowerLevelPump(const String &deviceId, int &powerLevel) {
 bool onAdjustPowerLevelPump(const String &deviceId, int &powerLevelDelta) {
   LOG_INFOF("Alexa: Adjust pump power level %d", powerLevelDelta);
 
-  // Convert current state to power level (with mutex protection)
+  // Convert current state to power level (thread-safe getter)
+  StateManager& stateMgr = StateManager::getInstance();
+  PumpState pumpState = stateMgr.getPumpState();
+
   int currentLevel = 0;
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      LOG_ERROR("Failed to acquire state lock in onAdjustPowerLevelPump");
-      return false;
-    }
-    if (state.pumpState == PUMP_LOW) currentLevel = 25;
-    if (state.pumpState == PUMP_HIGH) currentLevel = 75;
-  }
+  if (pumpState == PUMP_LOW) currentLevel = 25;
+  if (pumpState == PUMP_HIGH) currentLevel = 75;
 
   int newLevel = currentLevel + powerLevelDelta;
   if (newLevel < 0) newLevel = 0;
@@ -166,19 +154,14 @@ bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool fo
     LOG_INFO("Forced update - proceeding with OTA");
   }
 
-  // Set OTA in progress flag (with mutex protection)
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      LOG_ERROR("Failed to acquire state lock for OTA flag");
-      String result = "Failed to acquire state lock";
-      SinricPro.setResponseMessage(std::move(result));
-      return false;
-    }
-    state.otaInProgress = true;
-    state.otaStartTime = millis();
-    snprintf(state.otaVersion, sizeof(state.otaVersion), "%d.%d.%d", major, minor, patch);
-  }
+  // Set OTA in progress flag (thread-safe setters)
+  StateManager& stateMgr = StateManager::getInstance();
+  stateMgr.setOTAInProgress(true);
+  stateMgr.setOTAStartTime(millis());
+
+  char version[32];
+  snprintf(version, sizeof(version), "%d.%d.%d", major, minor, patch);
+  stateMgr.setOTAVersion(version);
 
   // CRITICAL SAFETY: Disable heater immediately
   LOG_WARN("SAFETY: Disabling heater for OTA update");
@@ -213,15 +196,8 @@ bool handleOTAUpdate(const String& url, int major, int minor, int patch, bool fo
     LOG_ERRORF("OTA update failed: %s", result.c_str());
     SinricPro.setResponseMessage(std::move(result));
 
-    // Clear OTA in progress flag (with mutex protection)
-    {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        state.otaInProgress = false;
-      } else {
-        LOG_ERROR("Failed to acquire state lock to clear OTA flag");
-      }
-    }
+    // Clear OTA in progress flag (thread-safe setter)
+    stateMgr.setOTAInProgress(false);
 
     return false;
   }
@@ -242,13 +218,8 @@ void onSinricConnected() {
   LOG_INFO("Sinric Pro Connected!");
   LOG_INFO("========================================");
 
-  // Update connection state with mutex protection
-  StateScopedLock stateLock;
-  if (stateLock.isLocked()) {
-    state.sinricConnected = true;
-  } else {
-    LOG_ERROR("Failed to acquire state lock in onSinricConnected");
-  }
+  // Update connection state (thread-safe setter)
+  StateManager::getInstance().setSinricConnected(true);
 }
 
 void onSinricDisconnected() {
@@ -256,13 +227,8 @@ void onSinricDisconnected() {
   LOG_WARN("Sinric Pro Disconnected!");
   LOG_WARN("========================================");
 
-  // Update connection state with mutex protection
-  StateScopedLock stateLock;
-  if (stateLock.isLocked()) {
-    state.sinricConnected = false;
-  } else {
-    LOG_ERROR("Failed to acquire state lock in onSinricDisconnected");
-  }
+  // Update connection state (thread-safe setter)
+  StateManager::getInstance().setSinricConnected(false);
 }
 
 // ============================================
@@ -319,22 +285,13 @@ void initSinric() {
 void handleSinricEvents() {
   SinricPro.handle();
 
-  // Update connection status and log changes (with mutex protection)
-  bool wasConnected;
+  // Update connection status and log changes (thread-safe getter/setter)
+  StateManager& stateMgr = StateManager::getInstance();
+  bool wasConnected = stateMgr.isSinricConnected();
   bool isConnected = SinricPro.isConnected();
+  stateMgr.setSinricConnected(isConnected);
 
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      LOG_ERROR("Failed to acquire state lock in handleSinricEvents");
-      return;
-    }
-
-    wasConnected = state.sinricConnected;
-    state.sinricConnected = isConnected;
-  }
-
-  // Log connection changes (outside mutex to avoid holding lock during logging)
+  // Log connection changes
   if (isConnected && !wasConnected) {
     LOG_INFO("Sinric Pro connected successfully!");
   } else if (!isConnected && wasConnected) {
@@ -357,21 +314,27 @@ void syncHeaterToSinric() {
   if (!SinricPro.isConnected()) return;
   if (!hasSinricCredentials()) return;
 
+  StateManager& stateMgr = StateManager::getInstance();
+  bool heaterEnabled = stateMgr.isHeaterEnabled();
+
   SinricProThermostat &thermostat = SinricPro[getSinricThermostatId()];
-  thermostat.sendPowerStateEvent(state.heaterEnabled);
-  thermostat.sendThermostatModeEvent(state.heaterEnabled ? "HEAT" : "OFF");
+  thermostat.sendPowerStateEvent(heaterEnabled);
+  thermostat.sendThermostatModeEvent(heaterEnabled ? "HEAT" : "OFF");
 }
 
 void syncPumpToSinric() {
   if (!SinricPro.isConnected()) return;
   if (!hasSinricCredentials()) return;
 
+  StateManager& stateMgr = StateManager::getInstance();
+  PumpState pumpState = stateMgr.getPumpState();
+
   SinricProDimSwitch &pump = SinricPro[getSinricPumpId()];
 
-  bool powerState = (state.pumpState != PUMP_OFF);
+  bool powerState = (pumpState != PUMP_OFF);
   int powerLevel = 0;
-  if (state.pumpState == PUMP_LOW) powerLevel = 25;
-  if (state.pumpState == PUMP_HIGH) powerLevel = 75;
+  if (pumpState == PUMP_LOW) powerLevel = 25;
+  if (pumpState == PUMP_HIGH) powerLevel = 75;
 
   pump.sendPowerStateEvent(powerState);
   pump.sendPowerLevelEvent(powerLevel);
@@ -381,11 +344,16 @@ void syncTargetTempToSinric() {
   if (!SinricPro.isConnected()) return;
   if (!hasSinricCredentials()) return;
 
-  SinricProThermostat &thermostat = SinricPro[getSinricThermostatId()];
-  thermostat.sendTargetTemperatureEvent(state.targetTemp);
+  StateManager& stateMgr = StateManager::getInstance();
+  float targetTemp = stateMgr.getTargetTemp();
+  bool inletTempValid = stateMgr.isInletTempValid();
 
-  if (state.inletTempValid) {
-    thermostat.sendTemperatureEvent(state.inletTemp);
+  SinricProThermostat &thermostat = SinricPro[getSinricThermostatId()];
+  thermostat.sendTargetTemperatureEvent(targetTemp);
+
+  if (inletTempValid) {
+    float inletTemp = stateMgr.getInletTemp();
+    thermostat.sendTemperatureEvent(inletTemp);
   }
 }
 

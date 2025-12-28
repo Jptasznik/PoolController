@@ -5,7 +5,6 @@
 #include "Config.h"
 #include "StateManager.h"
 #include "I2CMutex.h"
-#include "StateMutex.h"
 #include <LiquidCrystal_I2C.h>
 
 #ifdef ENABLE_LCD
@@ -57,32 +56,20 @@ void initLCD() {
 
 void updateLCDDisplay() {
 #ifdef ENABLE_LCD
-  // Copy state data while holding state lock (minimize lock time)
-  float inletTemp, heaterTemp, targetTemp, pumpCurrent;
-  bool inletTempValid, heaterTempValid, currentSensorValid;
-  bool blynkConnected, wifiConnected;
-  const char* pumpStateStr;
-  const char* heaterStatusStr;
+  // Get state data using StateManager API
+  StateManager& stateMgr = StateManager::getInstance();
 
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      return;  // Can't access state, skip update
-    }
-
-    // Copy values we need
-    inletTemp = state.inletTemp;
-    heaterTemp = state.heaterTemp;
-    targetTemp = state.targetTemp;
-    pumpCurrent = state.pumpCurrent;
-    inletTempValid = state.inletTempValid;
-    heaterTempValid = state.heaterTempValid;
-    currentSensorValid = state.currentSensorValid;
-    blynkConnected = state.blynkConnected;
-    wifiConnected = state.wifiConnected;
-    pumpStateStr = getPumpStateString();
-    heaterStatusStr = getHeaterStatusString();
-  }  // Release state lock
+  float inletTemp = stateMgr.getInletTemp();
+  float heaterTemp = stateMgr.getHeaterTemp();
+  float targetTemp = stateMgr.getTargetTemp();
+  float pumpCurrent = stateMgr.getPumpCurrent();
+  bool inletTempValid = stateMgr.isInletTempValid();
+  bool heaterTempValid = stateMgr.isHeaterTempValid();
+  bool currentSensorValid = stateMgr.isCurrentSensorValid();
+  bool blynkConnected = stateMgr.isBlynkConnected();
+  bool wifiConnected = stateMgr.isWiFiConnected();
+  const char* pumpStateStr = getPumpStateString();
+  const char* heaterStatusStr = getHeaterStatusString();
 
   // Now update LCD with I2C lock (state lock is released)
   I2CScopedLock i2cLock;

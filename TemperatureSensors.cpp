@@ -4,7 +4,6 @@
 #include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
-#include "StateMutex.h"
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
@@ -110,27 +109,24 @@ void readTemperatures() {
   }
 
   // Check for critical sensor failure (both primary sensors failed)
+  StateManager& stateMgr = StateManager::getInstance();
+
   if (!inletValid && !heaterValid) {
 #ifndef NO_HARDWARE
     LOG_ERROR("CRITICAL: Both inlet and heater sensors failed!");
 #endif
 
     // Update state first
-    {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        state.inletTemp = inletTemp;
-        state.inletTempValid = inletValid;
-        state.heaterTemp = heaterTemp;
-        state.heaterTempValid = heaterValid;
-        state.ambientTemp = ambientTemp;
-        state.ambientTempValid = ambientValid;
-      }
-    }
+    stateMgr.setInletTemp(inletTemp);
+    stateMgr.setInletTempValid(inletValid);
+    stateMgr.setHeaterTemp(heaterTemp);
+    stateMgr.setHeaterTempValid(heaterValid);
+    stateMgr.setAmbientTemp(ambientTemp);
+    stateMgr.setAmbientTempValid(ambientValid);
 
 #ifndef NO_HARDWARE
     // Enter failsafe mode if not already in it
-    if (!state.inFailsafeMode) {
+    if (!stateMgr.isInFailsafeMode()) {
       enterFailsafeMode("CRITICAL_SENSOR_FAILURE");
     }
     return;
@@ -144,27 +140,19 @@ void readTemperatures() {
 #ifndef NO_HARDWARE
     LOG_ERROR("CRITICAL: Inlet temperature sensor failure!");
     // Enter failsafe if not already in it
-    if (!state.inFailsafeMode) {
+    if (!stateMgr.isInFailsafeMode()) {
       enterFailsafeMode("INLET_SENSOR_FAILURE");
     }
 #endif
   }
 
-  // Update state with mutex protection
-  {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
-      state.inletTemp = inletTemp;
-      state.inletTempValid = inletValid;
-      state.heaterTemp = heaterTemp;
-      state.heaterTempValid = heaterValid;
-      state.ambientTemp = ambientTemp;
-      state.ambientTempValid = ambientValid;
-    } else {
-      LOG_ERROR("Failed to update temperature state (mutex timeout)");
-      return;
-    }
-  }
+  // Update state
+  stateMgr.setInletTemp(inletTemp);
+  stateMgr.setInletTempValid(inletValid);
+  stateMgr.setHeaterTemp(heaterTemp);
+  stateMgr.setHeaterTempValid(heaterValid);
+  stateMgr.setAmbientTemp(ambientTemp);
+  stateMgr.setAmbientTempValid(ambientValid);
 
   // Log valid temperatures (using local copies)
   // Build a single formatted string for all valid temperatures

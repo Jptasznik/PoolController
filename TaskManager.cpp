@@ -4,7 +4,6 @@
 #include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
-#include "StateMutex.h"
 #include "MessageQueue.h"
 #include "TemperatureSensors.h"
 #include "CurrentMonitor.h"
@@ -209,69 +208,31 @@ void controlSystemTask(void* parameter) {
 #endif
 
     // Check for pump failure (pump should be running but no current detected)
+    StateManager& stateMgr = StateManager::getInstance();
     bool pumpFailure = isPumpFailureDetected();
-    bool currentPumpFailureAlert;
-    {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        currentPumpFailureAlert = state.pumpFailureAlert;
-      } else {
-        LOG_ERROR("Failed to acquire state lock for pump failure check");
-        currentPumpFailureAlert = false;  // Safe default
-      }
-    }
+    bool currentPumpFailureAlert = stateMgr.isPumpFailureAlert();
 
     if (pumpFailure && !currentPumpFailureAlert) {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        state.pumpFailureAlert = true;
-        LOG_ERROR("!!! PUMP FAILURE DETECTED !!!");
-        LOG_ERROR("Pump should be running but no current detected");
-      } else {
-        LOG_ERROR("Failed to set pump failure alert (mutex timeout)");
-      }
+      stateMgr.setPumpFailureAlert(true);
+      LOG_ERROR("!!! PUMP FAILURE DETECTED !!!");
+      LOG_ERROR("Pump should be running but no current detected");
     } else if (!pumpFailure && currentPumpFailureAlert) {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        state.pumpFailureAlert = false;
-        LOG_INFO("Pump failure cleared");
-      } else {
-        LOG_ERROR("Failed to clear pump failure alert (mutex timeout)");
-      }
+      stateMgr.setPumpFailureAlert(false);
+      LOG_INFO("Pump failure cleared");
     }
 
     // Check for overcurrent
     bool overcurrent = isOvercurrentDetected();
-    bool currentOvercurrentAlert;
-    float pumpCurrent = 0.0;
-    {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        currentOvercurrentAlert = state.overcurrentAlert;
-        pumpCurrent = state.pumpCurrent;
-      } else {
-        LOG_ERROR("Failed to acquire state lock for overcurrent check");
-        currentOvercurrentAlert = false;  // Safe default
-      }
-    }
+    bool currentOvercurrentAlert = stateMgr.isOvercurrentAlert();
+    float pumpCurrent = stateMgr.getPumpCurrent();
 
     if (overcurrent && !currentOvercurrentAlert) {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        state.overcurrentAlert = true;
-        LOG_ERROR("!!! OVERCURRENT DETECTED !!!");
-        LOG_ERRORF("Current: %.2f A", pumpCurrent);
-      } else {
-        LOG_ERROR("Failed to set overcurrent alert (mutex timeout)");
-      }
+      stateMgr.setOvercurrentAlert(true);
+      LOG_ERROR("!!! OVERCURRENT DETECTED !!!");
+      LOG_ERRORF("Current: %.2f A", pumpCurrent);
     } else if (!overcurrent && currentOvercurrentAlert) {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        state.overcurrentAlert = false;
-        LOG_INFO("Overcurrent condition cleared");
-      } else {
-        LOG_ERROR("Failed to clear overcurrent alert (mutex timeout)");
-      }
+      stateMgr.setOvercurrentAlert(false);
+      LOG_INFO("Overcurrent condition cleared");
     }
 
     // Apply states to hardware
