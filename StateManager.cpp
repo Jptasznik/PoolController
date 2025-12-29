@@ -336,6 +336,12 @@ PumpState StateManager::getPumpState() {
   return pstate;
 }
 
+void StateManager::setPumpStateInternal(PumpState pstate) {
+  if (!lock()) return;
+  state.pumpState = pstate;
+  unlock();
+}
+
 // ============================================
 // COOLDOWN GETTERS/SETTERS
 // ============================================

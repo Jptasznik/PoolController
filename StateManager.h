@@ -152,6 +152,7 @@ public:
   void setHeaterStatus(HeaterStatus status);
 
   PumpState getPumpState();
+  void setPumpStateInternal(PumpState state);  // Internal use only
   // Note: Use setPumpState() for full safety checks and flash save
 
   // === COOLDOWN TRACKING ===

@@ -42,14 +42,14 @@ void loadAllSettings() {
 
   StateManager& stateMgr = StateManager::getInstance();
 
-  stateMgr.setTargetTemp(loadTargetTemp());
-  stateMgr.setHeaterEnabled(loadHeaterEnabled());
+  stateMgr.setTargetTempInternal(loadTargetTemp());
+  stateMgr.setHeaterEnabledInternal(loadHeaterEnabled());
   stateMgr.setPumpStateInternal(loadPumpState());  // Internal setter to avoid saving back to flash
-  stateMgr.setMaxRuntimeHours(loadMaxRuntimeHours());
-  stateMgr.setHeaterStartHour(loadHeaterStartHour());
-  stateMgr.setHeaterEndHour(loadHeaterEndHour());
-  stateMgr.setMinHeaterTemp(loadMinHeaterTemp());
-  stateMgr.setMaxHeaterTemp(loadMaxHeaterTemp());
+  stateMgr.setMaxRuntimeHoursInternal(loadMaxRuntimeHours());
+  stateMgr.setHeaterStartHourInternal(loadHeaterStartHour());
+  stateMgr.setHeaterEndHourInternal(loadHeaterEndHour());
+  stateMgr.setMinHeaterTempInternal(loadMinHeaterTemp());
+  stateMgr.setMaxHeaterTempInternal(loadMaxHeaterTemp());
   stateMgr.setCurrentOffset(loadCurrentCalibration());
 
   LOG_INFO("Settings loaded:");
@@ -77,7 +77,7 @@ void validateAllSettings() {
   float targetTemp = stateMgr.getTargetTemp();
   if (targetTemp < MIN_TARGET_TEMP || targetTemp > MAX_TARGET_TEMP) {
     LOG_WARNF("Target temp out of range (%.1f) - correcting to default", targetTemp);
-    stateMgr.setTargetTemp(DEFAULT_TARGET_TEMP);
+    stateMgr.setTargetTempInternal(DEFAULT_TARGET_TEMP);
     saveTargetTemp(DEFAULT_TARGET_TEMP);
     corrected = true;
   }
@@ -369,14 +369,14 @@ void factoryResetSettings() {
 
   // Reset to defaults
   StateManager& stateMgr = StateManager::getInstance();
-  stateMgr.setTargetTemp(DEFAULT_TARGET_TEMP);
-  stateMgr.setHeaterEnabled(false);
+  stateMgr.setTargetTempInternal(DEFAULT_TARGET_TEMP);
+  stateMgr.setHeaterEnabledInternal(false);
   stateMgr.setPumpStateInternal(PUMP_OFF);
-  stateMgr.setMaxRuntimeHours(DEFAULT_MAX_RUNTIME_HOURS);
-  stateMgr.setHeaterStartHour(DEFAULT_HEATER_START_HOUR);
-  stateMgr.setHeaterEndHour(DEFAULT_HEATER_END_HOUR);
-  stateMgr.setMinHeaterTemp(DEFAULT_MIN_HEATER_TEMP);
-  stateMgr.setMaxHeaterTemp(DEFAULT_MAX_HEATER_TEMP);
+  stateMgr.setMaxRuntimeHoursInternal(DEFAULT_MAX_RUNTIME_HOURS);
+  stateMgr.setHeaterStartHourInternal(DEFAULT_HEATER_START_HOUR);
+  stateMgr.setHeaterEndHourInternal(DEFAULT_HEATER_END_HOUR);
+  stateMgr.setMinHeaterTempInternal(DEFAULT_MIN_HEATER_TEMP);
+  stateMgr.setMaxHeaterTempInternal(DEFAULT_MAX_HEATER_TEMP);
 
   LOG_INFO("Factory reset complete");
 }
