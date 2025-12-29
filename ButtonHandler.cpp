@@ -4,7 +4,6 @@
 #include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
-#include "StateMutex.h"
 #include "I2CMutex.h"
 #include "SettingsManager.h"
 #include "LCDDisplay.h"
@@ -185,22 +184,24 @@ void scanButtons() {
 
 void handleHeaterButton() {
   LOG_INFO("Button: Heater toggle");
-  setHeaterEnabledState(!state.heaterEnabled);
+  StateManager& stateMgr = StateManager::getInstance();
+  setHeaterEnabledState(!stateMgr.isHeaterEnabled());
 
-  if (state.emergencyShutdown) {
+  if (stateMgr.isEmergencyShutdown()) {
     clearEmergencyShutdown();
   }
 }
 
 void handlePumpButton() {
   LOG_INFO("Button: Pump cycle");
+  StateManager& stateMgr = StateManager::getInstance();
 
-  if (state.emergencyShutdown) {
+  if (stateMgr.isEmergencyShutdown()) {
     clearEmergencyShutdown();
   }
 
   // Cycle through states: OFF → LOW → HIGH → OFF
-  switch (state.pumpState) {
+  switch (stateMgr.getPumpState()) {
     case PUMP_OFF:
       setPumpState(PUMP_LOW);
       break;
@@ -219,12 +220,14 @@ void handlePumpButton() {
 
 void handleTempUpButton() {
   LOG_INFO("Button: Temperature +1°F");
-  setTargetTemperature(state.targetTemp + 1.0);
+  StateManager& stateMgr = StateManager::getInstance();
+  setTargetTemperature(stateMgr.getTargetTemp() + 1.0);
 }
 
 void handleTempDownButton() {
   LOG_INFO("Button: Temperature -1°F");
-  setTargetTemperature(state.targetTemp - 1.0);
+  StateManager& stateMgr = StateManager::getInstance();
+  setTargetTemperature(stateMgr.getTargetTemp() - 1.0);
 }
 
 void handleResetButton() {

@@ -2,7 +2,6 @@
 
 #include "MessageQueue.h"
 #include "Logger.h"
-#include "StateMutex.h"
 #include "StateManager.h"
 
 // ============================================
@@ -267,26 +266,25 @@ Message createDisplayUpdateMessage(bool forceRefresh) {
 
 // Helper to copy current state into network sync payload
 static void copyStateToPayload(NetworkSyncData* payload) {
-  // Copy state values while holding mutex
-  StateScopedLock stateLock;
-  if (stateLock.isLocked()) {
-    payload->heaterEnabled = state.heaterEnabled;
-    payload->heaterOn = (state.heaterStatus == HEATER_ON);
-    payload->pumpState = state.pumpState;
-    payload->targetTemp = state.targetTemp;
-    payload->inletTemp = state.inletTemp;
-    payload->heaterTemp = state.heaterTemp;
-    payload->ambientTemp = state.ambientTemp;
-    payload->pumpCurrent = state.pumpCurrent;
-    payload->pumpRuntimeToday = state.pumpRuntimeToday;
-    payload->inletTempValid = state.inletTempValid;
-    payload->heaterTempValid = state.heaterTempValid;
-    payload->ambientTempValid = state.ambientTempValid;
-    payload->currentSensorValid = state.currentSensorValid;
-    payload->wifiConnected = state.wifiConnected;
-    payload->blynkConnected = state.blynkConnected;
-    payload->sinricConnected = state.sinricConnected;
-  }
+  // Copy state values using StateManager API
+  StateManager& stateMgr = StateManager::getInstance();
+
+  payload->heaterEnabled = stateMgr.isHeaterEnabled();
+  payload->heaterOn = (stateMgr.getHeaterStatus() == HEATER_ON);
+  payload->pumpState = stateMgr.getPumpState();
+  payload->targetTemp = stateMgr.getTargetTemp();
+  payload->inletTemp = stateMgr.getInletTemp();
+  payload->heaterTemp = stateMgr.getHeaterTemp();
+  payload->ambientTemp = stateMgr.getAmbientTemp();
+  payload->pumpCurrent = stateMgr.getPumpCurrent();
+  payload->pumpRuntimeToday = stateMgr.getPumpRuntimeToday();
+  payload->inletTempValid = stateMgr.isInletTempValid();
+  payload->heaterTempValid = stateMgr.isHeaterTempValid();
+  payload->ambientTempValid = stateMgr.isAmbientTempValid();
+  payload->currentSensorValid = stateMgr.isCurrentSensorValid();
+  payload->wifiConnected = stateMgr.isWiFiConnected();
+  payload->blynkConnected = stateMgr.isBlynkConnected();
+  payload->sinricConnected = stateMgr.isSinricConnected();
 }
 
 Message createSyncHeaterMessage() {

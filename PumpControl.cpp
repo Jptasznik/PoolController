@@ -31,7 +31,10 @@ void initPumpControl() {
 
 void applyPumpState() {
 #ifdef ENABLE_PUMP
-  switch (state.pumpState) {
+  StateManager& stateMgr = StateManager::getInstance();
+  PumpState pumpState = stateMgr.getPumpState();
+
+  switch (pumpState) {
     case PUMP_OFF:
       digitalWrite(PUMP_ENABLE_PIN, LOW);
       digitalWrite(PUMP_SPEED_PIN, LOW);
@@ -57,10 +60,13 @@ void applyPumpState() {
 // ============================================
 
 bool isRuntimeLimitExceeded() {
-  if (state.maxRuntimeHours <= 0) {
+  StateManager& stateMgr = StateManager::getInstance();
+  float maxRuntimeHours = stateMgr.getMaxRuntimeHours();
+
+  if (maxRuntimeHours <= 0) {
     return false;  // No limit
   }
-  
+
   float currentRuntime = getPumpRuntimeHours();
-  return (currentRuntime >= state.maxRuntimeHours);
+  return (currentRuntime >= maxRuntimeHours);
 }

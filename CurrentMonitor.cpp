@@ -4,7 +4,6 @@
 #include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
-#include "StateMutex.h"
 #include "I2CMutex.h"
 #include "SettingsManager.h"
 #include <Adafruit_ADS1X15.h>
@@ -26,13 +25,15 @@ void initCurrentMonitor() {
 #ifdef ENABLE_CURRENT_MONITOR
   LOG_INFO("Initializing current monitor...");
 
+  StateManager& stateMgr = StateManager::getInstance();
+
   // Lock I2C bus for ADS1115 initialization
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
 #ifndef NO_HARDWARE
     LOG_ERROR("Failed to lock I2C for ADS1115 init!");
 #endif
-    state.currentSensorValid = false;
+    stateMgr.setCurrentSensorValid(false);
     return;
   }
 
@@ -42,7 +43,7 @@ void initCurrentMonitor() {
     LOG_ERROR("Failed to initialize ADS1115!");
     LOG_ERROR("Check I2C connections and address");
 #endif
-    state.currentSensorValid = false;
+    stateMgr.setCurrentSensorValid(false);
     return;
   }
 
@@ -59,17 +60,18 @@ void initCurrentMonitor() {
   LOG_INFO("  Data Rate: 860 SPS");
 #endif
 
-  state.currentSensorValid = true;
-  state.pumpCurrent = 0.0;
+  stateMgr.setCurrentSensorValid(true);
+  stateMgr.setPumpCurrent(0.0);
 
   // Note: calibration offset is loaded from flash in loadAllSettings()
 #ifndef NO_HARDWARE
-  LOG_INFOF("Using saved current calibration offset: %.3f A", state.currentOffset);
+  LOG_INFOF("Using saved current calibration offset: %.3f A", stateMgr.getCurrentOffset());
 #endif
 #else
+  StateManager& stateMgr = StateManager::getInstance();
   LOG_WARN("Current monitor DISABLED (ENABLE_CURRENT_MONITOR not defined)");
-  state.currentSensorValid = false;
-  state.pumpCurrent = 0.0;
+  stateMgr.setCurrentSensorValid(false);
+  stateMgr.setPumpCurrent(0.0);
 #endif
 }
 
@@ -79,24 +81,13 @@ void initCurrentMonitor() {
 
 void readPumpCurrent() {
 #ifdef ENABLE_CURRENT_MONITOR
-  bool currentSensorValid;
-  float currentOffset;
+  StateManager& stateMgr = StateManager::getInstance();
 
-  // Read state values with lock
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      return;
-    }
-    currentSensorValid = state.currentSensorValid;
-    currentOffset = state.currentOffset;
-  }
+  bool currentSensorValid = stateMgr.isCurrentSensorValid();
+  float currentOffset = stateMgr.getCurrentOffset();
 
   if (!currentSensorValid) {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
-      state.pumpCurrent = 0.0;
-    }
+    stateMgr.setPumpCurrent(0.0);
     return;
   }
 
@@ -140,10 +131,7 @@ void readPumpCurrent() {
   }  // Release I2C lock
 
   if (validSamples == 0) {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
-      state.pumpCurrent = 0.0;
-    }
+    stateMgr.setPumpCurrent(0.0);
     return;
   }
 
@@ -167,13 +155,8 @@ void readPumpCurrent() {
     rmsCurrent = CURRENT_SENSOR_MAX_CURRENT;
   }
 
-  // Update state with lock
-  {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
-      state.pumpCurrent = rmsCurrent;
-    }
-  }
+  // Update state using StateManager API
+  stateMgr.setPumpCurrent(rmsCurrent);
 
   // Debug output (optional - can be disabled for production)
 #ifndef NO_HARDWARE
@@ -194,11 +177,8 @@ void readPumpCurrent() {
 
 bool isPumpCurrentDetected() {
   // Consider pump running if current is above threshold
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
-    return false;
-  }
-  return state.pumpCurrent >= CURRENT_THRESHOLD_PUMP_RUNNING;
+  StateManager& stateMgr = StateManager::getInstance();
+  return stateMgr.getPumpCurrent() >= CURRENT_THRESHOLD_PUMP_RUNNING;
 }
 
 // ============================================
@@ -208,17 +188,10 @@ bool isPumpCurrentDetected() {
 bool isPumpFailureDetected() {
   // Pump failure: pump should be running but no current detected
   // Only check if sensor is valid
-  bool currentSensorValid;
-  PumpState pumpState;
+  StateManager& stateMgr = StateManager::getInstance();
 
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      return false;
-    }
-    currentSensorValid = state.currentSensorValid;
-    pumpState = state.pumpState;
-  }
+  bool currentSensorValid = stateMgr.isCurrentSensorValid();
+  PumpState pumpState = stateMgr.getPumpState();
 
   if (!currentSensorValid) {
     return false;
@@ -252,16 +225,13 @@ bool isPumpFailureDetected() {
 
 bool isOvercurrentDetected() {
   // Check if current exceeds maximum threshold
-  StateScopedLock stateLock;
-  if (!stateLock.isLocked()) {
+  StateManager& stateMgr = StateManager::getInstance();
+
+  if (!stateMgr.isCurrentSensorValid()) {
     return false;
   }
 
-  if (!state.currentSensorValid) {
-    return false;
-  }
-
-  return state.pumpCurrent >= CURRENT_THRESHOLD_OVERCURRENT;
+  return stateMgr.getPumpCurrent() >= CURRENT_THRESHOLD_OVERCURRENT;
 }
 
 // ============================================
@@ -270,14 +240,9 @@ bool isOvercurrentDetected() {
 
 void calibrateCurrentSensor() {
 #ifdef ENABLE_CURRENT_MONITOR
-  bool currentSensorValid;
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      return;
-    }
-    currentSensorValid = state.currentSensorValid;
-  }
+  StateManager& stateMgr = StateManager::getInstance();
+
+  bool currentSensorValid = stateMgr.isCurrentSensorValid();
 
   if (!currentSensorValid) {
 #ifndef NO_HARDWARE
@@ -316,12 +281,8 @@ void calibrateCurrentSensor() {
 
   float calibratedOffset = sumCurrent / CAL_SAMPLES;
 
-  {
-    StateScopedLock stateLock;
-    if (stateLock.isLocked()) {
-      state.currentOffset = calibratedOffset;
-    }
-  }
+  // Update offset using StateManager API
+  stateMgr.setCurrentOffset(calibratedOffset);
 
 #ifndef NO_HARDWARE
   LOG_INFOF("Calibration complete - Offset: %.3f A", calibratedOffset);

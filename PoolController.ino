@@ -23,7 +23,6 @@
 
 #include "Config.h"
 #include "StateManager.h"
-#include "StateMutex.h"
 #include "I2CMutex.h"
 #include "Logger.h"
 #include "CredentialsManager.h"
@@ -63,12 +62,13 @@
 
 #ifdef ENABLE_BLYNK
 BLYNK_WRITE(VPIN_TARGET_TEMP) {
+  StateManager& stateMgr = StateManager::getInstance();
   float temp = param.asFloat();
 
   // Validate for NaN/Inf
   if (isnan(temp) || isinf(temp)) {
     LOG_ERROR("Rejected invalid temp from Blynk: NaN/Inf");
-    Blynk.virtualWrite(VPIN_TARGET_TEMP, state.targetTemp);  // Revert
+    Blynk.virtualWrite(VPIN_TARGET_TEMP, stateMgr.getTargetTemp());  // Revert
     return;
   }
 
@@ -76,7 +76,7 @@ BLYNK_WRITE(VPIN_TARGET_TEMP) {
   if (temp < MIN_TARGET_TEMP || temp > MAX_TARGET_TEMP) {
     LOG_WARNF("Rejected invalid temp from Blynk: %.1f (range: %.1f-%.1f)",
               temp, MIN_TARGET_TEMP, MAX_TARGET_TEMP);
-    Blynk.virtualWrite(VPIN_TARGET_TEMP, state.targetTemp);  // Revert
+    Blynk.virtualWrite(VPIN_TARGET_TEMP, stateMgr.getTargetTemp());  // Revert
     return;
   }
 
@@ -91,11 +91,12 @@ BLYNK_WRITE(VPIN_HEATER_ENABLE) {
 }
 
 BLYNK_WRITE(VPIN_PUMP_ENABLE) {
+  StateManager& stateMgr = StateManager::getInstance();
   bool enabled = param.asInt();
   LOG_INFOF("Blynk: Pump %s", enabled ? "ON" : "OFF");
 
   if (enabled) {
-    if (state.pumpState == PUMP_OFF) {
+    if (stateMgr.getPumpState() == PUMP_OFF) {
       setPumpState(PUMP_LOW);
     }
   } else {
@@ -109,28 +110,30 @@ BLYNK_WRITE(VPIN_PUMP_ENABLE) {
 }
 
 BLYNK_WRITE(VPIN_PUMP_SPEED) {
+  StateManager& stateMgr = StateManager::getInstance();
   bool high = param.asInt();
   LOG_INFOF("Blynk: Pump speed %s", high ? "HIGH" : "LOW");
 
-  if (state.pumpState != PUMP_OFF) {
+  if (stateMgr.getPumpState() != PUMP_OFF) {
     setPumpState(high ? PUMP_HIGH : PUMP_LOW);
   }
 }
 
 BLYNK_WRITE(VPIN_MAX_RUNTIME) {
+  StateManager& stateMgr = StateManager::getInstance();
   float hours = param.asFloat();
 
   // Validate for NaN/Inf
   if (isnan(hours) || isinf(hours)) {
     LOG_ERROR("Rejected invalid max runtime from Blynk: NaN/Inf");
-    Blynk.virtualWrite(VPIN_MAX_RUNTIME, state.maxRuntimeHours);  // Revert
+    Blynk.virtualWrite(VPIN_MAX_RUNTIME, stateMgr.getMaxRuntimeHours());  // Revert
     return;
   }
 
   // Validate range (0-24 hours)
   if (hours < 0 || hours > 24) {
     LOG_WARNF("Rejected invalid max runtime from Blynk: %.1f (range: 0-24)", hours);
-    Blynk.virtualWrite(VPIN_MAX_RUNTIME, state.maxRuntimeHours);  // Revert
+    Blynk.virtualWrite(VPIN_MAX_RUNTIME, stateMgr.getMaxRuntimeHours());  // Revert
     return;
   }
 
@@ -139,12 +142,13 @@ BLYNK_WRITE(VPIN_MAX_RUNTIME) {
 }
 
 BLYNK_WRITE(VPIN_HEATER_START_HOUR) {
+  StateManager& stateMgr = StateManager::getInstance();
   int hour = param.asInt();
 
   // Validate range (0-23)
   if (hour < 0 || hour > 23) {
     LOG_WARNF("Rejected invalid start hour from Blynk: %d (range: 0-23)", hour);
-    Blynk.virtualWrite(VPIN_HEATER_START_HOUR, state.heaterStartHour);  // Revert
+    Blynk.virtualWrite(VPIN_HEATER_START_HOUR, stateMgr.getHeaterStartHour());  // Revert
     return;
   }
 
@@ -153,12 +157,13 @@ BLYNK_WRITE(VPIN_HEATER_START_HOUR) {
 }
 
 BLYNK_WRITE(VPIN_HEATER_END_HOUR) {
+  StateManager& stateMgr = StateManager::getInstance();
   int hour = param.asInt();
 
   // Validate range (0-23)
   if (hour < 0 || hour > 23) {
     LOG_WARNF("Rejected invalid end hour from Blynk: %d (range: 0-23)", hour);
-    Blynk.virtualWrite(VPIN_HEATER_END_HOUR, state.heaterEndHour);  // Revert
+    Blynk.virtualWrite(VPIN_HEATER_END_HOUR, stateMgr.getHeaterEndHour());  // Revert
     return;
   }
 
@@ -167,12 +172,13 @@ BLYNK_WRITE(VPIN_HEATER_END_HOUR) {
 }
 
 BLYNK_WRITE(VPIN_MIN_HEATER_TEMP) {
+  StateManager& stateMgr = StateManager::getInstance();
   float temp = param.asFloat();
 
   // Validate for NaN/Inf
   if (isnan(temp) || isinf(temp)) {
     LOG_ERROR("Rejected invalid min heater temp from Blynk: NaN/Inf");
-    Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);  // Revert
+    Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, stateMgr.getMinHeaterTemp());  // Revert
     return;
   }
 
@@ -180,7 +186,7 @@ BLYNK_WRITE(VPIN_MIN_HEATER_TEMP) {
   if (temp < INVALID_TEMP_LOW || temp > MAX_TARGET_TEMP) {
     LOG_WARNF("Rejected invalid min heater temp from Blynk: %.1f (range: %.1f-%.1f)",
               temp, INVALID_TEMP_LOW, MAX_TARGET_TEMP);
-    Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);  // Revert
+    Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, stateMgr.getMinHeaterTemp());  // Revert
     return;
   }
 
@@ -189,12 +195,13 @@ BLYNK_WRITE(VPIN_MIN_HEATER_TEMP) {
 }
 
 BLYNK_WRITE(VPIN_MAX_HEATER_TEMP) {
+  StateManager& stateMgr = StateManager::getInstance();
   float temp = param.asFloat();
 
   // Validate for NaN/Inf
   if (isnan(temp) || isinf(temp)) {
     LOG_ERROR("Rejected invalid max heater temp from Blynk: NaN/Inf");
-    Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);  // Revert
+    Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, stateMgr.getMaxHeaterTemp());  // Revert
     return;
   }
 
@@ -202,7 +209,7 @@ BLYNK_WRITE(VPIN_MAX_HEATER_TEMP) {
   if (temp < MIN_TARGET_TEMP || temp > MAX_HEATER_TEMP) {
     LOG_WARNF("Rejected invalid max heater temp from Blynk: %.1f (range: %.1f-%.1f)",
               temp, MIN_TARGET_TEMP, MAX_HEATER_TEMP);
-    Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);  // Revert
+    Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, stateMgr.getMaxHeaterTemp());  // Revert
     return;
   }
 
@@ -243,18 +250,20 @@ BLYNK_WRITE(VPIN_LOG_BUFFER_SIZE) {
 // ============================================
 
 BLYNK_CONNECTED() {
+  StateManager& stateMgr = StateManager::getInstance();
   LOG_INFO("========================================");
   LOG_INFO("Blynk connected!");
   LOG_INFO("========================================");
-  state.blynkConnected = true;
+  stateMgr.setBlynkConnected(true);
   syncAllToBlynk();
 }
 
 BLYNK_DISCONNECTED() {
+  StateManager& stateMgr = StateManager::getInstance();
   LOG_INFO("========================================");
   LOG_INFO("Blynk disconnected");
   LOG_INFO("========================================");
-  state.blynkConnected = false;
+  stateMgr.setBlynkConnected(false);
 }
 
 // ============================================
@@ -274,6 +283,8 @@ void initBlynk() {
 void syncAllToBlynk() {
   if (!Blynk.connected()) return;
 
+  StateManager& stateMgr = StateManager::getInstance();
+
   syncTemperaturesToBlynk();
   syncTargetTempToBlynk();
   syncHeaterToBlynk();
@@ -282,11 +293,11 @@ void syncAllToBlynk() {
   syncPumpCurrentToBlynk();
   syncPumpAlertsToBlynk();
 
-  Blynk.virtualWrite(VPIN_MAX_RUNTIME, state.maxRuntimeHours);
-  Blynk.virtualWrite(VPIN_HEATER_START_HOUR, state.heaterStartHour);
-  Blynk.virtualWrite(VPIN_HEATER_END_HOUR, state.heaterEndHour);
-  Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, state.minHeaterTemp);
-  Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, state.maxHeaterTemp);
+  Blynk.virtualWrite(VPIN_MAX_RUNTIME, stateMgr.getMaxRuntimeHours());
+  Blynk.virtualWrite(VPIN_HEATER_START_HOUR, stateMgr.getHeaterStartHour());
+  Blynk.virtualWrite(VPIN_HEATER_END_HOUR, stateMgr.getHeaterEndHour());
+  Blynk.virtualWrite(VPIN_MIN_HEATER_TEMP, stateMgr.getMinHeaterTemp());
+  Blynk.virtualWrite(VPIN_MAX_HEATER_TEMP, stateMgr.getMaxHeaterTemp());
   Blynk.virtualWrite(VPIN_LOG_LEVEL, (int)getLogLevel());
   Blynk.virtualWrite(VPIN_LOG_BUFFER_SIZE, (int)getLogBufferMaxEntries());
 
@@ -313,34 +324,38 @@ bool isBlynkConnected() {
 
 void syncHeaterToBlynk() {
   if (!Blynk.connected()) return;
-  Blynk.virtualWrite(VPIN_HEATER_ENABLE, state.heaterEnabled ? 1 : 0);
+  StateManager& stateMgr = StateManager::getInstance();
+  Blynk.virtualWrite(VPIN_HEATER_ENABLE, stateMgr.isHeaterEnabled() ? 1 : 0);
 }
 
 void syncPumpToBlynk() {
   if (!Blynk.connected()) return;
-  
-  Blynk.virtualWrite(VPIN_PUMP_ENABLE, state.pumpState != PUMP_OFF ? 1 : 0);
-  Blynk.virtualWrite(VPIN_PUMP_SPEED, state.pumpState == PUMP_HIGH ? 1 : 0);
+  StateManager& stateMgr = StateManager::getInstance();
+
+  Blynk.virtualWrite(VPIN_PUMP_ENABLE, stateMgr.getPumpState() != PUMP_OFF ? 1 : 0);
+  Blynk.virtualWrite(VPIN_PUMP_SPEED, stateMgr.getPumpState() == PUMP_HIGH ? 1 : 0);
 }
 
 void syncTargetTempToBlynk() {
   if (!Blynk.connected()) return;
-  Blynk.virtualWrite(VPIN_TARGET_TEMP, state.targetTemp);
+  StateManager& stateMgr = StateManager::getInstance();
+  Blynk.virtualWrite(VPIN_TARGET_TEMP, stateMgr.getTargetTemp());
 }
 
 void syncTemperaturesToBlynk() {
   if (!Blynk.connected()) return;
-  
-  if (state.inletTempValid) {
-    Blynk.virtualWrite(VPIN_INLET_TEMP, state.inletTemp);
+  StateManager& stateMgr = StateManager::getInstance();
+
+  if (stateMgr.isInletTempValid()) {
+    Blynk.virtualWrite(VPIN_INLET_TEMP, stateMgr.getInletTemp());
   }
-  
-  if (state.heaterTempValid) {
-    Blynk.virtualWrite(VPIN_HEATER_TEMP, state.heaterTemp);
+
+  if (stateMgr.isHeaterTempValid()) {
+    Blynk.virtualWrite(VPIN_HEATER_TEMP, stateMgr.getHeaterTemp());
   }
-  
-  if (state.ambientTempValid) {
-    Blynk.virtualWrite(VPIN_AMBIENT_TEMP, state.ambientTemp);
+
+  if (stateMgr.isAmbientTempValid()) {
+    Blynk.virtualWrite(VPIN_AMBIENT_TEMP, stateMgr.getAmbientTemp());
   }
 }
 
@@ -351,14 +366,16 @@ void syncPumpRuntimeToBlynk() {
 
 void syncPumpCurrentToBlynk() {
   if (!Blynk.connected()) return;
-  if (state.currentSensorValid) {
-    Blynk.virtualWrite(VPIN_PUMP_CURRENT, state.pumpCurrent);
+  StateManager& stateMgr = StateManager::getInstance();
+  if (stateMgr.isCurrentSensorValid()) {
+    Blynk.virtualWrite(VPIN_PUMP_CURRENT, stateMgr.getPumpCurrent());
   }
 }
 
 void syncPumpAlertsToBlynk() {
   if (!Blynk.connected()) return;
-  Blynk.virtualWrite(VPIN_PUMP_FAILURE_ALERT, state.pumpFailureAlert ? 1 : 0);
+  StateManager& stateMgr = StateManager::getInstance();
+  Blynk.virtualWrite(VPIN_PUMP_FAILURE_ALERT, stateMgr.isPumpFailureAlert() ? 1 : 0);
 }
 #endif // ENABLE_BLYNK
 
@@ -404,43 +421,45 @@ void handleWiFiRuntimeFailure(const char* reason) {
 #if ENABLE_WIFI_PROV
 
 void SysProvEvent(arduino_event_t *sys_event) {
+  StateManager& stateMgr = StateManager::getInstance();
+
   switch (sys_event->event_id) {
     case ARDUINO_EVENT_PROV_START:
       LOG_INFO("WiFi Provisioning started");
-      state.provisioningActive = true;
-      state.provisioningStartTime = millis();
+      stateMgr.setProvisioningActive(true);
+      stateMgr.setProvisioningStartTime(millis());
       displayWiFiProvisioning();
       break;
 
     case ARDUINO_EVENT_PROV_CRED_RECV:
       LOG_INFO("WiFi credentials received - waiting for validation");
-      state.credentialsReceived = true;
-      state.credReceivedTime = millis();
+      stateMgr.setCredentialsReceived(true);
+      stateMgr.setCredReceivedTime(millis());
       break;
 
     case ARDUINO_EVENT_PROV_CRED_SUCCESS:
       LOG_INFO("WiFi credentials accepted");
-      state.credentialsReceived = false;  // Clear flag - validation successful
-      state.credReceivedTime = 0;
+      stateMgr.setCredentialsReceived(false);  // Clear flag - validation successful
+      stateMgr.setCredReceivedTime(0);
       break;
 
     case ARDUINO_EVENT_PROV_END:
       LOG_INFO("WiFi Provisioning ended");
-      state.provisioningActive = false;
-      state.provisioningStartTime = 0;
+      stateMgr.setProvisioningActive(false);
+      stateMgr.setProvisioningStartTime(0);
       break;
 
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
       LOG_INFOF("WiFi connected - IP: %s", WiFi.localIP().toString().c_str());
-      state.wifiConnected = true;
+      stateMgr.setWiFiConnected(true);
       clearWiFiRuntimeTracking();  // Clear disconnect tracking on successful connection
       updateLCDDisplay();
       break;
 
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
       LOG_WARN("WiFi disconnected");
-      state.wifiConnected = false;
-      state.blynkConnected = false;
+      stateMgr.setWiFiConnected(false);
+      stateMgr.setBlynkConnected(false);
       recordWiFiDisconnect();  // Track disconnect for runtime failure detection
       updateLCDDisplay();
       break;
@@ -469,9 +488,8 @@ void setup() {
   // Initialize mutexes for thread-safe access
   LOG_INFO("Initializing mutexes...");
   initI2CMutex();
-  initStateMutex();
 
-  // Initialize system state
+  // Initialize system state (includes state mutex initialization)
   initSystemState();
 
   // Initialize I2C bus
@@ -580,8 +598,9 @@ void setup() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
+    StateManager& stateMgr = StateManager::getInstance();
     LOG_INFO("WiFi connected!");
-    state.wifiConnected = true;
+    stateMgr.setWiFiConnected(true);
 
     // Reset failure counter on successful connection
     resetWiFiFailureCount();

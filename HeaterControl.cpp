@@ -4,7 +4,6 @@
 #include "Logger.h"
 #include "Config.h"
 #include "StateManager.h"
-#include "StateMutex.h"
 #include "SettingsManager.h"
 #include "PumpControl.h"
 
@@ -36,36 +35,26 @@ void runControlSystem() {
   // Check if heater should be on (this function handles mutex internally)
   bool shouldBeOn = shouldHeaterBeOn();
 
-  HeaterStatus previousStatus, newStatus;
-  PumpState currentPumpState;
-  bool heaterEnabled, inCooldown;
-  float inletTemp, targetTemp;
+  // Get current state using StateManager API
+  StateManager& stateMgr = StateManager::getInstance();
 
-  // Read current state with mutex
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      LOG_ERROR("Control system mutex timeout");
-      return;
-    }
+  HeaterStatus previousStatus = stateMgr.getHeaterStatus();
+  bool heaterEnabled = stateMgr.isHeaterEnabled();
+  PumpState currentPumpState = stateMgr.getPumpState();
+  bool inCooldown = stateMgr.isInCooldown();
+  float inletTemp = stateMgr.getInletTemp();
+  float targetTemp = stateMgr.getTargetTemp();
 
-    previousStatus = state.heaterStatus;
-    heaterEnabled = state.heaterEnabled;
-    currentPumpState = state.pumpState;
-    inCooldown = state.inCooldown;
-    inletTemp = state.inletTemp;
-    targetTemp = state.targetTemp;
-
-    // Determine new status
-    if (shouldBeOn) {
-      newStatus = HEATER_ON;
-    } else {
-      newStatus = heaterEnabled ? HEATER_ENABLED : HEATER_OFF;
-    }
-
-    // Update heater status
-    state.heaterStatus = newStatus;
+  // Determine new status
+  HeaterStatus newStatus;
+  if (shouldBeOn) {
+    newStatus = HEATER_ON;
+  } else {
+    newStatus = heaterEnabled ? HEATER_ENABLED : HEATER_OFF;
   }
+
+  // Update heater status
+  stateMgr.setHeaterStatus(newStatus);
 
   // CRITICAL SAFETY: Ensure pump runs when heater is on
   if (newStatus == HEATER_ON && currentPumpState == PUMP_OFF) {
@@ -102,16 +91,8 @@ void runControlSystem() {
 
 void applyHeaterState() {
 #ifdef ENABLE_HEATER
-  HeaterStatus currentStatus;
-
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      LOG_ERROR("Failed to read heater status for hardware apply");
-      return;
-    }
-    currentStatus = state.heaterStatus;
-  }
+  StateManager& stateMgr = StateManager::getInstance();
+  HeaterStatus currentStatus = stateMgr.getHeaterStatus();
 
   if (currentStatus == HEATER_ON) {
     digitalWrite(HEATER_PIN, HIGH);
@@ -128,27 +109,18 @@ void applyHeaterState() {
 // ============================================
 
 bool shouldHeaterBeOn() {
-  // Read all state values with mutex protection
-  bool heaterEnabled, emergencyShutdown, inletTempValid, heaterTempValid;
-  float inletTemp, heaterTemp, minHeaterTemp, maxHeaterTemp, targetTemp;
+  // Read all state values using StateManager API
+  StateManager& stateMgr = StateManager::getInstance();
 
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      LOG_ERROR("Failed to read state in shouldHeaterBeOn()");
-      return false;  // Fail safe - don't turn on heater
-    }
-
-    heaterEnabled = state.heaterEnabled;
-    emergencyShutdown = state.emergencyShutdown;
-    inletTempValid = state.inletTempValid;
-    heaterTempValid = state.heaterTempValid;
-    inletTemp = state.inletTemp;
-    heaterTemp = state.heaterTemp;
-    minHeaterTemp = state.minHeaterTemp;
-    maxHeaterTemp = state.maxHeaterTemp;
-    targetTemp = state.targetTemp;
-  }
+  bool heaterEnabled = stateMgr.isHeaterEnabled();
+  bool emergencyShutdown = stateMgr.isEmergencyShutdown();
+  bool inletTempValid = stateMgr.isInletTempValid();
+  bool heaterTempValid = stateMgr.isHeaterTempValid();
+  float inletTemp = stateMgr.getInletTemp();
+  float heaterTemp = stateMgr.getHeaterTemp();
+  float minHeaterTemp = stateMgr.getMinHeaterTemp();
+  float maxHeaterTemp = stateMgr.getMaxHeaterTemp();
+  float targetTemp = stateMgr.getTargetTemp();
 
   // Heater turns ON when ALL conditions met:
   // 1. Heater enabled by user
@@ -224,22 +196,13 @@ bool shouldHeaterBeOn() {
 // ============================================
 
 void checkEmergencyOverheat() {
-  bool heaterTempValid, inFailsafeMode, overheatLockout;
-  float heaterTemp;
+  // Read critical state using StateManager API
+  StateManager& stateMgr = StateManager::getInstance();
 
-  // Read critical state with mutex
-  {
-    StateScopedLock stateLock;
-    if (!stateLock.isLocked()) {
-      LOG_ERROR("Failed to check overheat (mutex timeout)");
-      return;
-    }
-
-    heaterTempValid = state.heaterTempValid;
-    heaterTemp = state.heaterTemp;
-    inFailsafeMode = state.inFailsafeMode;
-    overheatLockout = state.overheatLockout;
-  }
+  bool heaterTempValid = stateMgr.isHeaterTempValid();
+  float heaterTemp = stateMgr.getHeaterTemp();
+  bool inFailsafeMode = stateMgr.isInFailsafeMode();
+  bool overheatLockout = stateMgr.isOverheatLockout();
 
   // Only check if we have valid temperature and not already in failsafe/lockout
   if (!heaterTempValid || inFailsafeMode || overheatLockout) {
@@ -257,14 +220,10 @@ void checkEmergencyOverheat() {
     // Immediate hardware shutdown (critical safety)
     digitalWrite(HEATER_PIN, LOW);
 
-    // Set overheat lockout state
-    {
-      StateScopedLock stateLock;
-      if (stateLock.isLocked()) {
-        state.overheatLockout = true;
-        state.overheatDetectedTime = millis();
-      }
-    }
+    // Set overheat lockout state using StateManager API
+    StateManager& stateMgr = StateManager::getInstance();
+    stateMgr.setOverheatLockout(true);
+    stateMgr.setOverheatDetectedTime(millis());
 
     // Enter failsafe mode
     enterFailsafeMode("HEATER_OVERHEAT");

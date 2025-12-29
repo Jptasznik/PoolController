@@ -40,25 +40,27 @@ void initSettings() {
 void loadAllSettings() {
   LOG_INFO("Loading settings from flash...");
 
-  state.targetTemp = loadTargetTemp();
-  state.heaterEnabled = loadHeaterEnabled();
-  state.pumpState = loadPumpState();
-  state.maxRuntimeHours = loadMaxRuntimeHours();
-  state.heaterStartHour = loadHeaterStartHour();
-  state.heaterEndHour = loadHeaterEndHour();
-  state.minHeaterTemp = loadMinHeaterTemp();
-  state.maxHeaterTemp = loadMaxHeaterTemp();
-  state.currentOffset = loadCurrentCalibration();
+  StateManager& stateMgr = StateManager::getInstance();
+
+  stateMgr.setTargetTempInternal(loadTargetTemp());
+  stateMgr.setHeaterEnabledInternal(loadHeaterEnabled());
+  stateMgr.setPumpStateInternal(loadPumpState());  // Internal setter to avoid saving back to flash
+  stateMgr.setMaxRuntimeHoursInternal(loadMaxRuntimeHours());
+  stateMgr.setHeaterStartHourInternal(loadHeaterStartHour());
+  stateMgr.setHeaterEndHourInternal(loadHeaterEndHour());
+  stateMgr.setMinHeaterTempInternal(loadMinHeaterTemp());
+  stateMgr.setMaxHeaterTempInternal(loadMaxHeaterTemp());
+  stateMgr.setCurrentOffset(loadCurrentCalibration());
 
   LOG_INFO("Settings loaded:");
-  LOG_INFOF("  Target temp: %.1f", state.targetTemp);
-  LOG_INFOF("  Heater enabled: %d", state.heaterEnabled);
-  LOG_INFOF("  Pump state: %d", (int)state.pumpState);
-  LOG_INFOF("  Max runtime: %.1f", state.maxRuntimeHours);
-  LOG_INFOF("  Heater hours: %d - %d", state.heaterStartHour, state.heaterEndHour);
-  LOG_INFOF("  Min heater temp: %.1f", state.minHeaterTemp);
-  LOG_INFOF("  Max heater temp: %.1f", state.maxHeaterTemp);
-  LOG_INFOF("  Current calibration: %.3f", state.currentOffset);
+  LOG_INFOF("  Target temp: %.1f", stateMgr.getTargetTemp());
+  LOG_INFOF("  Heater enabled: %d", stateMgr.isHeaterEnabled());
+  LOG_INFOF("  Pump state: %d", (int)stateMgr.getPumpState());
+  LOG_INFOF("  Max runtime: %.1f", stateMgr.getMaxRuntimeHours());
+  LOG_INFOF("  Heater hours: %d - %d", stateMgr.getHeaterStartHour(), stateMgr.getHeaterEndHour());
+  LOG_INFOF("  Min heater temp: %.1f", stateMgr.getMinHeaterTemp());
+  LOG_INFOF("  Max heater temp: %.1f", stateMgr.getMaxHeaterTemp());
+  LOG_INFOF("  Current calibration: %.3f", stateMgr.getCurrentOffset());
 }
 
 // ============================================
@@ -69,59 +71,68 @@ void validateAllSettings() {
   LOG_DEBUG("Validating all settings...");
   bool corrected = false;
 
+  StateManager& stateMgr = StateManager::getInstance();
+
   // Validate target temperature
-  if (state.targetTemp < MIN_TARGET_TEMP || state.targetTemp > MAX_TARGET_TEMP) {
-    LOG_WARNF("Target temp out of range (%.1f) - correcting to default", state.targetTemp);
-    state.targetTemp = DEFAULT_TARGET_TEMP;
-    saveTargetTemp(state.targetTemp);
+  float targetTemp = stateMgr.getTargetTemp();
+  if (targetTemp < MIN_TARGET_TEMP || targetTemp > MAX_TARGET_TEMP) {
+    LOG_WARNF("Target temp out of range (%.1f) - correcting to default", targetTemp);
+    stateMgr.setTargetTempInternal(DEFAULT_TARGET_TEMP);
+    saveTargetTemp(DEFAULT_TARGET_TEMP);
     corrected = true;
   }
 
   // Validate max runtime hours (reasonable range: 0.1 to 24 hours)
-  if (state.maxRuntimeHours < 0.1 || state.maxRuntimeHours > 24.0) {
-    LOG_WARNF("Max runtime hours out of range (%.1f) - correcting to default", state.maxRuntimeHours);
-    state.maxRuntimeHours = DEFAULT_MAX_RUNTIME_HOURS;
-    saveMaxRuntimeHours(state.maxRuntimeHours);
+  float maxRuntimeHours = stateMgr.getMaxRuntimeHours();
+  if (maxRuntimeHours < 0.1 || maxRuntimeHours > 24.0) {
+    LOG_WARNF("Max runtime hours out of range (%.1f) - correcting to default", maxRuntimeHours);
+    stateMgr.setMaxRuntimeHours(DEFAULT_MAX_RUNTIME_HOURS);
+    saveMaxRuntimeHours(DEFAULT_MAX_RUNTIME_HOURS);
     corrected = true;
   }
 
   // Validate heater start hour (0-23)
-  if (state.heaterStartHour < 0 || state.heaterStartHour > 23) {
-    LOG_WARNF("Heater start hour out of range (%d) - correcting to default", state.heaterStartHour);
-    state.heaterStartHour = DEFAULT_HEATER_START_HOUR;
-    saveHeaterStartHour(state.heaterStartHour);
+  int heaterStartHour = stateMgr.getHeaterStartHour();
+  if (heaterStartHour < 0 || heaterStartHour > 23) {
+    LOG_WARNF("Heater start hour out of range (%d) - correcting to default", heaterStartHour);
+    stateMgr.setHeaterStartHour(DEFAULT_HEATER_START_HOUR);
+    saveHeaterStartHour(DEFAULT_HEATER_START_HOUR);
     corrected = true;
   }
 
   // Validate heater end hour (0-23)
-  if (state.heaterEndHour < 0 || state.heaterEndHour > 23) {
-    LOG_WARNF("Heater end hour out of range (%d) - correcting to default", state.heaterEndHour);
-    state.heaterEndHour = DEFAULT_HEATER_END_HOUR;
-    saveHeaterEndHour(state.heaterEndHour);
+  int heaterEndHour = stateMgr.getHeaterEndHour();
+  if (heaterEndHour < 0 || heaterEndHour > 23) {
+    LOG_WARNF("Heater end hour out of range (%d) - correcting to default", heaterEndHour);
+    stateMgr.setHeaterEndHour(DEFAULT_HEATER_END_HOUR);
+    saveHeaterEndHour(DEFAULT_HEATER_END_HOUR);
     corrected = true;
   }
 
   // Validate min heater temp
-  if (state.minHeaterTemp < INVALID_TEMP_LOW || state.minHeaterTemp > MAX_HEATER_TEMP) {
-    LOG_WARNF("Min heater temp out of range (%.1f) - correcting to default", state.minHeaterTemp);
-    state.minHeaterTemp = DEFAULT_MIN_HEATER_TEMP;
-    saveMinHeaterTemp(state.minHeaterTemp);
+  float minHeaterTemp = stateMgr.getMinHeaterTemp();
+  if (minHeaterTemp < INVALID_TEMP_LOW || minHeaterTemp > MAX_HEATER_TEMP) {
+    LOG_WARNF("Min heater temp out of range (%.1f) - correcting to default", minHeaterTemp);
+    stateMgr.setMinHeaterTemp(DEFAULT_MIN_HEATER_TEMP);
+    saveMinHeaterTemp(DEFAULT_MIN_HEATER_TEMP);
     corrected = true;
   }
 
   // Validate max heater temp
-  if (state.maxHeaterTemp < state.minHeaterTemp || state.maxHeaterTemp > MAX_HEATER_TEMP) {
-    LOG_WARNF("Max heater temp out of range (%.1f) - correcting to default", state.maxHeaterTemp);
-    state.maxHeaterTemp = DEFAULT_MAX_HEATER_TEMP;
-    saveMaxHeaterTemp(state.maxHeaterTemp);
+  float maxHeaterTemp = stateMgr.getMaxHeaterTemp();
+  if (maxHeaterTemp < minHeaterTemp || maxHeaterTemp > MAX_HEATER_TEMP) {
+    LOG_WARNF("Max heater temp out of range (%.1f) - correcting to default", maxHeaterTemp);
+    stateMgr.setMaxHeaterTemp(DEFAULT_MAX_HEATER_TEMP);
+    saveMaxHeaterTemp(DEFAULT_MAX_HEATER_TEMP);
     corrected = true;
   }
 
   // Validate pump state (ensure it's a valid enum value)
-  if (state.pumpState < PUMP_OFF || state.pumpState > PUMP_HIGH) {
-    LOG_WARNF("Pump state invalid (%d) - correcting to PUMP_OFF", (int)state.pumpState);
-    state.pumpState = PUMP_OFF;
-    savePumpState(state.pumpState);
+  PumpState pumpState = stateMgr.getPumpState();
+  if (pumpState < PUMP_OFF || pumpState > PUMP_HIGH) {
+    LOG_WARNF("Pump state invalid (%d) - correcting to PUMP_OFF", (int)pumpState);
+    stateMgr.setPumpStateInternal(PUMP_OFF);
+    savePumpState(PUMP_OFF);
     corrected = true;
   }
 
@@ -357,14 +368,15 @@ void factoryResetSettings() {
   }
 
   // Reset to defaults
-  state.targetTemp = DEFAULT_TARGET_TEMP;
-  state.heaterEnabled = false;
-  state.pumpState = PUMP_OFF;
-  state.maxRuntimeHours = DEFAULT_MAX_RUNTIME_HOURS;
-  state.heaterStartHour = DEFAULT_HEATER_START_HOUR;
-  state.heaterEndHour = DEFAULT_HEATER_END_HOUR;
-  state.minHeaterTemp = DEFAULT_MIN_HEATER_TEMP;
-  state.maxHeaterTemp = DEFAULT_MAX_HEATER_TEMP;
+  StateManager& stateMgr = StateManager::getInstance();
+  stateMgr.setTargetTempInternal(DEFAULT_TARGET_TEMP);
+  stateMgr.setHeaterEnabledInternal(false);
+  stateMgr.setPumpStateInternal(PUMP_OFF);
+  stateMgr.setMaxRuntimeHoursInternal(DEFAULT_MAX_RUNTIME_HOURS);
+  stateMgr.setHeaterStartHourInternal(DEFAULT_HEATER_START_HOUR);
+  stateMgr.setHeaterEndHourInternal(DEFAULT_HEATER_END_HOUR);
+  stateMgr.setMinHeaterTempInternal(DEFAULT_MIN_HEATER_TEMP);
+  stateMgr.setMaxHeaterTempInternal(DEFAULT_MAX_HEATER_TEMP);
 
   LOG_INFO("Factory reset complete");
 }
@@ -442,19 +454,21 @@ void saveCurrentCalibration(float offset) {
 // ============================================
 
 void saveRuntimeState() {
+  StateManager& stateMgr = StateManager::getInstance();
+
   if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
     preferences.begin(SETTINGS_NVS_NAMESPACE, false);
 
     // Save boot and crash counts
-    preferences.putUInt("bootCount", state.bootCount);
-    preferences.putUInt("crashCount", state.crashCount);
+    preferences.putUInt("bootCount", stateMgr.getBootCount());
+    preferences.putUInt("crashCount", stateMgr.getCrashCount());
 
     // Save cooldown state
-    preferences.putBool("inCooldown", state.inCooldown);
-    preferences.putULong("cooldownStart", state.cooldownStartTime);
+    preferences.putBool("inCooldown", stateMgr.isInCooldown());
+    preferences.putULong("cooldownStart", stateMgr.getCooldownStartTime());
 
     // Save total runtime
-    preferences.putULong("totalRuntime", state.totalPumpRuntime);
+    preferences.putULong("totalRuntime", stateMgr.getTotalPumpRuntime());
 
     preferences.end();
     xSemaphoreGive(preferencesMutex);
@@ -466,34 +480,36 @@ void saveRuntimeState() {
 }
 
 void loadRuntimeState() {
+  StateManager& stateMgr = StateManager::getInstance();
+
   if (xSemaphoreTake(preferencesMutex, pdMS_TO_TICKS(SETTINGS_MUTEX_TIMEOUT_MS)) == pdTRUE) {
     preferences.begin(SETTINGS_NVS_NAMESPACE, true);  // Read-only
 
     // Load boot and crash counts
-    state.bootCount = preferences.getUInt("bootCount", 0);
-    state.crashCount = preferences.getUInt("crashCount", 0);
+    stateMgr.setBootCount(preferences.getUInt("bootCount", 0));
+    stateMgr.setCrashCount(preferences.getUInt("crashCount", 0));
 
     // Load cooldown state
-    state.inCooldown = preferences.getBool("inCooldown", false);
-    state.cooldownStartTime = preferences.getULong("cooldownStart", 0);
+    stateMgr.setInCooldown(preferences.getBool("inCooldown", false));
+    stateMgr.setCooldownStartTime(preferences.getULong("cooldownStart", 0));
 
     // Load total runtime
-    state.totalPumpRuntime = preferences.getULong("totalRuntime", 0);
+    stateMgr.setTotalPumpRuntime(preferences.getULong("totalRuntime", 0));
 
     preferences.end();
     xSemaphoreGive(preferencesMutex);
 
     LOG_INFO("Runtime state loaded from NVS:");
-    LOG_INFOF("  Boot count: %u", state.bootCount);
-    LOG_INFOF("  Crash count: %u", state.crashCount);
-    LOG_INFOF("  In cooldown: %d", state.inCooldown);
-    LOG_INFOF("  Total runtime: %lu ms", state.totalPumpRuntime);
+    LOG_INFOF("  Boot count: %u", stateMgr.getBootCount());
+    LOG_INFOF("  Crash count: %u", stateMgr.getCrashCount());
+    LOG_INFOF("  In cooldown: %d", stateMgr.isInCooldown());
+    LOG_INFOF("  Total runtime: %lu ms", stateMgr.getTotalPumpRuntime());
   } else {
     LOG_ERROR("Preferences mutex timeout in loadRuntimeState");
   }
 
   // Increment boot count and save
-  state.bootCount++;
+  stateMgr.setBootCount(stateMgr.getBootCount() + 1);
 
   // Check ESP32 reset reason
   esp_reset_reason_t reset_reason = esp_reset_reason();
@@ -509,26 +525,26 @@ void loadRuntimeState() {
 
     case ESP_RST_PANIC:
       LOG_ERROR("Boot reason: Exception/panic (CRASH!)");
-      state.crashCount++;
-      LOG_ERRORF("Total crashes detected: %u", state.crashCount);
+      stateMgr.setCrashCount(stateMgr.getCrashCount() + 1);
+      LOG_ERRORF("Total crashes detected: %u", stateMgr.getCrashCount());
       break;
 
     case ESP_RST_INT_WDT:
       LOG_ERROR("Boot reason: Interrupt watchdog timeout (CRASH!)");
-      state.crashCount++;
-      LOG_ERRORF("Total crashes detected: %u", state.crashCount);
+      stateMgr.setCrashCount(stateMgr.getCrashCount() + 1);
+      LOG_ERRORF("Total crashes detected: %u", stateMgr.getCrashCount());
       break;
 
     case ESP_RST_TASK_WDT:
       LOG_ERROR("Boot reason: Task watchdog timeout (CRASH!)");
-      state.crashCount++;
-      LOG_ERRORF("Total crashes detected: %u", state.crashCount);
+      stateMgr.setCrashCount(stateMgr.getCrashCount() + 1);
+      LOG_ERRORF("Total crashes detected: %u", stateMgr.getCrashCount());
       break;
 
     case ESP_RST_WDT:
       LOG_ERROR("Boot reason: Other watchdog reset (CRASH!)");
-      state.crashCount++;
-      LOG_ERRORF("Total crashes detected: %u", state.crashCount);
+      stateMgr.setCrashCount(stateMgr.getCrashCount() + 1);
+      LOG_ERRORF("Total crashes detected: %u", stateMgr.getCrashCount());
       break;
 
     case ESP_RST_BROWNOUT:
