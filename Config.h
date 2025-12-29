@@ -47,6 +47,16 @@
 #define ENABLE_SINRIC 1                 // SinricPro/Alexa integration
 
 // ============================================
+// BLYNK SERVER CONFIGURATION
+// ============================================
+// Choose your Blynk server:
+// - Blynk IoT (new): "blynk.cloud" port 80
+// - Blynk Legacy (old): "blynk-cloud.com" port 80
+// - Custom server: specify your own server and port
+#define BLYNK_SERVER "blynk.cloud"      // Default: Blynk IoT cloud
+#define BLYNK_PORT 80                    // Default: 80 (or 443 for SSL)
+
+// ============================================
 // PIN DEFINITIONS
 // ============================================
 

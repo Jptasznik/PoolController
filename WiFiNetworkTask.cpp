@@ -8,9 +8,9 @@
 #include "SinricIntegration.h"
 #include <esp_task_wdt.h>
 
-// External Blynk wrapper functions (defined in PoolController.ino)
-// These wrappers avoid needing to include BlynkSimpleEsp32.h which creates global objects
-extern void runBlynk();
+// External Blynk wrapper function (defined in PoolController.ino)
+// This wrapper avoids needing to include BlynkSimpleEsp32.h which creates global objects
+// NOTE: Blynk.run() is called in main loop, not in this task
 extern bool isBlynkConnected();
 
 // External sync functions (defined in PoolController.ino)
@@ -178,15 +178,7 @@ void wifiNetworkTask(void* parameter) {
 
     // Run network services if connected
     if (wifiConnected) {
-      // Run Blynk event processing
-      runBlynk();
-
-      // Reset watchdog after Blynk.run() (can block on slow networks)
-#ifndef DISABLE_WATCHDOG
-      esp_task_wdt_reset();
-#endif
-
-      // Process queued network sync messages
+      // Process queued network sync messages (from sensors/control tasks)
       processNetworkSyncMessages();
 
       // Run SinricPro event processing (Alexa)
