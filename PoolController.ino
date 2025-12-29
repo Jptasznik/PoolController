@@ -305,14 +305,11 @@ void syncAllToBlynk() {
 }
 
 // ============================================
-// BLYNK WRAPPER FUNCTIONS FOR WIFI NETWORK TASK
+// BLYNK WRAPPER FUNCTIONS
 // ============================================
-// These wrapper functions allow WiFiNetworkTask.cpp to call Blynk methods
+// These wrapper functions allow other modules to check Blynk status
 // without including BlynkSimpleEsp32.h (which would create duplicate global objects)
-
-void runBlynk() {
-  Blynk.run();
-}
+// NOTE: Blynk.run() is called directly in main loop, not via wrapper
 
 bool isBlynkConnected() {
   return Blynk.connected();
@@ -682,19 +679,34 @@ void setup() {
 
 void loop() {
   // ============================================
-  // MAIN LOOP - MINIMAL COORDINATION
+  // MAIN LOOP - NETWORK EVENT PROCESSING
   // ============================================
-  // All functions now run in FreeRTOS tasks:
+  // All hardware functions run in FreeRTOS tasks:
   // - Temperature reading (TemperatureSensorTask)
   // - Current monitoring (CurrentMonitorTask)
   // - LCD updates (LCDUpdateTask)
   // - Button scanning (ButtonScanTask)
   // - Control system logic (ControlSystemTask)
-  // - Network services (WiFiNetworkTask - Blynk, Sinric, OTA, WiFi monitoring)
   //
-  // Main loop is now minimal - just keep watchdog happy
+  // WiFiNetworkTask handles:
+  // - Network sync messages (queued updates to Blynk)
+  // - SinricPro event processing (Alexa)
+  // - OTA firmware updates
+  // - WiFi runtime failure detection
+  //
+  // Main loop handles:
+  // - Blynk.run() for incoming commands (must be called frequently)
   // ============================================
 
+  StateManager& stateMgr = StateManager::getInstance();
+
+  // Process Blynk incoming messages if connected
+  if (stateMgr.isWiFiConnected()) {
+#ifdef ENABLE_BLYNK
+    Blynk.run();  // Process incoming Blynk commands (BLYNK_WRITE handlers)
+#endif
+  }
+
   // Small delay to prevent tight loop
-  delay(100);
+  delay(10);  // Reduced to 10ms for more responsive Blynk updates
 }

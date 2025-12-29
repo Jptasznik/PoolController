@@ -16,8 +16,8 @@
 // - LCDUpdateTask: Update LCD display (1s interval)
 // - ButtonScanTask: Scan MCP23008 buttons (50ms interval)
 // - ControlSystemTask: Run heater/pump logic (60s interval)
-// - WiFiNetworkTask: Network services (Blynk, SinricPro, OTA, WiFi monitoring) (100ms interval)
-// - Main loop: Minimal coordination only
+// - WiFiNetworkTask: Network sync, SinricPro, OTA, WiFi monitoring (100ms interval)
+// - Main loop: Blynk.run() for incoming commands (10ms interval)
 // ============================================
 
 // ============================================

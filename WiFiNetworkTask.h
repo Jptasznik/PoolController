@@ -6,15 +6,15 @@
 // ============================================
 // WIFI NETWORK TASK
 // ============================================
-// This module handles all WiFi and network operations
-// in a dedicated FreeRTOS task to keep main loop clean
+// This module handles network operations in a dedicated FreeRTOS task
 //
 // Responsibilities:
-// - Blynk cloud service (Blynk.run())
+// - Network sync message queue processing (Blynk sync operations)
 // - SinricPro cloud service (handleSinricEvents())
 // - OTA firmware updates (handleOTA())
 // - WiFi runtime failure detection
-// - Network sync message queue processing
+//
+// NOTE: Blynk.run() is called in main loop for responsive incoming commands
 // ============================================
 
 // Initialize WiFi network task (called from TaskManager)
