@@ -276,8 +276,21 @@ void initBlynk() {
     return;
   }
 
+  const char* authToken = getBlynkAuthToken();
+
+  // Log first 8 and last 4 chars of token for verification (security safe)
+  char tokenPreview[32];
+  int tokenLen = strlen(authToken);
+  if (tokenLen >= 12) {
+    snprintf(tokenPreview, sizeof(tokenPreview), "%.8s...%.4s",
+             authToken, authToken + tokenLen - 4);
+  } else {
+    snprintf(tokenPreview, sizeof(tokenPreview), "***");
+  }
+
+  LOG_INFOF("Blynk auth token: %s", tokenPreview);
   LOG_INFOF("Connecting to Blynk server: %s:%d", BLYNK_SERVER, BLYNK_PORT);
-  Blynk.config(getBlynkAuthToken(), BLYNK_SERVER, BLYNK_PORT);
+  Blynk.config(authToken, BLYNK_SERVER, BLYNK_PORT);
 
   // Note: Actual connection happens when Blynk.run() is first called in main loop
   LOG_INFO("Blynk configured - waiting for connection...");
