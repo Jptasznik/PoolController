@@ -2,6 +2,20 @@
 #define CONFIG_H
 
 // ============================================
+// TARGET BOARD SELECTION (MUST BE FIRST - PIN DEFINITIONS DEPEND ON THIS)
+// ============================================
+// Select exactly ONE target board by commenting/uncommenting below.
+// Pin assignments differ between boards because:
+// - ESP32-S3 does not have GPIO22-25 (present on the original ESP32)
+// - ESP32-S3 N16R8 modules use Octal SPI PSRAM, which reserves GPIO26-37
+//   internally for the flash/PSRAM interface (unusable as GPIO)
+//#define BOARD_ESP32_WROOM      1   // Original ESP32-WROOM-32 38-pin dev board
+#define BOARD_ESP32S3_N16R8    2   // ESP32-S3 N16R8 (16MB flash, 8MB Octal PSRAM)
+
+// #define TARGET_BOARD BOARD_ESP32_WROOM
+#define TARGET_BOARD BOARD_ESP32S3_N16R8
+
+// ============================================
 // FIRMWARE VERSION (MUST BE FIRST - REQUIRED BY SINRICPRO)
 // ============================================
 // Format: "major.minor.patch" (semantic versioning)
@@ -60,6 +74,8 @@
 // PIN DEFINITIONS
 // ============================================
 
+#if TARGET_BOARD == BOARD_ESP32_WROOM
+
 // Temperature Sensors (1-Wire)
 #define TEMP_INLET_PIN 35
 #define TEMP_HEATER_PIN 32
@@ -73,6 +89,28 @@
 #define PUMP_ENABLE_PIN 26
 #define PUMP_SPEED_PIN 13    // LOW=low speed, HIGH=high speed
 #define HEATER_PIN 12
+
+#elif TARGET_BOARD == BOARD_ESP32S3_N16R8
+
+// Temperature Sensors (1-Wire)
+// Original pins (35/32/33) are reserved for Octal PSRAM/flash on this module
+#define TEMP_INLET_PIN 7        // was 35
+#define TEMP_HEATER_PIN 5       // was 32
+#define TEMP_AMBIENT_PIN 6      // was 33 - 3rd sensor - ambient/outdoor temperature
+
+// I2C Bus (shared by LCD and MCP23008)
+#define I2C_SDA 21               // unchanged - valid & free on ESP32-S3
+#define I2C_SCL 14               // was 22 - GPIO22 does not exist on ESP32-S3
+
+// Control Outputs
+// Original PUMP_ENABLE_PIN (26) is reserved for Octal PSRAM/flash on this module
+#define PUMP_ENABLE_PIN 4        // was 26
+#define PUMP_SPEED_PIN 13        // unchanged - LOW=low speed, HIGH=high speed
+#define HEATER_PIN 12            // unchanged
+
+#else
+#error "TARGET_BOARD not set to a supported value - see TARGET BOARD SELECTION above"
+#endif
 
 // NOTE: For hardware-level relay interlock protection, you can optionally
 // add SN74LS08N (AND gate) and SN74LS04N (inverter) logic gates between

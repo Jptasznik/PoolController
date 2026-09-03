@@ -661,53 +661,135 @@ xTaskCreatePinnedToCore(
 
 ### 5. Hardware Configuration
 
+#### Target Board Selection (Config.h)
+
+This project supports two hardware targets, selected by a single define at the
+very top of `Config.h` — **must be set before anything else**, since the pin
+section below it is conditionally compiled based on this value:
+
+```cpp
+#define BOARD_ESP32_WROOM      1   // Original ESP32-WROOM-32 38-pin dev board
+#define BOARD_ESP32S3_N16R8    2   // ESP32-S3 N16R8 (16MB flash, 8MB Octal PSRAM)
+
+#define TARGET_BOARD BOARD_ESP32_WROOM
+// #define TARGET_BOARD BOARD_ESP32S3_N16R8
+```
+
+Comment/uncomment the two `TARGET_BOARD` lines to switch targets, then
+re-flash. **All GPIO pin `#define`s in Config.h live inside
+`#if TARGET_BOARD == ...` / `#elif` blocks keyed off this value** — see
+"Pin Assignments" below for exactly what changes between boards. Non-pin
+settings (I2C device addresses, timing constants, feature enables, cloud
+credentials) are unaffected by this switch.
+
+See "Supporting ESP32-S3 Boards" further below for why this exists and the
+full list of pin differences.
+
 #### Wiring Color Code Standard
 
-For consistency and ease of troubleshooting, use the following color code for I2C connections:
+For consistency and ease of troubleshooting, use the following color code for I2C connections on the original ESP32-WROOM board:
 
 - **I2C_SCL (GPIO 22, Pin 36)** - **Yellow wire** - Clock line
 - **I2C_SDA (GPIO 21, Pin 33)** - **Blue wire** - Data line
 
-This color coding should be used in all wiring diagrams and physical connections to maintain consistency across documentation and hardware builds.
+This color coding should be used in all wiring diagrams and physical connections to maintain consistency across documentation and hardware builds. (On ESP32-S3, SDA stays Blue/GPIO21, but SCL moves to GPIO14 — keep using Yellow for SCL regardless of which GPIO it lands on, so the color code still means "clock" at a glance.)
 
 #### Pin Assignments (Config.h)
 
-**Temperature Sensors (1-Wire DS18B20):**
+**`BOARD_ESP32_WROOM` (default):**
+
+Temperature Sensors (1-Wire DS18B20):
 - `TEMP_INLET_PIN` (GPIO 35, Pin 6) - Water inlet temperature
 - `TEMP_HEATER_PIN` (GPIO 32, Pin 7) - Heater outlet temperature
 - `TEMP_AMBIENT_PIN` (GPIO 33, Pin 8) - Ambient/outdoor temperature
 
-**I2C Bus (shared):**
+I2C Bus (shared):
 - `I2C_SDA` (GPIO 21, Pin 33) - **Blue** - Data line
 - `I2C_SCL` (GPIO 22, Pin 36) - **Yellow** - Clock line
 
-**Control Outputs:**
+Control Outputs:
 - `PUMP_ENABLE_PIN` (GPIO 26, Pin 10) - Pump relay
 - `PUMP_SPEED_PIN` (GPIO 13, Pin 15) - Speed relay (LOW/HIGH)
 - `HEATER_PIN` (GPIO 12, Pin 13) - Heater relay
 
-**I2C Devices (all share SDA/Blue and SCL/Yellow):**
+**`BOARD_ESP32S3_N16R8`:**
+
+Temperature Sensors (1-Wire DS18B20):
+- `TEMP_INLET_PIN` (GPIO 7, was GPIO 35) - Water inlet temperature
+- `TEMP_HEATER_PIN` (GPIO 5, was GPIO 32) - Heater outlet temperature
+- `TEMP_AMBIENT_PIN` (GPIO 6, was GPIO 33) - Ambient/outdoor temperature
+
+I2C Bus (shared):
+- `I2C_SDA` (GPIO 21, unchanged) - **Blue** - Data line
+- `I2C_SCL` (GPIO 14, was GPIO 22) - **Yellow** - Clock line
+
+Control Outputs:
+- `PUMP_ENABLE_PIN` (GPIO 4, was GPIO 26) - Pump relay
+- `PUMP_SPEED_PIN` (GPIO 13, unchanged) - Speed relay (LOW/HIGH)
+- `HEATER_PIN` (GPIO 12, unchanged) - Heater relay
+
+**I2C Devices (both boards, all share SDA/Blue and SCL/Yellow):**
 - LCD Display: Address `0x27`
 - MCP23008 GPIO Expander: Address `0x20`
 - ADS1115 ADC: Address `0x48`
 
 #### Important Hardware Constraints
 
-1. **ESP32 Pin Restrictions:**
+1. **ESP32-WROOM-32 Pin Restrictions:**
    - GPIO 0: Boot mode pin - avoid using
    - GPIO 2: Connected to onboard LED
    - GPIO 6-11: Connected to SPI flash - DO NOT USE
    - GPIO 34-39: Input only, no pull-ups
 
-2. **I2C Limitations:**
-   - Only GPIOs 21/22 are standard I2C
-   - All I2C devices share the same bus
-   - Each device must have unique address
+2. **ESP32-S3 Pin Restrictions (N16R8 / Octal PSRAM modules):**
+   - GPIO 22-25: **Do not exist on the ESP32-S3 chip at all** (present on the original ESP32 — the single most common porting mistake, since `I2C_SCL = 22` silently hangs the boot with no error if left unchanged)
+   - GPIO 26-37: Reserved internally for the flash/Octal-PSRAM SPI interface - DO NOT USE (a wider reserved range than the original ESP32's GPIO 6-11; narrower — GPIO 26-32 only — on Quad-PSRAM S3 modules, but this project targets N16R8/Octal so treat 26-37 as fully reserved)
+   - GPIO 0, 3, 45, 46: Strapping pins (boot mode / voltage select) - avoid for outputs that must not glitch during boot (e.g. relay control)
+   - GPIO 19, 20: Native USB D-/D+ - avoid if the native USB peripheral is used
+   - GPIO 43, 44: Default UART0 TX/RX (serial monitor / flashing on most S3 DevKitC boards) - avoid reusing these
+   - GPIO 46: Input-only
 
-3. **1-Wire Sensors:**
+3. **I2C Limitations:**
+   - Only one I2C bus is used; both boards' SDA/SCL pins are set via `I2C_SDA`/`I2C_SCL` in Config.h (see Pin Assignments above)
+   - All I2C devices share the same bus, protected by a single FreeRTOS mutex (`I2CMutex.h/cpp`) - see "I2C Bus Mutex" under Thread-Safe Programming
+   - Each device must have unique address
+   - Bus runs at 400kHz (Fast Mode) - see `Wire.setClock(400000)` in `PoolController.ino` `setup()`. Do not revert to the default 100kHz without re-checking button-scan responsiveness (see "NVS Persistence" era note in Version History for why this matters)
+
+4. **1-Wire Sensors:**
    - Each sensor needs 4.7kΩ pull-up resistor
    - Can be on same or different GPIOs
    - Current configuration uses separate pins
+
+#### Supporting ESP32-S3 Boards
+
+The project originally targeted only the ESP32-WROOM-32. ESP32-S3 support
+(specifically N16R8 modules: 16MB flash, 8MB **Octal** SPI PSRAM) was added
+via the `TARGET_BOARD` toggle described above, because the S3's pin
+constraints are meaningfully different from the original ESP32's:
+
+- **GPIO 22-25 don't exist on the ESP32-S3 silicon.** The original board's
+  `I2C_SCL = GPIO 22` is invalid on S3 and causes the boot to hang silently
+  right after mutex initialization, with no error printed — the hang happens
+  inside `Wire.begin(I2C_SDA, I2C_SCL)` in `PoolController.ino`, before any
+  further log line runs.
+- **GPIO 26-37 are reserved for the internal flash/PSRAM SPI interface** on
+  Octal-PSRAM modules like the N16R8 (a much wider reserved range than the
+  original ESP32's GPIO 6-11). Any Config.h pin in that range must be
+  remapped for the S3 build.
+
+When porting further code to also run identically on both boards:
+- Never hardcode a raw GPIO number for a signal already defined in
+  Config.h's board-conditional pin block — always reference the `#define`.
+- If adding a **new** physical signal (new sensor, new relay, etc.), add its
+  pin definition inside both the `BOARD_ESP32_WROOM` and
+  `BOARD_ESP32S3_N16R8` branches of the `#if TARGET_BOARD == ...` block in
+  Config.h, choosing an S3-safe GPIO per the constraints above.
+- Board selection only changes pins - it does not gate any `ENABLE_*`
+  feature flags, cloud credentials, or timing constants.
+- If you need to support a **Quad-PSRAM** S3 module (not N16R8), note that
+  its reserved range is narrower (GPIO 26-32 only, not 26-37) - add a third
+  `BOARD_*` variant rather than reusing `BOARD_ESP32S3_N16R8`, since GPIO
+  33-37 would be valid GPIO on that variant.
 
 ### 6. Safety Critical Code
 
@@ -1709,11 +1791,56 @@ This ensures the pool controller remains operational and automatically recovers 
 - **Include order matters** - Config.h should be included first
 - **Forward declarations** may be needed for complex cross-references
 
+#### `#ifdef FLAG` vs `#if FLAG` (critical gotcha)
+- All `ENABLE_*` flags in Config.h are defined with an explicit value:
+  `#define ENABLE_TEMPERATURE_SENSORS 0`. **`#ifdef ENABLE_TEMPERATURE_SENSORS`
+  only checks whether the symbol is defined at all - it evaluates true
+  regardless of whether the value is 0 or 1**, because the symbol is
+  defined either way. Guarding these flags anywhere in the codebase
+  requires `#if ENABLE_TEMPERATURE_SENSORS`, not `#ifdef`.
+- This bug previously existed in `TaskManager.cpp`, `TemperatureSensors.cpp`,
+  `CurrentMonitor.cpp`, `LCDDisplay.cpp`, `ButtonHandler.cpp`,
+  `PumpControl.cpp`, `HeaterControl.cpp`, `SinricIntegration.cpp`, and
+  `PoolController.ino` — every `#ifdef ENABLE_*` guard was silently a no-op,
+  so "disabling" a feature by setting its flag to `0` never actually
+  stopped its task from being created. This caused spurious sensor-failure
+  log spam and unnecessary I2C bus contention from tasks (e.g. the current
+  monitor) that were believed to be off. Fixed by changing every
+  `#ifdef ENABLE_*` to `#if ENABLE_*` — **always use `#if`, never `#ifdef`,
+  for these flags** when adding new guarded code.
+- When a value is guarded by `#if ENABLE_BLYNK` in one file (e.g. functions
+  defined in `PoolController.ino`) but called via `extern` from another file
+  (e.g. `WiFiNetworkTask.cpp`), the `extern` declarations and every call site
+  in the *calling* file must also be wrapped in the same `#if ENABLE_BLYNK`
+  guard, or the linker fails with "undefined reference" when the flag is 0
+  (the definition is compiled out, but the call site isn't).
+
 #### ESP32 Specific
-- **GPIO 6-11 are unusable** (connected to flash)
+- **GPIO 6-11 are unusable** (connected to flash) - ESP32-WROOM-32 only; see
+  "Supporting ESP32-S3 Boards" under Hardware Configuration for the very
+  different (and wider) reserved-pin range on ESP32-S3
 - **Brownout detector** - ensure adequate power supply (5V 2A minimum)
 - **WiFi power management** - can cause disconnects, handled by auto-reconnect
 - **Watchdog timer** - loop() must not block too long (hence delay(10) at end)
+- **ESP32 Arduino core version matters for API compatibility.** Code that
+  compiles on core 3.x (ESP-IDF 5.x) can fail to compile on core 2.x
+  (ESP-IDF 4.x) and vice versa. Two APIs in this project are version-gated:
+  - `esp_task_wdt_config_t` / `esp_task_wdt_reconfigure()` only exist on
+    ESP-IDF ≥ 5.0. `PoolController.ino`'s watchdog init checks
+    `#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)` and falls back to
+    the older two-argument `esp_task_wdt_init(180, true)` on core 2.x.
+  - `WiFiProvLite` (custom wrapper over `network_provisioning/manager.h`)
+    only compiles when `CONFIG_NETWORK_PROV_NETWORK_TYPE_WIFI` is defined by
+    the installed core's sdkconfig (true on core 3.x, not on 2.x). All
+    `WiFiProvLite`/`NETWORK_PROV_*` usage in `PoolController.ino` is gated
+    behind a derived `WIFI_PROV_ACTIVE` macro
+    (`ENABLE_WIFI_PROV && defined(CONFIG_NETWORK_PROV_NETWORK_TYPE_WIFI)`),
+    not `ENABLE_WIFI_PROV` alone — use `WIFI_PROV_ACTIVE` for any new
+    `WiFiProvLite` call site, and fall back to plain `WiFi.disconnect(true, true)`
+    where credential-clearing is needed but provisioning isn't active.
+  - When adding new ESP-IDF API calls, check whether the API is version-gated
+    upstream and mirror this pattern rather than assuming the currently
+    installed core's API surface is universal.
 
 #### Blynk Specific
 - **Blynk.run() must be called frequently** (every loop iteration)
@@ -1725,6 +1852,21 @@ This ensures the pool controller remains operational and automatically recovers 
 - **Wire.begin() must be called before I2C access**
 - **Address conflicts** - ensure each device has unique address
 - **Bus capacitance** - long wires can cause issues
+- **A single slow/long I2C transaction blocks every other I2C-using task**
+  while it holds `I2CMutex` — the mutex protects the whole bus, not a
+  per-device lock, so a long hold by one task (e.g. a full LCD screen
+  redraw) can starve latency-sensitive ones (e.g. button scanning) even
+  though the button task has higher FreeRTOS priority (FreeRTOS mutex
+  priority inheritance prevents unbounded priority inversion, but it does
+  not make the slow task's I2C transaction itself go faster). Prefer
+  several short lock/unlock scopes over one long one — see
+  `updateLCDDisplay()` in `LCDDisplay.cpp`, which locks/unlocks once per
+  LCD line rather than once for the whole 4-line redraw, specifically to
+  give `ButtonScanTask` (50ms interval, 100ms lock timeout) frequent
+  chances to interleave. Also consider `Wire.setClock(400000)` (set in
+  `PoolController.ino` `setup()`) over the default 100kHz where the
+  connected I2C devices support Fast Mode — it directly cuts every
+  transaction's hold time.
 
 ### 17. Feature Enhancement Guidelines
 
@@ -1830,8 +1972,8 @@ This is a well-structured, safety-critical embedded system. The modular architec
 
 ---
 
-**Last Updated:** 2025-12-22
-**Project Version:** 1.2
+**Last Updated:** 2026-09-02
+**Project Version:** 1.3
 **Major Updates:**
 - ✅ Logging framework fully integrated across all 11 modules (December 2025)
 - ✅ All Serial.println() calls replaced with structured logging
@@ -1844,5 +1986,21 @@ This is a well-structured, safety-critical embedded system. The modular architec
   - Standardized mutex error handling with logging
   - WiFi credential validation timeout restored to 60 seconds
   - All blocking delays documented
+- ✅ **Feature-flag, compatibility, and I2C reliability fixes (September 2026):**
+  - Fixed `#ifdef` vs `#if` bug that made every `ENABLE_*` flag a no-op when
+    set to `0` — see "`#ifdef FLAG` vs `#if FLAG`" under Common Pitfalls
+  - Guarded `WiFiNetworkTask.cpp`'s Blynk sync calls behind `#if ENABLE_BLYNK`
+    to fix linker errors when Blynk is disabled
+  - ESP32 Arduino core 2.x (ESP-IDF 4.x) backward compatibility for
+    `WiFiProvLite` and watchdog init, alongside core 3.x — see "ESP32
+    Specific" under Common Pitfalls
+  - Fixed I2C mutex timeouts and button-scan lag: `Wire.setClock(400000)`
+    (Fast Mode) plus splitting the LCD's full-screen redraw into
+    per-line lock/unlock scopes instead of one long lock — see "I2C Issues"
+    under Common Pitfalls
+- ✅ **ESP32-S3 (N16R8) support added (September 2026):**
+  - New `TARGET_BOARD` toggle in Config.h selects `BOARD_ESP32_WROOM` or
+    `BOARD_ESP32S3_N16R8`, switching the pin definitions accordingly — see
+    "Supporting ESP32-S3 Boards" under Hardware Configuration
 
 **Claude Assistant:** Ready to help with this codebase!

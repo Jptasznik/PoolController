@@ -36,8 +36,15 @@ PoolController/
 
 ### 1. Hardware Setup
 
+> **Board choice:** This project supports both the original **ESP32-WROOM-32**
+> and **ESP32-S3 (N16R8)**. Pin numbers below are for ESP32-WROOM-32 — if
+> you're on an ESP32-S3, several pins differ (GPIO 22 doesn't exist on S3,
+> and GPIO 26-37 are reserved for flash/PSRAM). See
+> [Supporting ESP32-S3 Boards](#supporting-esp32-s3-boards) for the S3 pin
+> map and the `TARGET_BOARD` switch in `Config.h` before wiring.
+
 **Required Components:**
-- ESP32-WROOM 38-pin development board
+- ESP32-WROOM 38-pin development board (or ESP32-S3 N16R8 — see board choice note above)
 - 3x DS18B20 temperature sensors with 4.7kΩ pull-ups
 - SCT-013-030 current transformer (30A max) for pump monitoring
 - ADS1115 16-bit ADC module (I2C)
@@ -138,16 +145,17 @@ char auth[] = "YOUR_ACTUAL_BLYNK_TOKEN_HERE";
 ### 4. Upload and Configure WiFi
 
 1. Connect ESP32 to computer via USB
-2. Select board: Tools → Board → ESP32 Dev Module
-3. Select port: Tools → Port → (your COM port)
-4. Click Upload
-5. Open Serial Monitor (115200 baud)
-6. Download "ESP BLE Provisioning" app (Android/iOS)
-7. In app:
+2. Set `TARGET_BOARD` in `Config.h` to match your hardware (see [Supporting ESP32-S3 Boards](#supporting-esp32-s3-boards) if using ESP32-S3)
+3. Select board: Tools → Board → **ESP32 Dev Module** (ESP32-WROOM-32) or **ESP32S3 Dev Module** (ESP32-S3) — must match `TARGET_BOARD` above
+4. Select port: Tools → Port → (your COM port)
+5. Click Upload
+6. Open Serial Monitor (115200 baud)
+7. Download "ESP BLE Provisioning" app (Android/iOS)
+8. In app:
    - Scan for "POOL_CTRL"
    - Enter proof-of-possession: `pool1234`
    - Enter your WiFi credentials
-8. ESP32 will connect and save credentials
+9. ESP32 will connect and save credentials
 
 ## Button Functions
 
@@ -249,18 +257,94 @@ Status indicators:
 - Heater: OFF / ENABLED / ON
 - Connection: WiFi / CLOUD (Blynk)
 
+## Supporting ESP32-S3 Boards
+
+Starting in **v1.3**, this project supports both the original **ESP32-WROOM-32**
+and the **ESP32-S3 (N16R8: 16MB flash, 8MB Octal PSRAM)**, selected with a
+single toggle in `Config.h` — no code changes needed elsewhere, only rewiring
+the pins that differ.
+
+### Why a toggle is needed
+
+The ESP32-S3 is not pin-compatible with the original ESP32:
+- **GPIO 22-25 don't exist on the ESP32-S3 chip at all.** The original
+  board's I2C clock line (`I2C_SCL = GPIO 22`) is invalid on S3 — leaving it
+  unchanged causes the firmware to hang silently right after mutex
+  initialization, with no error printed, because it hangs inside
+  `Wire.begin()` before the next log line runs.
+- **GPIO 26-37 are reserved internally for the flash/PSRAM SPI interface**
+  on Octal-PSRAM S3 modules like the N16R8 — a much wider reserved range
+  than the original ESP32's GPIO 6-11. Any signal wired to a pin in that
+  range must move.
+
+### Selecting your board
+
+Edit the very top of `Config.h`:
+
+```cpp
+#define BOARD_ESP32_WROOM      1   // Original ESP32-WROOM-32 38-pin dev board
+#define BOARD_ESP32S3_N16R8    2   // ESP32-S3 N16R8 (16MB flash, 8MB Octal PSRAM)
+
+#define TARGET_BOARD BOARD_ESP32_WROOM
+// #define TARGET_BOARD BOARD_ESP32S3_N16R8
+```
+
+Comment out the line for the board you're *not* using, and uncomment the one
+you are. All pin `#define`s further down in `Config.h` are wrapped in
+`#if TARGET_BOARD == ...` blocks and switch automatically — nothing else in
+the codebase needs to change. Then in Arduino IDE, select **Tools → Board →
+ESP32 Dev Module** (WROOM) or **ESP32S3 Dev Module** (S3) to match.
+
+### Pin differences (ESP32-WROOM-32 → ESP32-S3 N16R8)
+
+| Signal | WROOM-32 pin | S3 N16R8 pin | Why it moved |
+|---|---|---|---|
+| `I2C_SCL` | GPIO 22 | **GPIO 14** | GPIO 22 doesn't exist on ESP32-S3 |
+| `PUMP_ENABLE_PIN` | GPIO 26 | **GPIO 4** | Reserved for Octal PSRAM/flash on S3 |
+| `TEMP_HEATER_PIN` | GPIO 32 | **GPIO 5** | Reserved for Octal PSRAM/flash on S3 |
+| `TEMP_AMBIENT_PIN` | GPIO 33 | **GPIO 6** | Reserved for Octal PSRAM/flash on S3 |
+| `TEMP_INLET_PIN` | GPIO 35 | **GPIO 7** | Reserved for Octal PSRAM/flash on S3 |
+| `I2C_SDA` | GPIO 21 | GPIO 21 (unchanged) | Valid and free on both boards |
+| `PUMP_SPEED_PIN` | GPIO 13 | GPIO 13 (unchanged) | Valid and free on both boards |
+| `HEATER_PIN` | GPIO 12 | GPIO 12 (unchanged) | Valid and free on both boards |
+
+Everything else — I2C device addresses (`0x20`/`0x27`/`0x48`), timing
+constants, feature flags, and all cloud credentials — is unaffected by
+`TARGET_BOARD` and works identically on both boards.
+
+### Other ESP32-S3 GPIOs to avoid if extending the pin map
+
+If you add a new sensor or output and need another free GPIO on the S3
+N16R8, avoid these in addition to GPIO 22-25 and GPIO 26-37 above:
+- **GPIO 0, 3, 45, 46** — strapping pins (boot mode / voltage select); risky
+  for outputs that must not glitch during boot, like a relay
+- **GPIO 19, 20** — native USB D-/D+
+- **GPIO 43, 44** — default UART0 TX/RX (serial monitor / flashing on most
+  S3 DevKitC boards)
+- **GPIO 46** — input-only
+
+### Using a Quad-PSRAM S3 module instead of N16R8
+
+The N16R8 uses **Octal** PSRAM, which reserves GPIO 26-37. A **Quad**-PSRAM
+S3 module (not covered by `BOARD_ESP32S3_N16R8`) only reserves GPIO 26-32 —
+GPIO 33-37 would be free GPIO on that variant. Add a third `BOARD_*` option
+in `Config.h` rather than reusing `BOARD_ESP32S3_N16R8` if you're on a
+Quad-PSRAM module, so you don't give up 5 usable pins unnecessarily.
+
 ## Troubleshooting
 
 ### I2C Device Not Found
 
-First verify Blue wire is on GPIO 21 (SDA) and Yellow wire is on GPIO 22 (SCL).
+First verify your wiring matches `I2C_SDA`/`I2C_SCL` in `Config.h` for your selected `TARGET_BOARD`:
+- **ESP32-WROOM:** Blue wire on GPIO 21 (SDA), Yellow wire on GPIO 22 (SCL)
+- **ESP32-S3 (N16R8):** Blue wire on GPIO 21 (SDA), Yellow wire on **GPIO 14** (SCL) — GPIO 22 does not exist on ESP32-S3, see [Supporting ESP32-S3 Boards](#supporting-esp32-s3-boards)
 
-Run this I2C scanner sketch to verify addresses:
+Run this I2C scanner sketch to verify addresses (update the `Wire.begin()` pins to match your board above):
 ```cpp
 #include <Wire.h>
 void setup() {
   Serial.begin(115200);
-  Wire.begin(21, 22);
+  Wire.begin(21, 22);  // ESP32-WROOM: (21, 22)   ESP32-S3 N16R8: (21, 14)
   Serial.println("Scanning I2C bus...");
   for(byte addr = 1; addr < 127; addr++) {
     Wire.beginTransmission(addr);
@@ -276,6 +360,22 @@ void loop() {}
 Expected devices:
 - 0x20 - MCP23008
 - 0x27 or 0x3F - LCD
+
+### I2C Mutex Timeouts / Laggy Button Response
+
+If Serial Monitor shows repeated `[WRN] [I2C] I2C mutex lock timeout!` /
+`[ERR] [I2C] Failed to acquire I2C lock!`, and physical buttons feel slow
+to respond, this was a known issue fixed in **v1.3** — make sure you're on
+the latest firmware (see [Version History](#version-history)). It was caused
+by the LCD task holding the shared I2C bus for its entire ~80-character
+screen redraw once per second, starving the button-scan task of bus access.
+The fix runs I2C at 400kHz and locks/unlocks the bus once per LCD line
+instead of once for the whole screen.
+
+If you still see this after updating, also double-check whether you've set
+any `ENABLE_*` flag in `Config.h` to `0` expecting it to disable that
+task/feature — confirm you're running v1.3+, since versions before it had a
+bug where `0` didn't actually disable anything (see Version History).
 
 ### Temperature Sensor Not Detected
 
@@ -427,6 +527,27 @@ For issues or questions:
 5. Test each subsystem independently
 
 ## Version History
+
+**v1.3** - Feature-Flag Fix, ESP32-S3 Support, I2C Reliability (September 2026)
+- ✅ **Fixed feature-flag bug:** `ENABLE_TEMPERATURE_SENSORS`, `ENABLE_CURRENT_MONITOR`,
+  `ENABLE_LCD`, `ENABLE_BUTTONS`, `ENABLE_PUMP`, `ENABLE_HEATER`, `ENABLE_BLYNK`, and
+  `ENABLE_SINRIC` were previously checked with `#ifdef`, which only tests whether a
+  symbol is *defined* — not its value — so setting a flag to `0` never actually
+  disabled that feature's task. All guards now correctly use `#if`.
+- ✅ **Fixed I2C mutex timeouts and laggy button response:** I2C bus raised to
+  400kHz (Fast Mode), and the LCD's full-screen redraw now locks/unlocks the
+  I2C bus once per line instead of holding it for the entire ~80-character
+  redraw — this was starving the button-scan task of bus access once per
+  second. See [I2C Mutex Timeouts / Laggy Button Response](#i2c-mutex-timeouts--laggy-button-response).
+- ✅ **Added ESP32-S3 (N16R8) support:** New `TARGET_BOARD` toggle in `Config.h`
+  switches pin assignments between ESP32-WROOM-32 and ESP32-S3 N16R8 with
+  no other code changes. See [Supporting ESP32-S3 Boards](#supporting-esp32-s3-boards).
+- ✅ **ESP32 Arduino core 2.x/3.x compatibility:** Watchdog initialization and
+  `WiFiProvLite` (WiFi provisioning) now build correctly on both ESP32 Arduino
+  core 2.x (ESP-IDF 4.x) and 3.x (ESP-IDF 5.x), instead of requiring 3.x only.
+- ✅ **Fixed Blynk-disabled link errors:** `WiFiNetworkTask.cpp`'s calls into
+  Blynk sync functions are now correctly guarded by `#if ENABLE_BLYNK`,
+  fixing "undefined reference" linker errors when Blynk is disabled.
 
 **v1.2.1** - Production Safety Hardening (December 22, 2025)
 - ✅ **Thread-safe state management:** Mutex protection added to all 18 state functions
