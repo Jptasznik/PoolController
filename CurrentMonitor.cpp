@@ -13,7 +13,7 @@
 // ADS1115 INSTANCE
 // ============================================
 
-#ifdef ENABLE_CURRENT_MONITOR
+#if ENABLE_CURRENT_MONITOR
 Adafruit_ADS1115 ads;
 #endif
 
@@ -22,7 +22,7 @@ Adafruit_ADS1115 ads;
 // ============================================
 
 void initCurrentMonitor() {
-#ifdef ENABLE_CURRENT_MONITOR
+#if ENABLE_CURRENT_MONITOR
   LOG_INFO("Initializing current monitor...");
 
   StateManager& stateMgr = StateManager::getInstance();
@@ -80,7 +80,7 @@ void initCurrentMonitor() {
 // ============================================
 
 void readPumpCurrent() {
-#ifdef ENABLE_CURRENT_MONITOR
+#if ENABLE_CURRENT_MONITOR
   StateManager& stateMgr = StateManager::getInstance();
 
   bool currentSensorValid = stateMgr.isCurrentSensorValid();
@@ -239,7 +239,7 @@ bool isOvercurrentDetected() {
 // ============================================
 
 void calibrateCurrentSensor() {
-#ifdef ENABLE_CURRENT_MONITOR
+#if ENABLE_CURRENT_MONITOR
   StateManager& stateMgr = StateManager::getInstance();
 
   bool currentSensorValid = stateMgr.isCurrentSensorValid();

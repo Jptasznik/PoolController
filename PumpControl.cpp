@@ -10,7 +10,7 @@
 // ============================================
 
 void initPumpControl() {
-#ifdef ENABLE_PUMP
+#if ENABLE_PUMP
   LOG_INFO("Initializing pump control...");
 
   pinMode(PUMP_ENABLE_PIN, OUTPUT);
@@ -30,7 +30,7 @@ void initPumpControl() {
 // ============================================
 
 void applyPumpState() {
-#ifdef ENABLE_PUMP
+#if ENABLE_PUMP
   StateManager& stateMgr = StateManager::getInstance();
   PumpState pumpState = stateMgr.getPumpState();
 

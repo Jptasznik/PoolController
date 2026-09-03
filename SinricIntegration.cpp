@@ -16,7 +16,7 @@
 #include "SemVer.h"
 #endif
 
-#ifdef ENABLE_SINRIC
+#if ENABLE_SINRIC
 
 // ============================================
 // ALEXA THERMOSTAT CALLBACKS

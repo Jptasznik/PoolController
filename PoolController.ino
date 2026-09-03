@@ -37,8 +37,12 @@
 #include "TaskManager.h"
 
 #include <WiFi.h>
-#if ENABLE_WIFI_PROV
+#include "esp_idf_version.h"
+#if ENABLE_WIFI_PROV && defined(CONFIG_NETWORK_PROV_NETWORK_TYPE_WIFI)
   #include "WiFiProvLite.h"
+  #define WIFI_PROV_ACTIVE 1
+#else
+  #define WIFI_PROV_ACTIVE 0
 #endif
 #include <BlynkSimpleEsp32.h>
 #include <time.h>
@@ -60,7 +64,7 @@
 // BLYNK WRITE HANDLERS
 // ============================================
 
-#ifdef ENABLE_BLYNK
+#if ENABLE_BLYNK
 BLYNK_WRITE(VPIN_TARGET_TEMP) {
   StateManager& stateMgr = StateManager::getInstance();
   float temp = param.asFloat();
@@ -406,10 +410,14 @@ void handleWiFiRuntimeFailure(const char* reason) {
   displayWiFiReset();
 
   // Clear WiFi credentials
+#if WIFI_PROV_ACTIVE
   if (!WiFiProvLite.resetProvision()) {
     LOG_ERROR("Failed to reset the Network Credentials");
     return;
   }
+#else
+  WiFi.disconnect(true, true);
+#endif
   // Reset boot failure counter (this is a runtime failure, not boot failure)
   resetWiFiFailureCount();
 
@@ -431,7 +439,7 @@ void handleWiFiRuntimeFailure(const char* reason) {
 // WIFI PROVISIONING CALLBACKS
 // ============================================
 
-#if ENABLE_WIFI_PROV
+#if WIFI_PROV_ACTIVE
 
 void SysProvEvent(arduino_event_t *sys_event) {
   StateManager& stateMgr = StateManager::getInstance();
@@ -513,7 +521,8 @@ void setup() {
     LOG_ERROR("Check I2C pin connections (SDA: GPIO21, SCL: GPIO22)");
     LOG_ERROR("System cannot operate without I2C (LCD, buttons, current sensor)");
   } else {
-    LOG_INFO("I2C bus initialized successfully");
+    Wire.setClock(400000);  // Fast Mode - reduces I2C transaction time, cuts LCD lock hold time
+    LOG_INFO("I2C bus initialized successfully (400kHz)");
   }
 #else
   LOG_INFO("I2C bus initialization skipped (NO_HARDWARE mode)");
@@ -581,7 +590,7 @@ void setup() {
   // WIFI PROVISIONING
   // ============================================
   
-  #if ENABLE_WIFI_PROV
+  #if WIFI_PROV_ACTIVE
   LOG_INFO("Starting WiFi provisioning...");
   WiFi.onEvent(SysProvEvent);
 
@@ -623,10 +632,10 @@ void setup() {
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER1, NTP_SERVER2);
     
     // Initialize cloud services
-#ifdef ENABLE_BLYNK
+#if ENABLE_BLYNK
     initBlynk();
 #endif
-#ifdef ENABLE_SINRIC
+#if ENABLE_SINRIC
     initSinric();
 #endif
 
@@ -651,24 +660,26 @@ void setup() {
   // Set to 180s to accommodate the control task (60s interval * 3 = 180s)
 #ifndef DISABLE_WATCHDOG
   LOG_INFO("Initializing watchdog timer...");
-  esp_task_wdt_config_t wdt_config = {
-    .timeout_ms = 180000,     // 180 seconds (3 minutes) - matches CONTROL_WDT_TIMEOUT
-    .trigger_panic = true      // Panic on timeout
-  };
-
-  // Initialize watchdog with error checking
-  esp_err_t err = esp_task_wdt_init(&wdt_config);
-  if (err != ESP_OK) {
-    LOG_ERRORF("Failed to init watchdog: %s", esp_err_to_name(err));
-    err = esp_task_wdt_reconfigure(&wdt_config);
-    if ( err != ESP_OK) {
-      LOG_ERRORF("Failed to reconfigure watchdog: %s", esp_err_to_name(err));
-      LOG_ERROR("Watchdog timer failed to configure the timeout");
+  {
+    esp_err_t err;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = 180000,   // 180 seconds - matches CONTROL_WDT_TIMEOUT
+      .trigger_panic = true
+    };
+    err = esp_task_wdt_init(&wdt_config);
+    if (err != ESP_OK) {
+      LOG_ERRORF("Failed to init watchdog: %s", esp_err_to_name(err));
+      err = esp_task_wdt_reconfigure(&wdt_config);
+    }
+#else
+    err = esp_task_wdt_init(180, true);  // 180 seconds, panic on timeout
+#endif
+    if (err != ESP_OK) {
+      LOG_ERRORF("Watchdog init/configure failed: %s", esp_err_to_name(err));
     } else {
       LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
     }
-  } else {
-    LOG_INFO("Watchdog timer enabled (180s timeout - global for all tasks)");
   }
 #else
   LOG_WARN("DISABLE_WATCHDOG: Main task watchdog timer disabled");
@@ -718,7 +729,7 @@ void loop() {
 
   // Process Blynk incoming messages if connected
   if (stateMgr.isWiFiConnected()) {
-#ifdef ENABLE_BLYNK
+#if ENABLE_BLYNK
     Blynk.run();  // Process incoming Blynk commands (BLYNK_WRITE handlers)
 #endif
   }

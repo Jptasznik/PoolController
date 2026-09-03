@@ -12,7 +12,7 @@
 // ============================================
 
 void initHeaterControl() {
-#ifdef ENABLE_HEATER
+#if ENABLE_HEATER
   LOG_INFO("Initializing heater control...");
 
   pinMode(HEATER_PIN, OUTPUT);
@@ -90,7 +90,7 @@ void runControlSystem() {
 // ============================================
 
 void applyHeaterState() {
-#ifdef ENABLE_HEATER
+#if ENABLE_HEATER
   StateManager& stateMgr = StateManager::getInstance();
   HeaterStatus currentStatus = stateMgr.getHeaterStatus();
 

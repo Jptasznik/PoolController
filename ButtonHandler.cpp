@@ -11,7 +11,7 @@
 #include <WiFi.h>
 #include <WiFiProv.h>
 
-#ifdef ENABLE_BUTTONS
+#if ENABLE_BUTTONS
 // MCP23008 instance
 Adafruit_MCP23X08 mcp;
 
@@ -35,7 +35,7 @@ unsigned long lastHoldCheck = 0;
 // ============================================
 
 void initButtons() {
-#ifdef ENABLE_BUTTONS
+#if ENABLE_BUTTONS
   LOG_INFO("Initializing MCP23008 button handler...");
 
   // Lock I2C bus for MCP23008 initialization
@@ -76,7 +76,7 @@ void initButtons() {
 // ============================================
 
 void scanButtons() {
-#ifdef ENABLE_BUTTONS
+#if ENABLE_BUTTONS
   unsigned long now = millis();
 
   // Scan buttons at regular interval

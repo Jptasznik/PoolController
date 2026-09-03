@@ -8,6 +8,7 @@
 #include "SinricIntegration.h"
 #include <esp_task_wdt.h>
 
+#if ENABLE_BLYNK
 // External Blynk wrapper function (defined in PoolController.ino)
 // This wrapper avoids needing to include BlynkSimpleEsp32.h which creates global objects
 // NOTE: Blynk.run() is called in main loop, not in this task
@@ -21,6 +22,7 @@ extern void syncTemperaturesToBlynk();
 extern void syncPumpRuntimeToBlynk();
 extern void syncPumpCurrentToBlynk();
 extern void syncPumpAlertsToBlynk();
+#endif // ENABLE_BLYNK
 
 // External WiFi failure handler (defined in PoolController.ino)
 extern void handleWiFiRuntimeFailure(const char* reason);
@@ -33,6 +35,7 @@ static unsigned long lastWiFiRuntimeCheck = 0;
 // ============================================
 
 void processNetworkSyncMessages() {
+#if ENABLE_BLYNK
   if (!isBlynkConnected()) return;
 
   Message msg;
@@ -93,6 +96,7 @@ void processNetworkSyncMessages() {
       break;
     }
   }
+#endif // ENABLE_BLYNK
 }
 
 // ============================================

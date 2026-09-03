@@ -7,7 +7,7 @@
 #include "I2CMutex.h"
 #include <LiquidCrystal_I2C.h>
 
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
 // LCD instance (20 columns, 4 rows)
 LiquidCrystal_I2C lcd(LCD_ADDRESS, 20, 4);
 
@@ -20,7 +20,7 @@ static bool lcdNeedsClear = true;
 // ============================================
 
 void initLCD() {
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   LOG_INFO("Initializing LCD display...");
 
   // Lock I2C bus for LCD initialization
@@ -55,7 +55,7 @@ void initLCD() {
 // ============================================
 
 void updateLCDDisplay() {
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   // Get state data using StateManager API
   StateManager& stateMgr = StateManager::getInstance();
 
@@ -71,80 +71,101 @@ void updateLCDDisplay() {
   const char* pumpStateStr = getPumpStateString();
   const char* heaterStatusStr = getHeaterStatusString();
 
-  // Now update LCD with I2C lock (state lock is released)
-  I2CScopedLock i2cLock;
-  if (!i2cLock.isLocked()) {
-    return;  // Can't access I2C, skip update
-  }
+  // Acquire and release the I2C lock per-line (instead of once for the
+  // whole redraw) so the higher-priority button scan task gets frequent
+  // chances to interleave instead of waiting out one long ~80-char redraw.
 
-  // Only clear on first call or when needed (prevents flicker)
+  // Clear (only on first call or when needed - prevents flicker)
   if (lcdNeedsClear) {
-    lcd.clear();
-    lcdNeedsClear = false;
+    I2CScopedLock i2cLock;
+    if (i2cLock.isLocked()) {
+      lcd.clear();
+      lcdNeedsClear = false;
+    }
   }
 
   // Line 1: Inlet: 78.5F   Tgt:80F
-  lcd.setCursor(0, 0);
-  lcd.print("Inlet:");
-  if (inletTempValid) {
-    char tempBuf[6];
-    snprintf(tempBuf, sizeof(tempBuf), "%5.1f", inletTemp);
-    lcd.print(tempBuf);
-    lcd.print("F");
-  } else {
-    lcd.print("--.-F");
-  }
-  lcd.print(" ");  // Clear trailing char
+  {
+    I2CScopedLock i2cLock;
+    if (i2cLock.isLocked()) {
+      lcd.setCursor(0, 0);
+      lcd.print("Inlet:");
+      if (inletTempValid) {
+        char tempBuf[6];
+        snprintf(tempBuf, sizeof(tempBuf), "%5.1f", inletTemp);
+        lcd.print(tempBuf);
+        lcd.print("F");
+      } else {
+        lcd.print("--.-F");
+      }
+      lcd.print(" ");  // Clear trailing char
 
-  lcd.setCursor(12, 0);
-  lcd.print("Tgt:");
-  char targetBuf[4];
-  snprintf(targetBuf, sizeof(targetBuf), "%3d", (int)targetTemp);
-  lcd.print(targetBuf);
-  lcd.print("F  ");  // Clear trailing chars
+      lcd.setCursor(12, 0);
+      lcd.print("Tgt:");
+      char targetBuf[4];
+      snprintf(targetBuf, sizeof(targetBuf), "%3d", (int)targetTemp);
+      lcd.print(targetBuf);
+      lcd.print("F  ");  // Clear trailing chars
+    }
+  }
 
   // Line 2: Heater:79.2F
-  lcd.setCursor(0, 1);
-  lcd.print("Heater:");
-  if (heaterTempValid) {
-    char tempBuf[6];
-    snprintf(tempBuf, sizeof(tempBuf), "%5.1f", heaterTemp);
-    lcd.print(tempBuf);
-    lcd.print("F");
-  } else {
-    lcd.print("--.-F");
+  {
+    I2CScopedLock i2cLock;
+    if (i2cLock.isLocked()) {
+      lcd.setCursor(0, 1);
+      lcd.print("Heater:");
+      if (heaterTempValid) {
+        char tempBuf[6];
+        snprintf(tempBuf, sizeof(tempBuf), "%5.1f", heaterTemp);
+        lcd.print(tempBuf);
+        lcd.print("F");
+      } else {
+        lcd.print("--.-F");
+      }
+      lcd.print("        ");  // Clear rest of line
+    }
   }
-  lcd.print("        ");  // Clear rest of line
 
   // Line 3: Pump: LOW  5.2A
-  lcd.setCursor(0, 2);
-  lcd.print("Pump: ");
-  lcd.print(pumpStateStr);
+  {
+    I2CScopedLock i2cLock;
+    if (i2cLock.isLocked()) {
+      lcd.setCursor(0, 2);
+      lcd.print("Pump: ");
+      lcd.print(pumpStateStr);
 
-  // Add current reading if sensor is valid
-  if (currentSensorValid) {
-    lcd.print("  ");
-    char currentBuf[6];
-    snprintf(currentBuf, sizeof(currentBuf), "%4.1f", pumpCurrent);
-    lcd.print(currentBuf);
-    lcd.print("A");
+      // Add current reading if sensor is valid
+      if (currentSensorValid) {
+        lcd.print("  ");
+        char currentBuf[6];
+        snprintf(currentBuf, sizeof(currentBuf), "%4.1f", pumpCurrent);
+        lcd.print(currentBuf);
+        lcd.print("A");
+      }
+      lcd.print("      ");  // Clear rest of line
+    }
   }
-  lcd.print("      ");  // Clear rest of line
 
   // Line 4: Heater: ON      CLOUD
-  lcd.setCursor(0, 3);
-  lcd.print("Heater: ");
-  lcd.print(heaterStatusStr);
-  lcd.print("    ");  // Clear gap before status
+  {
+    I2CScopedLock i2cLock;
+    if (i2cLock.isLocked()) {
+      lcd.setCursor(0, 3);
+      lcd.print("Heater: ");
+      lcd.print(heaterStatusStr);
+      lcd.print("    ");  // Clear gap before status
 
-  // Connection status (right side)
-  lcd.setCursor(15, 3);
-  if (blynkConnected) {
-    lcd.print("CLOUD");
-  } else if (wifiConnected) {
-    lcd.print("WiFi ");
-  } else {
-    lcd.print("     ");
+      // Connection status (right side)
+      lcd.setCursor(15, 3);
+      if (blynkConnected) {
+        lcd.print("CLOUD");
+      } else if (wifiConnected) {
+        lcd.print("WiFi ");
+      } else {
+        lcd.print("     ");
+      }
+    }
   }
 #else
   // LCD disabled - do nothing
@@ -156,7 +177,7 @@ void updateLCDDisplay() {
 // ============================================
 
 void displayEmergencyShutdown() {
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -176,7 +197,7 @@ void displayEmergencyShutdown() {
 }
 
 void displayFactoryReset() {
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -191,7 +212,7 @@ void displayFactoryReset() {
 }
 
 void displayWiFiProvisioning() {
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -213,7 +234,7 @@ void displayWiFiProvisioning() {
 }
 
 void displayWiFiReset() {
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -232,7 +253,7 @@ void displayWiFiReset() {
 }
 
 void displayOTAUpdate() {
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;
@@ -254,7 +275,7 @@ void displayOTAUpdate() {
 }
 
 void displayOTAProgress(unsigned int progress, unsigned int total) {
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   I2CScopedLock i2cLock;
   if (!i2cLock.isLocked()) {
     return;

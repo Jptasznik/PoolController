@@ -275,7 +275,7 @@ void initTasks() {
 
   BaseType_t result;
 
-#ifdef ENABLE_TEMPERATURE_SENSORS
+#if ENABLE_TEMPERATURE_SENSORS
   // Create temperature sensor task
   result = xTaskCreatePinnedToCore(
     temperatureSensorTask,           // Task function
@@ -298,7 +298,7 @@ void initTasks() {
   LOG_WARN("[INIT] Temperature sensor task DISABLED");
 #endif
 
-#ifdef ENABLE_CURRENT_MONITOR
+#if ENABLE_CURRENT_MONITOR
   // Create current monitor task
   result = xTaskCreatePinnedToCore(
     currentMonitorTask,
@@ -321,7 +321,7 @@ void initTasks() {
   LOG_WARN("[INIT] Current monitor task DISABLED");
 #endif
 
-#ifdef ENABLE_LCD
+#if ENABLE_LCD
   // Create LCD update task
   result = xTaskCreatePinnedToCore(
     lcdUpdateTask,
@@ -344,7 +344,7 @@ void initTasks() {
   LOG_WARN("[INIT] LCD update task DISABLED");
 #endif
 
-#ifdef ENABLE_BUTTONS
+#if ENABLE_BUTTONS
   // Create button scan task
   result = xTaskCreatePinnedToCore(
     buttonScanTask,
